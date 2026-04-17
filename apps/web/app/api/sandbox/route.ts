@@ -1,5 +1,3 @@
-import { checkBotId } from "botid/server";
-import { botIdConfig } from "@/lib/botid";
 import { connectSandbox, type SandboxState } from "@open-harness/sandbox";
 import {
   requireAuthenticatedUser,
@@ -122,11 +120,6 @@ export async function POST(req: Request) {
   const session = await getServerSession();
   if (!session?.user) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const botVerification = await checkBotId(botIdConfig);
-  if (botVerification.isBot) {
-    return Response.json({ error: "Access denied" }, { status: 403 });
   }
 
   const githubToken = await getUserGitHubToken(session.user.id);
