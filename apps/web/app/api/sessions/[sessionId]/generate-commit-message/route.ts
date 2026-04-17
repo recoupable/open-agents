@@ -1,5 +1,3 @@
-import { checkBotId } from "botid/server";
-import { botIdConfig } from "@/lib/botid";
 import { connectSandbox } from "@open-harness/sandbox";
 import { gateway, generateText } from "ai";
 import { getSessionById } from "@/lib/db/sessions";
@@ -15,11 +13,6 @@ export async function POST(
   const session = await getServerSession();
   if (!session?.user) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  const botVerification = await checkBotId(botIdConfig);
-  if (botVerification.isBot) {
-    return Response.json({ error: "Access denied" }, { status: 403 });
   }
 
   const { sessionId } = await params;
