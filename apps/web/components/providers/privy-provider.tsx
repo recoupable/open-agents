@@ -19,8 +19,10 @@ export function PrivyProvider({ children }: Props) {
       appId={appId}
       config={{
         appearance: {
-          theme: "dark",
-          accentColor: "#ffffff",
+          theme: "light",
+          accentColor: "#000000",
+          logo: "/open-agents-logo.svg",
+          showWalletLoginFirst: false,
         },
         loginMethods: ["email"],
         embeddedWallets: {
