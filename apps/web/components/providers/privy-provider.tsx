@@ -21,7 +21,7 @@ export function PrivyProvider({ children }: Props) {
         appearance: {
           theme: "light",
           accentColor: "#000000",
-          logo: "/open-agents-logo.svg",
+          logo: "/Recoup_Icon_Wordmark_Black.svg",
           showWalletLoginFirst: false,
         },
         loginMethods: ["email"],
