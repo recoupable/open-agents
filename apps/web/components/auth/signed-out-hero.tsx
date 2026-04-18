@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { PrivyLoginButton } from "@/components/auth/privy-login-button";
 import { SignInButton } from "@/components/auth/sign-in-button";
+import { isPrivyClientConfigured } from "@/components/providers/privy-provider";
 import { AppMockup } from "@/components/landing/app-mockup";
 import { GitHubLink } from "@/components/landing/github-link";
 import { LandingBento } from "@/components/landing/bento";
@@ -48,9 +50,13 @@ export function SignedOutHero() {
 
             <div
               ref={heroButtonsRef}
-              className="mt-6 flex items-center gap-2 sm:mt-8"
+              className="mt-6 flex flex-wrap items-center gap-2 sm:mt-8"
             >
               <SignInButton size="lg" />
+              <PrivyLoginButton
+                size="lg"
+                missingConfig={!isPrivyClientConfigured()}
+              />
               <GitHubLink>Open Source</GitHubLink>
             </div>
           </div>
