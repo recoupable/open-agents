@@ -1,77 +1,119 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import { useState, type ComponentProps } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { Loader2, LogIn, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { type ComponentProps, useCallback, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 
-function VercelIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 1L24 22H0L12 1Z" />
-    </svg>
-  );
-}
+type Props = Omit<ComponentProps<typeof Button>, "onClick">;
 
-function resolveRedirectPath(value: string): string {
-  if (value.startsWith("/") && !value.startsWith("//")) {
-    return value;
+export function SignInButton(props: Props) {
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
+
+  if (!appId) {
+    return (
+      <Button
+        {...props}
+        disabled
+        variant={props.variant ?? "outline"}
+        title="Set NEXT_PUBLIC_PRIVY_APP_ID to enable sign-in"
+      >
+        <LogIn />
+        Sign in (not configured)
+      </Button>
+    );
   }
 
-  try {
-    const parsed = new URL(value, window.location.origin);
-    if (parsed.origin === window.location.origin) {
-      return `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    }
-  } catch {
-    return window.location.pathname + window.location.search;
-  }
-
-  return window.location.pathname + window.location.search;
+  return <SignInButtonInner {...props} />;
 }
 
-type SignInButtonProps = {
-  callbackUrl?: string;
-} & Omit<ComponentProps<typeof Button>, "onClick">;
+function SignInButtonInner(props: Props) {
+  const router = useRouter();
+  const { ready, authenticated, login, logout, user, getAccessToken } =
+    usePrivy();
+  const exchangedUserIdRef = useRef<string | null>(null);
+  const exchangingRef = useRef(false);
 
-export function SignInButton({
-  callbackUrl,
-  disabled,
-  ...props
-}: SignInButtonProps) {
-  const [isLoading, setIsLoading] = useState(false);
+  const exchangeToken = useCallback(async () => {
+    if (exchangingRef.current) return;
+    exchangingRef.current = true;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
 
-  function handleSignIn() {
-    if (disabled || isLoading) {
-      return;
+      const response = await fetch("/api/auth/privy/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: token }),
+      });
+
+      if (!response.ok) {
+        console.error(
+          "Privy session exchange failed:",
+          response.status,
+          await response.text(),
+        );
+        return;
+      }
+
+      router.refresh();
+    } finally {
+      exchangingRef.current = false;
     }
+  }, [getAccessToken, router]);
 
-    const fallback = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const redirectPath = resolveRedirectPath(callbackUrl ?? fallback);
-    const encodedRedirect = encodeURIComponent(redirectPath);
-    const destination = `/api/auth/signin/vercel?next=${encodedRedirect}`;
+  useEffect(() => {
+    if (!(ready && authenticated && user?.id)) return;
+    if (exchangedUserIdRef.current === user.id) return;
+    exchangedUserIdRef.current = user.id;
+    void exchangeToken();
+  }, [ready, authenticated, user?.id, exchangeToken]);
 
-    setIsLoading(true);
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        window.location.assign(destination);
-      }, 0);
-    });
+  if (!ready) {
+    return (
+      <Button {...props} disabled variant={props.variant ?? "outline"}>
+        <Loader2 className="animate-spin" />
+        Loading…
+      </Button>
+    );
+  }
+
+  if (authenticated) {
+    const label = user?.email?.address ?? "Signed in";
+    return (
+      <Button
+        {...props}
+        variant={props.variant ?? "outline"}
+        onClick={async () => {
+          exchangedUserIdRef.current = null;
+          try {
+            await fetch("/api/auth/signout", {
+              method: "POST",
+              redirect: "manual",
+            });
+          } catch {
+            // If signout fails on the server, still sign out of Privy client-side.
+          }
+          await logout();
+          router.refresh();
+        }}
+        title={`Signed in as ${label} — click to sign out`}
+      >
+        <LogOut />
+        Sign out ({label})
+      </Button>
+    );
   }
 
   return (
     <Button
       {...props}
-      aria-busy={isLoading}
-      disabled={disabled || isLoading}
-      onClick={handleSignIn}
+      variant={props.variant ?? "outline"}
+      onClick={() => login()}
     >
-      {isLoading ? <Loader2 className="animate-spin" /> : <VercelIcon />}
-      {isLoading ? "Signing in..." : "Sign in with Vercel"}
+      <LogIn />
+      Sign in
     </Button>
   );
 }

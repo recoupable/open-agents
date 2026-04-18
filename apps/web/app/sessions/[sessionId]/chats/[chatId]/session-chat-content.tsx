@@ -46,7 +46,7 @@ import { createPortal } from "react-dom";
 import useSWR from "swr";
 import type { ChatRefreshResponse } from "@/app/api/sessions/[sessionId]/chats/[chatId]/route";
 import type { MergePullRequestResponse } from "@/app/api/sessions/[sessionId]/merge/route";
-import type { PrDeploymentResponse } from "@/app/api/sessions/[sessionId]/pr-deployment/route";
+import type { PrDeploymentResponse } from "@/lib/pr-deployment-polling";
 import type { PullRequestCheckRun } from "@/lib/github/client";
 import type {
   WebAgentCommitDataPart,

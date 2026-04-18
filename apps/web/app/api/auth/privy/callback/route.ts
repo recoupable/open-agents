@@ -1,13 +1,12 @@
 import { type NextRequest } from "next/server";
-import { upsertUser } from "@/lib/db/users";
-import { encryptJWE } from "@/lib/jwe/encrypt";
-import { fetchPrivyUserProfile } from "@/lib/privy/fetch-user-profile";
 import { verifyPrivyAccessToken } from "@/lib/privy/verify-access-token";
 import { SESSION_COOKIE_NAME } from "@/lib/session/constants";
 
 type RequestBody = {
   accessToken?: unknown;
 };
+
+const MAX_COOKIE_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export async function POST(req: NextRequest): Promise<Response> {
   let body: RequestBody;
@@ -30,38 +29,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  const profile = await fetchPrivyUserProfile(verified.userId);
-  const username = profile?.email ?? verified.userId;
-
-  const userId = await upsertUser({
-    provider: "privy",
-    externalId: verified.userId,
-    username,
-    email: profile?.email,
-    name: profile?.name,
-    avatarUrl: profile?.avatarUrl,
-  });
-
-  const session = {
-    created: Date.now(),
-    authProvider: "privy" as const,
-    user: {
-      id: userId,
-      username,
-      email: profile?.email,
-      name: profile?.name ?? username,
-      avatar: profile?.avatarUrl ?? "",
-    },
-  };
-
-  const sessionToken = await encryptJWE(session, "1y");
-  const maxAgeSeconds = 365 * 24 * 60 * 60;
+  const maxAgeSeconds = Math.min(
+    MAX_COOKIE_AGE_SECONDS,
+    Math.max(0, verified.expiration - Math.floor(Date.now() / 1000)),
+  );
   const expires = new Date(Date.now() + maxAgeSeconds * 1000).toUTCString();
+  const secure = process.env.NODE_ENV === "production" ? "Secure; " : "";
 
   const response = Response.json({ ok: true }, { status: 200 });
   response.headers.append(
     "Set-Cookie",
-    `${SESSION_COOKIE_NAME}=${sessionToken}; Path=/; Max-Age=${maxAgeSeconds}; Expires=${expires}; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax`,
+    `${SESSION_COOKIE_NAME}=${accessToken}; Path=/; Max-Age=${maxAgeSeconds}; Expires=${expires}; HttpOnly; ${secure}SameSite=Lax`,
   );
   return response;
 }

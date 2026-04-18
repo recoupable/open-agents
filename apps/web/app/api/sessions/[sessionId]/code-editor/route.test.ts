@@ -234,35 +234,6 @@ describe("/api/sessions/[sessionId]/code-editor", () => {
     expect(execDetachedMock).toHaveBeenCalledTimes(0);
   });
 
-  test("POST returns 403 for managed-template trial users", async () => {
-    currentAuthSession = {
-      authProvider: "vercel",
-      user: {
-        id: "user-1",
-        email: "person@example.com",
-      },
-    };
-    const { POST } = await routeModulePromise;
-    const expectedError =
-      "This hosted deployment does not allow the code editor for non-Vercel trial accounts. Deploy your own copy for full controls.";
-
-    const response = await POST(
-      new Request(
-        "https://open-agents.dev/api/sessions/session-1/code-editor",
-        {
-          method: "POST",
-        },
-      ),
-      createRouteContext(),
-    );
-    const body = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(403);
-    expect(body.error).toBe(expectedError);
-    expect(connectSandboxMock).toHaveBeenCalledTimes(0);
-    expect(execDetachedMock).toHaveBeenCalledTimes(0);
-  });
-
   test("DELETE does not claim success when only another app is using the editor port", async () => {
     const { DELETE } = await routeModulePromise;
 

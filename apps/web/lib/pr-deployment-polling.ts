@@ -1,3 +1,9 @@
+export type PrDeploymentResponse = {
+  deploymentUrl: string | null;
+  buildingDeploymentUrl: string | null;
+  failedDeploymentUrl: string | null;
+};
+
 export const PR_DEPLOYMENT_ACTIVE_POLL_MS = 5_000;
 export const PR_DEPLOYMENT_BACKGROUND_POLL_MS = 30_000;
 

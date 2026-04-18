@@ -11,7 +11,6 @@ import { SessionStarter } from "@/components/session-starter";
 import { UserAvatarDropdown } from "@/components/user-avatar-dropdown";
 import { useSession } from "@/hooks/use-session";
 import { useSessions } from "@/hooks/use-sessions";
-import type { VercelProjectSelection } from "@/lib/vercel/types";
 
 interface HomePageProps {
   hasSessionCookie: boolean;
@@ -40,21 +39,10 @@ export function HomePage({ hasSessionCookie, lastRepo }: HomePageProps) {
     sandboxType: SandboxType;
     autoCommitPush: boolean;
     autoCreatePr: boolean;
-    vercelProject?: VercelProjectSelection | null;
   }) => {
     setIsCreating(true);
     try {
-      const { session: createdSession, chat } = await createSession({
-        repoOwner: input.repoOwner,
-        repoName: input.repoName,
-        branch: input.branch,
-        cloneUrl: input.cloneUrl,
-        isNewBranch: input.isNewBranch,
-        sandboxType: input.sandboxType,
-        autoCommitPush: input.autoCommitPush,
-        autoCreatePr: input.autoCreatePr,
-        vercelProject: input.vercelProject,
-      });
+      const { session: createdSession, chat } = await createSession(input);
 
       router.push(`/sessions/${createdSession.id}/chats/${chat.id}`);
     } catch (error) {

@@ -159,34 +159,6 @@ describe("/api/sessions/[sessionId]/chats/[chatId]/messages/[messageId]", () => 
     expect(deleteCalls).toHaveLength(0);
   });
 
-  test("returns 403 for managed-template trial users", async () => {
-    currentAuthSession = {
-      authProvider: "vercel",
-      user: {
-        id: "user-1",
-        email: "person@example.com",
-      },
-    };
-    const { DELETE } = await routeModulePromise;
-
-    const response = await DELETE(
-      new Request(
-        "https://open-agents.dev/api/sessions/session-1/chats/chat-1/messages/message-2",
-        {
-          method: "DELETE",
-        },
-      ),
-      createContext(),
-    );
-    const body = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(403);
-    expect(body.error).toBe(
-      "This hosted deployment does not allow message deletion for non-Vercel trial accounts. Deploy your own copy for full controls.",
-    );
-    expect(deleteCalls).toHaveLength(0);
-  });
-
   test("returns 409 when chat has an active stream", async () => {
     ownedSessionChatResult = {
       ok: true,

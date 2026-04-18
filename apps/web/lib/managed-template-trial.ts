@@ -62,12 +62,10 @@ export function hasAllowedManagedTemplateEmail(email?: string) {
 }
 
 export function isManagedTemplateTrialUser(
-  session: Pick<Session, "authProvider" | "user"> | null | undefined,
-  url: string | URL,
+  _session: Pick<Session, "authProvider" | "user"> | null | undefined,
+  _url: string | URL,
 ) {
-  return (
-    session?.authProvider === "vercel" &&
-    isManagedTemplateDeployment(url) &&
-    !hasAllowedManagedTemplateEmail(session.user.email)
-  );
+  // Managed-template trial applied to the now-removed Vercel OAuth sign-in
+  // flow. Privy-only sign-in has no equivalent gating.
+  return false;
 }
