@@ -18,10 +18,10 @@ export const users = pgTable(
   {
     id: text("id").primaryKey(),
     provider: text("provider", {
-      enum: ["github", "vercel"],
+      enum: ["github", "vercel", "privy"],
     }).notNull(),
     externalId: text("external_id").notNull(),
-    accessToken: text("access_token").notNull(),
+    accessToken: text("access_token"),
     refreshToken: text("refresh_token"),
     scope: text("scope"),
     username: text("username").notNull(),

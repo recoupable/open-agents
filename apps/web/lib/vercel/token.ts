@@ -6,7 +6,7 @@ import { users } from "@/lib/db/schema";
 import { refreshVercelToken } from "./oauth";
 
 interface UserVercelAuthRow {
-  accessToken: string;
+  accessToken: string | null;
   refreshToken: string | null;
   tokenExpiresAt: Date | null;
   externalId: string;

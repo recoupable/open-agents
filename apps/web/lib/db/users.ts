@@ -17,9 +17,9 @@ export async function userExists(userId: string): Promise<boolean> {
 }
 
 export async function upsertUser(userData: {
-  provider: "github" | "vercel";
+  provider: "github" | "vercel" | "privy";
   externalId: string;
-  accessToken: string;
+  accessToken?: string;
   refreshToken?: string;
   scope?: string;
   username: string;
