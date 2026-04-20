@@ -46,7 +46,7 @@ import { createPortal } from "react-dom";
 import useSWR from "swr";
 import type { ChatRefreshResponse } from "@/app/api/sessions/[sessionId]/chats/[chatId]/route";
 import type { MergePullRequestResponse } from "@/app/api/sessions/[sessionId]/merge/route";
-import type { PrDeploymentResponse } from "@/app/api/sessions/[sessionId]/pr-deployment/route";
+import type { PrDeploymentResponse } from "@/lib/pr-deployment-polling";
 import type { PullRequestCheckRun } from "@/lib/github/client";
 import type {
   WebAgentCommitDataPart,
@@ -2852,9 +2852,10 @@ export function SessionChatContent({
     gitStatus?.branch && gitStatus.branch !== "HEAD"
       ? gitStatus.branch
       : session.branch;
-  const hasBranchPreviewLookup = Boolean(
-    session.vercelProjectId && previewLookupBranch,
-  );
+  // Branch preview lookups require a Vercel project link which was removed
+  // when user-scoped Vercel OAuth went away. Keep the variable for the SWR
+  // key shape below; follow-up PR can rip the remaining PR-deployment code.
+  const hasBranchPreviewLookup = false;
   const existingPrUrl =
     hasExistingPr && session.repoOwner && session.repoName
       ? `https://github.com/${session.repoOwner}/${session.repoName}/pull/${session.prNumber}`

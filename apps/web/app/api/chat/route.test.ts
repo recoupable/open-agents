@@ -300,42 +300,6 @@ describe("/api/chat route", () => {
     expect(response.ok).toBe(true);
   });
 
-  test("blocks a sixth message for non-Vercel trial users on the managed deployment", async () => {
-    const { POST } = await routeModulePromise;
-    currentAuthSession = {
-      authProvider: "vercel",
-      user: {
-        id: "user-1",
-        email: "person@example.com",
-      },
-    };
-    existingUserMessageCount = 5;
-
-    const response = await POST(
-      createRequest(
-        JSON.stringify({
-          sessionId: "session-1",
-          chatId: "chat-1",
-          messages: [
-            {
-              id: "user-6",
-              role: "user",
-              parts: [{ type: "text", text: "One more thing" }],
-            },
-          ],
-        }),
-        "https://open-agents.dev/api/chat",
-      ),
-    );
-    const body = (await response.json()) as { error: string };
-
-    expect(response.status).toBe(403);
-    expect(body.error).toBe(
-      "This hosted deployment has a 5 message limit. Deploy your own copy for no limit at open-agents.dev/deploy-your-own.",
-    );
-    expect(startCalls).toHaveLength(0);
-  });
-
   test("passes the 500 maxSteps limit to the workflow", async () => {
     const { POST } = await routeModulePromise;
 

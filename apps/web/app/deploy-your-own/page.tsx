@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 
 const DEPLOY_ENV_VARS = [
   "POSTGRES_URL",
-  "JWE_SECRET",
   "ENCRYPTION_KEY",
-  "NEXT_PUBLIC_VERCEL_APP_CLIENT_ID",
-  "VERCEL_APP_CLIENT_SECRET",
+  "NEXT_PUBLIC_PRIVY_APP_ID",
+  "PRIVY_APP_SECRET",
+  "PRIVY_JWT_VERIFICATION_KEY",
   "NEXT_PUBLIC_GITHUB_CLIENT_ID",
   "GITHUB_CLIENT_SECRET",
   "GITHUB_APP_ID",
@@ -45,7 +45,7 @@ const DEPLOY_TEMPLATE_URL = (() => {
     ["env", DEPLOY_ENV_VARS.join(",")],
     [
       "envDescription",
-      "Neon can provide POSTGRES_URL automatically. Generate JWE_SECRET and ENCRYPTION_KEY yourself, then add your Vercel OAuth and GitHub App credentials for a full deployment.",
+      "Neon can provide POSTGRES_URL automatically. Generate ENCRYPTION_KEY yourself, then add your Privy and GitHub App credentials for a full deployment.",
     ],
     ["products", encodeURIComponent(JSON.stringify(DEPLOY_PRODUCTS))],
     ["skippable-integrations", "1"],
@@ -71,9 +71,8 @@ export default function DeployYourOwnPage() {
           Deploy your own
         </h1>
         <p className="mt-4 text-base leading-7 text-muted-foreground">
-          This hosted deployment only supports sign-ins from @vercel.com email
-          addresses. To use the template with your own account, deploy your own
-          copy.
+          To use this template with your own Privy app and Vercel team, deploy
+          your own copy.
         </p>
         <Button asChild className="mt-8" size="lg">
           <Link href={DEPLOY_TEMPLATE_URL} rel="noreferrer" target="_blank">

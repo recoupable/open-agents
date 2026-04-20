@@ -133,35 +133,6 @@ describe("/api/models context window enrichment", () => {
     expect(requestedUrls).toContain("https://models.dev/api.json");
   });
 
-  test("hides Claude Opus models for managed trial users", async () => {
-    gatewayModels.push(
-      {
-        id: "anthropic/claude-opus-4.6",
-        modelType: "language",
-      },
-      {
-        id: "anthropic/claude-haiku-4.5",
-        modelType: "language",
-      },
-    );
-    currentSession = {
-      authProvider: "vercel",
-      user: { id: "user-1", email: "person@example.com" },
-    };
-
-    const { GET } = await routeModulePromise;
-    const response = await GET(
-      new Request("https://open-agents.dev/api/models"),
-    );
-    const body = (await response.json()) as {
-      models: Array<{ id: string }>;
-    };
-
-    expect(body.models.map((model) => model.id)).toEqual([
-      "anthropic/claude-haiku-4.5",
-    ]);
-  });
-
   test("keeps gateway context window when models.dev only has related ids", async () => {
     gatewayModels.push({
       id: "openai/gpt-5.3-codex-2026-02-15",

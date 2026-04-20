@@ -34,7 +34,3 @@ export function PrivyProvider({ children }: Props) {
     </BasePrivyProvider>
   );
 }
-
-export function isPrivyClientConfigured(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID);
-}
