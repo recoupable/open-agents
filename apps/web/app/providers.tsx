@@ -109,17 +109,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
       if (isSessionAuthError && !signingOut.current) {
         signingOut.current = true;
-        // POST to the signout endpoint to clear the session cookie,
-        // then redirect to the home page.
-        fetch("/api/auth/signout", { method: "POST", redirect: "manual" })
-          .catch(() => {
-            // If signout fails, navigate anyway so the user isn't stuck.
-          })
-          .finally(() => {
-            signingOut.current = false;
-            router.replace("/");
-            router.refresh();
-          });
+        // Privy's SDK owns the privy-token cookie; we don't maintain a
+        // separate server-side session to clear. Bounce to home so the
+        // client can re-auth (Privy will refresh or prompt login).
+        router.replace("/");
+        router.refresh();
+        signingOut.current = false;
       }
     },
     [router],
