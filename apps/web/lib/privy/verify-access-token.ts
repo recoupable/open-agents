@@ -20,7 +20,11 @@ export async function verifyPrivyAccessToken(
       appId: verified.app_id,
       expiration: verified.expiration,
     };
-  } catch {
+  } catch (error) {
+    console.error(
+      "[privy] verifyAuthToken failed:",
+      error instanceof Error ? error.message : error,
+    );
     return undefined;
   }
 }
