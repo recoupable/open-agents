@@ -35,36 +35,6 @@ interface CreateSandboxRequest {
   sandboxType?: "vercel";
 }
 
-// async function syncVercelProjectEnvVarsToSandbox(params: {
-//   userId: string;
-//   sessionRecord: SessionRecord;
-//   sandbox: Awaited<ReturnType<typeof connectSandbox>>;
-// }): Promise<void> {
-//   if (!params.sessionRecord.vercelProjectId) {
-//     return;
-//   }
-//
-//   const token = await getUserVercelToken(params.userId);
-//   if (!token) {
-//     return;
-//   }
-//
-//   const dotenvContent = await buildDevelopmentDotenvFromVercelProject({
-//     token,
-//     projectIdOrName: params.sessionRecord.vercelProjectId,
-//     teamId: params.sessionRecord.vercelTeamId,
-//   });
-//   if (!dotenvContent) {
-//     return;
-//   }
-//
-//   await params.sandbox.writeFile(
-//     `${params.sandbox.workingDirectory}/.env.local`,
-//     dotenvContent,
-//     "utf-8",
-//   );
-// }
-
 async function installSessionGlobalSkills(params: {
   sessionRecord: SessionRecord;
   sandbox: Awaited<ReturnType<typeof connectSandbox>>;

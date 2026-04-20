@@ -17,25 +17,14 @@ export async function userExists(userId: string): Promise<boolean> {
 }
 
 export async function upsertUser(userData: {
-  provider: "github" | "vercel" | "privy";
+  provider: "privy";
   externalId: string;
-  accessToken?: string;
-  refreshToken?: string;
-  scope?: string;
   username: string;
   email?: string;
   name?: string;
   avatarUrl?: string;
-  tokenExpiresAt?: Date;
 }): Promise<string> {
-  const {
-    provider,
-    externalId,
-    accessToken,
-    refreshToken,
-    scope,
-    tokenExpiresAt,
-  } = userData;
+  const { provider, externalId } = userData;
 
   const existingUser = await db
     .select({ id: users.id })
@@ -47,10 +36,6 @@ export async function upsertUser(userData: {
     await db
       .update(users)
       .set({
-        accessToken,
-        refreshToken,
-        scope,
-        tokenExpiresAt,
         username: userData.username,
         email: userData.email,
         name: userData.name,

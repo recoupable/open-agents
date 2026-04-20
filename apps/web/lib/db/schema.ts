@@ -18,18 +18,14 @@ export const users = pgTable(
   {
     id: text("id").primaryKey(),
     provider: text("provider", {
-      enum: ["github", "vercel", "privy"],
+      enum: ["privy"],
     }).notNull(),
     externalId: text("external_id").notNull(),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    scope: text("scope"),
     username: text("username").notNull(),
     email: text("email"),
     name: text("name"),
     avatarUrl: text("avatar_url"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-    tokenExpiresAt: timestamp("token_expires_at"),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
   },
@@ -101,28 +97,6 @@ export const githubInstallations = pgTable(
   ],
 );
 
-export const vercelProjectLinks = pgTable(
-  "vercel_project_links",
-  {
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    repoOwner: text("repo_owner").notNull(),
-    repoName: text("repo_name").notNull(),
-    projectId: text("project_id").notNull(),
-    projectName: text("project_name").notNull(),
-    teamId: text("team_id"),
-    teamSlug: text("team_slug"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    primaryKey({
-      columns: [table.userId, table.repoOwner, table.repoName],
-    }),
-  ],
-);
-
 export const sessions = pgTable(
   "sessions",
   {
@@ -141,10 +115,6 @@ export const sessions = pgTable(
     repoName: text("repo_name"),
     branch: text("branch"),
     cloneUrl: text("clone_url"),
-    vercelProjectId: text("vercel_project_id"),
-    vercelProjectName: text("vercel_project_name"),
-    vercelTeamId: text("vercel_team_id"),
-    vercelTeamSlug: text("vercel_team_slug"),
     // Whether this session uses a new auto-generated branch
     isNewBranch: boolean("is_new_branch").default(false).notNull(),
     // Optional per-session override for auto commit + push behavior.
@@ -316,8 +286,6 @@ export const workflowRunSteps = pgTable(
 
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
-export type VercelProjectLink = typeof vercelProjectLinks.$inferSelect;
-export type NewVercelProjectLink = typeof vercelProjectLinks.$inferInsert;
 export type Chat = typeof chats.$inferSelect;
 export type NewChat = typeof chats.$inferInsert;
 export type Share = typeof shares.$inferSelect;

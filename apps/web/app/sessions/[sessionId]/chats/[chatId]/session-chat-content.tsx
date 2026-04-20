@@ -2852,9 +2852,10 @@ export function SessionChatContent({
     gitStatus?.branch && gitStatus.branch !== "HEAD"
       ? gitStatus.branch
       : session.branch;
-  const hasBranchPreviewLookup = Boolean(
-    session.vercelProjectId && previewLookupBranch,
-  );
+  // Branch preview lookups require a Vercel project link which was removed
+  // when user-scoped Vercel OAuth went away. Keep the variable for the SWR
+  // key shape below; follow-up PR can rip the remaining PR-deployment code.
+  const hasBranchPreviewLookup = false;
   const existingPrUrl =
     hasExistingPr && session.repoOwner && session.repoName
       ? `https://github.com/${session.repoOwner}/${session.repoName}/pull/${session.prNumber}`
