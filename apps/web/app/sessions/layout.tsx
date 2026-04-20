@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { getLastRepoByUserId } from "@/lib/db/last-repo";
 import {
   getArchivedSessionCountByUserId,
   getSessionsWithUnreadByUserId,
@@ -20,8 +19,7 @@ export default async function SessionsLayout({
     redirect("/");
   }
 
-  const [lastRepo, sessions, archivedCount] = await Promise.all([
-    getLastRepoByUserId(session.user.id),
+  const [sessions, archivedCount] = await Promise.all([
     getSessionsWithUnreadByUserId(session.user.id, { status: "active" }),
     getArchivedSessionCountByUserId(session.user.id),
   ]);
@@ -30,7 +28,6 @@ export default async function SessionsLayout({
     <SessionsRouteShell
       currentUser={session.user}
       initialSessionsData={{ sessions, archivedCount }}
-      lastRepo={lastRepo}
     >
       {children}
     </SessionsRouteShell>

@@ -12,7 +12,6 @@ import {
   useTransition,
 } from "react";
 import { InboxSidebar } from "@/components/inbox-sidebar";
-import { NewSessionDialog } from "@/components/new-session-dialog";
 import {
   Sidebar,
   SidebarContent,
@@ -33,7 +32,6 @@ type SessionsRouteShellProps = {
     sessions: SessionWithUnread[];
     archivedCount: number;
   };
-  lastRepo: { owner: string; repo: string } | null;
 };
 
 const RouteContentShell = memo(function RouteContentShell({
@@ -52,13 +50,11 @@ export function SessionsRouteShell({
   children,
   currentUser,
   initialSessionsData,
-  lastRepo,
 }: SessionsRouteShellProps) {
   const router = useRouter();
   const params = useParams<{ sessionId?: string }>();
   const routeSessionId =
     typeof params.sessionId === "string" ? params.sessionId : null;
-  const [newSessionOpen, setNewSessionOpen] = useState(false);
   const [optimisticActiveSessionId, setOptimisticActiveSessionId] = useState<
     string | null
   >(null);
@@ -89,9 +85,24 @@ export function SessionsRouteShell({
 
   const { preferences } = useUserPreferences();
 
-  const openNewSessionDialog = useCallback(() => {
-    setNewSessionOpen(true);
-  }, []);
+  const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+  const createBlankSession = useCallback(async () => {
+    if (isCreatingBlank) return;
+    setIsCreatingBlank(true);
+    try {
+      const { session: created, chat } = await createSession({
+        isNewBranch: false,
+        sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
+        autoCommitPush: preferences?.autoCommitPush ?? false,
+        autoCreatePr: preferences?.autoCreatePr ?? false,
+      });
+      router.push(`/sessions/${created.id}/chats/${chat.id}`);
+    } catch (error) {
+      console.error("Failed to create new session:", error);
+    } finally {
+      setIsCreatingBlank(false);
+    }
+  }, [createSession, isCreatingBlank, preferences, router]);
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
@@ -242,9 +253,10 @@ export function SessionsRouteShell({
 
   const shellContextValue = useMemo(
     () => ({
-      openNewSessionDialog,
+      createBlankSession,
+      isCreatingBlank,
     }),
-    [openNewSessionDialog],
+    [createBlankSession, isCreatingBlank],
   );
 
   return (
@@ -270,7 +282,7 @@ export function SessionsRouteShell({
               onRenameSession={handleRenameSession}
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
-              onOpenNewSession={openNewSessionDialog}
+              onOpenNewSession={createBlankSession}
               onCreateSessionForRepo={handleCreateSessionForRepo}
               onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}
@@ -279,13 +291,6 @@ export function SessionsRouteShell({
         </Sidebar>
         <RouteContentShell>{children}</RouteContentShell>
       </SidebarProvider>
-
-      <NewSessionDialog
-        open={newSessionOpen}
-        onOpenChange={setNewSessionOpen}
-        lastRepo={lastRepo}
-        createSession={createSession}
-      />
     </SessionsShellProvider>
   );
 }

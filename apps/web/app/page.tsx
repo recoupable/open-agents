@@ -1,8 +1,6 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE_NAME } from "@/lib/session/constants";
+import { SignedOutHero } from "@/components/auth/signed-out-hero";
 import { getServerSession } from "@/lib/session/get-server-session";
-import { HomePage } from "./home-page";
 
 export default async function Home() {
   const session = await getServerSession();
@@ -10,8 +8,5 @@ export default async function Home() {
     redirect("/sessions");
   }
 
-  const store = await cookies();
-  const hasSessionCookie = Boolean(store.get(SESSION_COOKIE_NAME)?.value);
-
-  return <HomePage hasSessionCookie={hasSessionCookie} lastRepo={null} />;
+  return <SignedOutHero />;
 }
