@@ -21,7 +21,8 @@ export function getPrivyServerClient(): PrivyClient | undefined {
     return undefined;
   }
 
-  const jwtVerificationKey = process.env.PRIVY_JWT_VERIFICATION_KEY || undefined;
+  const jwtVerificationKey =
+    process.env.PRIVY_JWT_VERIFICATION_KEY || undefined;
 
   cachedClient = new PrivyClient({
     appId,
