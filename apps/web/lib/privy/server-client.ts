@@ -21,9 +21,14 @@ export function getPrivyServerClient(): PrivyClient | undefined {
     return undefined;
   }
 
-  const encodedVerificationKey = process.env.PRIVY_JWT_VERIFICATION_KEY;
-  const jwtVerificationKey = encodedVerificationKey
-    ? Buffer.from(encodedVerificationKey, "base64").toString("utf8")
+  // PRIVY_JWT_VERIFICATION_KEY accepts either the raw PEM public key or
+  // the same PEM base64-encoded (single line). Base64 avoids newline
+  // handling quirks when pasted into env var UIs; raw PEM works too.
+  const rawVerificationKey = process.env.PRIVY_JWT_VERIFICATION_KEY;
+  const jwtVerificationKey = rawVerificationKey
+    ? rawVerificationKey.includes("BEGIN PUBLIC KEY")
+      ? rawVerificationKey
+      : Buffer.from(rawVerificationKey, "base64").toString("utf8")
     : undefined;
 
   cachedClient = new PrivyClient({
