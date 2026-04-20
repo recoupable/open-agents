@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 
 type SessionsShellContextValue = {
-  openNewSessionDialog: () => void;
+  createBlankSession: () => Promise<void>;
+  isCreatingBlank: boolean;
 };
 
 const SessionsShellContext = createContext<
