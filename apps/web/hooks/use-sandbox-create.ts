@@ -1,7 +1,7 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
 import type { Session } from "@/lib/db/schema";
 import { createSandbox } from "@/lib/sandbox/create-sandbox";
@@ -35,10 +35,13 @@ export function useSandboxCreate({
   setSandboxTypeFromUnknown,
   requestStatusSync,
 }: UseSandboxCreateParams) {
-  const { getAccessToken } = usePrivy();
+  const { ready, getAccessToken } = usePrivy();
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [sandboxCreateError, setSandboxCreateError] =
     useState<SandboxCreateErrorDetails | null>(null);
+  // Synchronous guard — React state updates are batched, so two rapid calls
+  // can both read `isCreatingSandbox === false` and double-start a create.
+  const createInFlightRef = useRef(false);
 
   const runCreateSandbox = useCallback(async (): Promise<CreatedSandbox> => {
     const branchExistsOnOrigin = session.prNumber != null;
@@ -54,7 +57,7 @@ export function useSandboxCreate({
     );
     setSandboxInfo(newSandbox);
     setSandboxTypeFromUnknown(newSandbox.type);
-    void requestStatusSync("force");
+    requestStatusSync("force").catch(() => undefined);
     return newSandbox;
   }, [
     session.prNumber,
@@ -70,6 +73,9 @@ export function useSandboxCreate({
   ]);
 
   const handleCreateNewSandbox = useCallback(async () => {
+    if (!ready) return;
+    if (createInFlightRef.current) return;
+    createInFlightRef.current = true;
     setIsCreatingSandbox(true);
     setSandboxCreateError(null);
 
@@ -82,16 +88,21 @@ export function useSandboxCreate({
       console.error("Failed to create sandbox:", err);
     } finally {
       setIsCreatingSandbox(false);
+      createInFlightRef.current = false;
     }
-  }, [runCreateSandbox]);
+  }, [ready, runCreateSandbox]);
 
   const ensureSandboxReady = useCallback(async (): Promise<boolean> => {
     if (isSandboxValid(sandboxInfo)) {
       return true;
     }
-    if (isCreatingSandbox) {
+    if (!ready) {
       return false;
     }
+    if (createInFlightRef.current) {
+      return false;
+    }
+    createInFlightRef.current = true;
 
     try {
       setIsCreatingSandbox(true);
@@ -106,8 +117,9 @@ export function useSandboxCreate({
       return false;
     } finally {
       setIsCreatingSandbox(false);
+      createInFlightRef.current = false;
     }
-  }, [sandboxInfo, isCreatingSandbox, runCreateSandbox]);
+  }, [sandboxInfo, ready, runCreateSandbox]);
 
   return {
     isCreatingSandbox,

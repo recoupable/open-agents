@@ -28,12 +28,13 @@ export async function resolveAccountRepoSource(
   }
   if (!parseGitHubUrl(githubRepo)) {
     console.warn(
-      `[sandbox] account-repo fallback skipped: github_repo did not parse as a GitHub URL (${githubRepo})`,
+      "[sandbox] account-repo fallback skipped: github_repo did not parse as a GitHub URL",
     );
     return undefined;
   }
 
-  const cloneToken = process.env.GITHUB_TOKEN;
+  const rawToken = process.env.GITHUB_TOKEN?.trim();
+  const cloneToken = rawToken && rawToken.length > 0 ? rawToken : undefined;
   if (!cloneToken) {
     console.warn(
       "[sandbox] account-repo fallback: GITHUB_TOKEN is not set; clone will fail for private repos",

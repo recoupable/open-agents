@@ -23,31 +23,30 @@ import {
   type SandboxSource,
 } from "@/lib/sandbox/resolve-account-repo-source";
 import { getSessionSandboxName } from "@/lib/sandbox/utils";
+import { validateCreateSandboxBody } from "@/lib/sandbox/validate-create-sandbox-body";
 import { getServerSession } from "@/lib/session/get-server-session";
-
-interface CreateSandboxRequest {
-  repoUrl?: string;
-  branch?: string;
-  isNewBranch?: boolean;
-  sessionId?: string;
-  sandboxType?: "vercel";
-}
 
 export async function handleCreateSandboxRequest(
   req: Request,
 ): Promise<Response> {
-  let body: CreateSandboxRequest;
+  let rawBody: unknown;
   try {
-    body = (await req.json()) as CreateSandboxRequest;
+    rawBody = await req.json();
   } catch {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  if (body.sandboxType && body.sandboxType !== "vercel") {
-    return Response.json({ error: "Invalid sandbox type" }, { status: 400 });
+  const validated = validateCreateSandboxBody(rawBody);
+  if (!validated.ok) {
+    return validated.response;
   }
 
-  const { repoUrl, branch = "main", isNewBranch = false, sessionId } = body;
+  const {
+    repoUrl,
+    branch = "main",
+    isNewBranch = false,
+    sessionId,
+  } = validated.data;
 
   const session = await getServerSession();
   if (!session?.user) {
@@ -122,23 +121,32 @@ export async function handleCreateSandboxRequest(
     }
   }
 
-  const sandbox = await connectSandbox({
-    state: {
-      type: "vercel",
-      ...(sandboxName ? { sandboxName } : {}),
-      source,
-    },
-    options: {
-      githubToken: cloneToken ?? githubToken ?? undefined,
-      gitUser,
-      timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
-      ports: DEFAULT_SANDBOX_PORTS,
-      baseSnapshotId: DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
-      persistent: !!sandboxName,
-      resume: !!sandboxName,
-      createIfMissing: !!sandboxName,
-    },
-  });
+  let sandbox: Awaited<ReturnType<typeof connectSandbox>>;
+  try {
+    sandbox = await connectSandbox({
+      state: {
+        type: "vercel",
+        ...(sandboxName ? { sandboxName } : {}),
+        source,
+      },
+      options: {
+        githubToken: cloneToken ?? githubToken ?? undefined,
+        gitUser,
+        timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
+        ports: DEFAULT_SANDBOX_PORTS,
+        baseSnapshotId: DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
+        persistent: !!sandboxName,
+        resume: !!sandboxName,
+        createIfMissing: !!sandboxName,
+      },
+    });
+  } catch (error) {
+    console.error("connectSandbox failed:", error);
+    return Response.json(
+      { error: "Failed to provision sandbox" },
+      { status: 502 },
+    );
+  }
 
   if (sessionId && sandbox.getState) {
     const nextState = sandbox.getState() as SandboxState;
