@@ -8,6 +8,7 @@ import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
 import { getUserGitHubToken } from "@/lib/github/user-token";
+import { fetchAccountGithubRepo } from "@/lib/recoupable/fetch-account-github-repo";
 import {
   DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
   DEFAULT_SANDBOX_PORTS,
@@ -123,13 +124,23 @@ export async function POST(req: Request) {
   // ============================================
   const startTime = Date.now();
 
-  const source = repoUrl
-    ? {
-        repo: repoUrl,
-        branch: isNewBranch ? undefined : branch,
-        newBranch: isNewBranch ? branch : undefined,
+  let source: { repo: string; branch?: string; newBranch?: string } | undefined;
+
+  if (repoUrl) {
+    source = {
+      repo: repoUrl,
+      branch: isNewBranch ? undefined : branch,
+      newBranch: isNewBranch ? branch : undefined,
+    };
+  } else {
+    const apiKey = process.env.RECOUPABLE_API_KEY;
+    if (apiKey) {
+      const githubRepo = await fetchAccountGithubRepo(apiKey);
+      if (githubRepo) {
+        source = { repo: githubRepo };
       }
-    : undefined;
+    }
+  }
 
   const sandbox = await connectSandbox({
     state: {
