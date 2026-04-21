@@ -7,19 +7,21 @@ import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
 import { getUserGitHubToken } from "@/lib/github/user-token";
-import { fetchAccountGithubRepo } from "@/lib/recoupable/fetch-account-github-repo";
 import {
   DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
   DEFAULT_SANDBOX_PORTS,
   DEFAULT_SANDBOX_TIMEOUT_MS,
 } from "@/lib/sandbox/config";
-import { extractBearerToken } from "@/lib/sandbox/extract-bearer-token";
 import { installSessionGlobalSkills } from "@/lib/sandbox/install-session-global-skills";
 import {
   buildActiveLifecycleUpdate,
   getNextLifecycleVersion,
 } from "@/lib/sandbox/lifecycle";
 import { kickSandboxLifecycleWorkflow } from "@/lib/sandbox/lifecycle-kick";
+import {
+  resolveAccountRepoSource,
+  type SandboxSource,
+} from "@/lib/sandbox/resolve-account-repo-source";
 import { getSessionSandboxName } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
 
@@ -29,47 +31,6 @@ interface CreateSandboxRequest {
   isNewBranch?: boolean;
   sessionId?: string;
   sandboxType?: "vercel";
-}
-
-type SandboxSource = {
-  repo: string;
-  branch?: string;
-  newBranch?: string;
-};
-
-type ResolvedSource = {
-  source: SandboxSource;
-  /** Clone-time token override (service token for Recoupable-managed repos). */
-  cloneToken?: string;
-};
-
-async function resolveAccountRepoSource(
-  req: Request,
-): Promise<ResolvedSource | undefined> {
-  const accessToken = extractBearerToken(req);
-  if (!accessToken) {
-    return undefined;
-  }
-
-  const githubRepo = await fetchAccountGithubRepo(accessToken);
-  if (!githubRepo) {
-    return undefined;
-  }
-  if (!parseGitHubUrl(githubRepo)) {
-    console.warn(
-      `[sandbox] account-repo fallback skipped: github_repo did not parse as a GitHub URL (${githubRepo})`,
-    );
-    return undefined;
-  }
-
-  const cloneToken = process.env.GITHUB_TOKEN;
-  if (!cloneToken) {
-    console.warn(
-      "[sandbox] account-repo fallback: GITHUB_TOKEN is not set; clone will fail for private repos",
-    );
-  }
-
-  return { source: { repo: githubRepo }, cloneToken };
 }
 
 export async function handleCreateSandboxRequest(
