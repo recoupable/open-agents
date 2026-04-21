@@ -36,13 +36,19 @@ type SandboxSource = {
   newBranch?: string;
 };
 
+type ResolvedSource = {
+  source: SandboxSource;
+  /** Clone-time token override (service token for Recoupable-managed repos). */
+  cloneToken?: string;
+};
+
 function extractBearerToken(req: Request): string | undefined {
   return req.headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
 }
 
 async function resolveAccountRepoSource(
   req: Request,
-): Promise<SandboxSource | undefined> {
+): Promise<ResolvedSource | undefined> {
   const accessToken = extractBearerToken(req);
   if (!accessToken) {
     return undefined;
@@ -59,7 +65,14 @@ async function resolveAccountRepoSource(
     return undefined;
   }
 
-  return { repo: githubRepo };
+  const cloneToken = process.env.RECOUPABLE_SANDBOX_CLONE_TOKEN;
+  if (!cloneToken) {
+    console.warn(
+      "[sandbox] account-repo fallback: RECOUPABLE_SANDBOX_CLONE_TOKEN is not set; clone will fail for private repos",
+    );
+  }
+
+  return { source: { repo: githubRepo }, cloneToken };
 }
 
 async function installSessionGlobalSkills(params: {
@@ -150,13 +163,21 @@ export async function handleCreateSandboxRequest(
   // ============================================
   const startTime = Date.now();
 
-  const source: SandboxSource | undefined = repoUrl
-    ? {
-        repo: repoUrl,
-        branch: isNewBranch ? undefined : branch,
-        newBranch: isNewBranch ? branch : undefined,
-      }
-    : await resolveAccountRepoSource(req);
+  let source: SandboxSource | undefined;
+  let cloneToken: string | undefined;
+  if (repoUrl) {
+    source = {
+      repo: repoUrl,
+      branch: isNewBranch ? undefined : branch,
+      newBranch: isNewBranch ? branch : undefined,
+    };
+  } else {
+    const resolved = await resolveAccountRepoSource(req);
+    if (resolved) {
+      source = resolved.source;
+      cloneToken = resolved.cloneToken;
+    }
+  }
 
   const sandbox = await connectSandbox({
     state: {
@@ -165,7 +186,7 @@ export async function handleCreateSandboxRequest(
       source,
     },
     options: {
-      githubToken: githubToken ?? undefined,
+      githubToken: cloneToken ?? githubToken ?? undefined,
       gitUser,
       timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
       ports: DEFAULT_SANDBOX_PORTS,
