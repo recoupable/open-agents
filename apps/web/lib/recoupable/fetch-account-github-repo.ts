@@ -18,7 +18,12 @@ export async function fetchAccountGithubRepo(
   accessToken: string,
 ): Promise<string | null> {
   const apiUrl = process.env.RECOUPABLE_API_URL;
-  if (!apiUrl || !accessToken) {
+  if (!apiUrl) {
+    console.warn("[fetchAccountGithubRepo] RECOUPABLE_API_URL is not set");
+    return null;
+  }
+  if (!accessToken) {
+    console.warn("[fetchAccountGithubRepo] accessToken is empty");
     return null;
   }
 
