@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
 const sandboxesResponseSchema = z
   .object({
@@ -10,25 +11,22 @@ const sandboxesResponseSchema = z
  * Fetches the account's github_repo from the Recoupable API sandboxes endpoint
  * using the caller's Privy access token for authentication.
  *
- * Requires the RECOUPABLE_API_URL environment variable.
- * Returns null when the env var or token is missing, the API call fails,
- * the response shape is invalid, or no github_repo is associated.
+ * The target API is chosen by NEXT_PUBLIC_VERCEL_ENV — production hits
+ * recoup-api, everything else hits test-recoup-api.
+ *
+ * Returns null when the token is missing, the API call fails, the response
+ * shape is invalid, or no github_repo is associated with the account.
  */
 export async function fetchAccountGithubRepo(
   accessToken: string,
 ): Promise<string | null> {
-  const apiUrl = process.env.RECOUPABLE_API_URL;
-  if (!apiUrl) {
-    console.warn("[fetchAccountGithubRepo] RECOUPABLE_API_URL is not set");
-    return null;
-  }
   if (!accessToken) {
     console.warn("[fetchAccountGithubRepo] accessToken is empty");
     return null;
   }
 
   try {
-    const response = await fetch(`${apiUrl}/api/sandboxes`, {
+    const response = await fetch(`${RECOUPABLE_API_BASE_URL}/api/sandboxes`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${accessToken}`,

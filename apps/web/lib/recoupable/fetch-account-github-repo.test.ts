@@ -1,22 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { fetchAccountGithubRepo } from "./fetch-account-github-repo";
 
+// In the non-production test environment, RECOUPABLE_API_BASE_URL resolves to
+// the test-recoup-api URL below.
+const EXPECTED_BASE_URL = "https://test-recoup-api.vercel.app";
+
 describe("fetchAccountGithubRepo", () => {
-  let originalEnv: string | undefined;
   let fetchSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    originalEnv = process.env.RECOUPABLE_API_URL;
-    process.env.RECOUPABLE_API_URL = "https://test-api.example.com";
     fetchSpy = spyOn(globalThis, "fetch");
   });
 
   afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.RECOUPABLE_API_URL;
-    } else {
-      process.env.RECOUPABLE_API_URL = originalEnv;
-    }
     fetchSpy.mockRestore();
   });
 
@@ -36,7 +32,7 @@ describe("fetchAccountGithubRepo", () => {
 
     expect(result).toBe("https://github.com/artist/website");
     expect(fetchSpy).toHaveBeenCalledWith(
-      "https://test-api.example.com/api/sandboxes",
+      `${EXPECTED_BASE_URL}/api/sandboxes`,
       {
         method: "GET",
         headers: { Authorization: "Bearer test-access-token" },
@@ -77,15 +73,6 @@ describe("fetchAccountGithubRepo", () => {
     const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBeNull();
-  });
-
-  it("returns null when RECOUPABLE_API_URL is not set", async () => {
-    delete process.env.RECOUPABLE_API_URL;
-
-    const result = await fetchAccountGithubRepo("test-access-token");
-
-    expect(result).toBeNull();
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("returns null when accessToken is empty", async () => {
