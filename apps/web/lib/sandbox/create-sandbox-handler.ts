@@ -65,10 +65,10 @@ async function resolveAccountRepoSource(
     return undefined;
   }
 
-  const cloneToken = process.env.RECOUPABLE_SANDBOX_CLONE_TOKEN;
+  const cloneToken = process.env.GITHUB_TOKEN;
   if (!cloneToken) {
     console.warn(
-      "[sandbox] account-repo fallback: RECOUPABLE_SANDBOX_CLONE_TOKEN is not set; clone will fail for private repos",
+      "[sandbox] account-repo fallback: GITHUB_TOKEN is not set; clone will fail for private repos",
     );
   }
 
