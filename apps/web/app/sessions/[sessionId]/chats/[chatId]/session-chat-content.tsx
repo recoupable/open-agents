@@ -133,6 +133,7 @@ import { useCodeEditor } from "./hooks/use-code-editor";
 import { useDevServer } from "./hooks/use-dev-server";
 import { useGitPanel } from "./git-panel-context";
 import { useSandboxCreate } from "@/hooks/use-sandbox-create";
+import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 import { SandboxCreateErrorBanner } from "./sandbox-create-error-banner";
 import { WorkspaceFileViewer } from "./workspace-file-viewer";
 import "streamdown/styles.css";
@@ -388,13 +389,6 @@ function GitDataPartCard({
       {subtitle && <p className="sr-only">{subtitle}</p>}
     </div>
   );
-}
-
-function isSandboxValid(sandboxInfo: SandboxInfo | null): boolean {
-  if (!sandboxInfo) return false;
-  if (sandboxInfo.timeout === null) return true; // No timeout = always valid
-  const expiresAt = sandboxInfo.createdAt + sandboxInfo.timeout;
-  return Date.now() < expiresAt;
 }
 
 function formatUsd(amount: number): string {

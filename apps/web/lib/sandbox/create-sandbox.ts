@@ -1,4 +1,5 @@
 import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
+import { SandboxCreateRequestError } from "./sandbox-create-request-error";
 
 type CreateSandboxResponse = SandboxInfo & {
   type: string;
@@ -9,35 +10,6 @@ type CreateSandboxErrorResponse = {
   reason?: string;
   actionUrl?: string;
 };
-
-export type SandboxCreateErrorDetails = {
-  message: string;
-  actionUrl?: string;
-};
-
-class SandboxCreateRequestError extends Error {
-  readonly reason?: string;
-  readonly actionUrl?: string;
-  readonly status: number;
-  readonly responseBody?: string;
-
-  constructor(
-    message: string,
-    options: {
-      status: number;
-      reason?: string;
-      actionUrl?: string;
-      responseBody?: string;
-    },
-  ) {
-    super(message);
-    this.name = "SandboxCreateRequestError";
-    this.reason = options.reason;
-    this.actionUrl = options.actionUrl;
-    this.status = options.status;
-    this.responseBody = options.responseBody;
-  }
-}
 
 function parseCreateSandboxErrorResponse(
   rawBody: string,
@@ -65,23 +37,6 @@ function getOptionalString(value: unknown): string | undefined {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-export function getSandboxCreateErrorDetails(
-  error: unknown,
-): SandboxCreateErrorDetails {
-  if (error instanceof SandboxCreateRequestError) {
-    return {
-      message: error.message,
-      actionUrl: error.actionUrl,
-    };
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return { message: error.message };
-  }
-
-  return { message: "Failed to create sandbox. Please try again." };
 }
 
 function getFallbackSandboxCreateErrorMessage(status: number): string {

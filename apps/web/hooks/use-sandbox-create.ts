@@ -4,11 +4,12 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useState } from "react";
 import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
 import type { Session } from "@/lib/db/schema";
+import { createSandbox } from "@/lib/sandbox/create-sandbox";
 import {
-  createSandbox,
   getSandboxCreateErrorDetails,
   type SandboxCreateErrorDetails,
-} from "@/lib/sandbox/create-sandbox";
+} from "@/lib/sandbox/get-sandbox-create-error-details";
+import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
 type SessionFields = Pick<
   Session,
@@ -25,13 +26,6 @@ type UseSandboxCreateParams = {
   setSandboxTypeFromUnknown: (type: unknown) => void;
   requestStatusSync: (mode?: "force" | "normal") => Promise<unknown>;
 };
-
-function isSandboxValid(sandboxInfo: SandboxInfo | null): boolean {
-  if (!sandboxInfo) return false;
-  if (sandboxInfo.timeout === null) return true;
-  const expiresAt = sandboxInfo.createdAt + sandboxInfo.timeout;
-  return expiresAt > Date.now();
-}
 
 export function useSandboxCreate({
   session,

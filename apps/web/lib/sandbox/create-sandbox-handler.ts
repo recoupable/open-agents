@@ -13,6 +13,8 @@ import {
   DEFAULT_SANDBOX_PORTS,
   DEFAULT_SANDBOX_TIMEOUT_MS,
 } from "@/lib/sandbox/config";
+import { extractBearerToken } from "@/lib/sandbox/extract-bearer-token";
+import { installSessionGlobalSkills } from "@/lib/sandbox/install-session-global-skills";
 import {
   buildActiveLifecycleUpdate,
   getNextLifecycleVersion,
@@ -20,7 +22,6 @@ import {
 import { kickSandboxLifecycleWorkflow } from "@/lib/sandbox/lifecycle-kick";
 import { getSessionSandboxName } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
-import { installGlobalSkills } from "@/lib/skills/global-skill-installer";
 
 interface CreateSandboxRequest {
   repoUrl?: string;
@@ -41,10 +42,6 @@ type ResolvedSource = {
   /** Clone-time token override (service token for Recoupable-managed repos). */
   cloneToken?: string;
 };
-
-function extractBearerToken(req: Request): string | undefined {
-  return req.headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
-}
 
 async function resolveAccountRepoSource(
   req: Request,
@@ -73,21 +70,6 @@ async function resolveAccountRepoSource(
   }
 
   return { source: { repo: githubRepo }, cloneToken };
-}
-
-async function installSessionGlobalSkills(params: {
-  sessionRecord: SessionRecord;
-  sandbox: Awaited<ReturnType<typeof connectSandbox>>;
-}): Promise<void> {
-  const globalSkillRefs = params.sessionRecord.globalSkillRefs ?? [];
-  if (globalSkillRefs.length === 0) {
-    return;
-  }
-
-  await installGlobalSkills({
-    sandbox: params.sandbox,
-    globalSkillRefs,
-  });
 }
 
 export async function handleCreateSandboxRequest(
