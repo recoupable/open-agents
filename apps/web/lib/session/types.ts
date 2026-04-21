@@ -1,6 +1,7 @@
 export interface Session {
   created: number;
   authProvider: "privy";
+  accessToken: string;
   user: {
     id: string;
     username: string;

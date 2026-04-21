@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import { fetchAccountGithubRepo } from "./fetch-account-github-repo";
 
 describe("fetchAccountGithubRepo", () => {
@@ -32,14 +32,14 @@ describe("fetchAccountGithubRepo", () => {
       ),
     );
 
-    const result = await fetchAccountGithubRepo("test-api-key");
+    const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBe("https://github.com/artist/website");
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://test-api.example.com/api/sandboxes",
       {
         method: "GET",
-        headers: { "x-api-key": "test-api-key" },
+        headers: { Authorization: "Bearer test-access-token" },
       },
     );
   });
@@ -52,7 +52,19 @@ describe("fetchAccountGithubRepo", () => {
       ),
     );
 
-    const result = await fetchAccountGithubRepo("test-api-key");
+    const result = await fetchAccountGithubRepo("test-access-token");
+
+    expect(result).toBeNull();
+  });
+
+  it("returns null when response shape is invalid", async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(JSON.stringify({ status: "success", github_repo: 42 }), {
+        status: 200,
+      }),
+    );
+
+    const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBeNull();
   });
@@ -62,7 +74,7 @@ describe("fetchAccountGithubRepo", () => {
       new Response(JSON.stringify({ status: "error" }), { status: 401 }),
     );
 
-    const result = await fetchAccountGithubRepo("test-api-key");
+    const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBeNull();
   });
@@ -70,13 +82,13 @@ describe("fetchAccountGithubRepo", () => {
   it("returns null when RECOUPABLE_API_URL is not set", async () => {
     delete process.env.RECOUPABLE_API_URL;
 
-    const result = await fetchAccountGithubRepo("test-api-key");
+    const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it("returns null when apiKey is empty", async () => {
+  it("returns null when accessToken is empty", async () => {
     const result = await fetchAccountGithubRepo("");
 
     expect(result).toBeNull();
@@ -86,7 +98,7 @@ describe("fetchAccountGithubRepo", () => {
   it("returns null when fetch throws", async () => {
     fetchSpy.mockRejectedValue(new Error("Network error"));
 
-    const result = await fetchAccountGithubRepo("test-api-key");
+    const result = await fetchAccountGithubRepo("test-access-token");
 
     expect(result).toBeNull();
   });

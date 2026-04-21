@@ -133,12 +133,9 @@ export async function POST(req: Request) {
       newBranch: isNewBranch ? branch : undefined,
     };
   } else {
-    const apiKey = process.env.RECOUPABLE_API_KEY;
-    if (apiKey) {
-      const githubRepo = await fetchAccountGithubRepo(apiKey);
-      if (githubRepo) {
-        source = { repo: githubRepo };
-      }
+    const githubRepo = await fetchAccountGithubRepo(session.accessToken);
+    if (githubRepo && parseGitHubUrl(githubRepo) && githubToken) {
+      source = { repo: githubRepo };
     }
   }
 
