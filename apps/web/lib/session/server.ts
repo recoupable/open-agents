@@ -70,7 +70,6 @@ export async function getSessionFromCookie(
   return {
     created: verified.expiration * 1000,
     authProvider: "privy",
-    accessToken: cookieValue,
     user: {
       id: user.id,
       username: user.username,

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AskUserQuestionInput } from "@open-harness/agent";
+import { usePrivy } from "@privy-io/react-auth";
 import { formatTokens } from "@open-harness/shared";
 import {
   isReasoningUIPart,
@@ -1065,6 +1066,7 @@ export function SessionChatContent({
   codeEditorDisabledReason: string | null;
 }) {
   const router = useRouter();
+  const { getAccessToken } = usePrivy();
   const [input, setInput] = useState("");
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
@@ -2277,12 +2279,14 @@ export function SessionChatContent({
       const branchExistsOnOrigin = session.prNumber != null;
       const shouldCreateNewBranch =
         session.isNewBranch && !branchExistsOnOrigin;
+      const accessToken = await getAccessToken();
       const newSandbox = await createSandbox(
         session.cloneUrl ?? undefined,
         session.branch ?? undefined,
         shouldCreateNewBranch,
         session.id,
         preferredSandboxType,
+        accessToken,
       );
       setSandboxInfo(newSandbox);
       setSandboxTypeFromUnknown(newSandbox.type);
@@ -2302,6 +2306,7 @@ export function SessionChatContent({
     session.branch,
     session.id,
     preferredSandboxType,
+    getAccessToken,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,
@@ -2523,12 +2528,14 @@ export function SessionChatContent({
       const branchExistsOnOrigin = session.prNumber != null;
       const shouldCreateNewBranch =
         session.isNewBranch && !branchExistsOnOrigin;
+      const accessToken = await getAccessToken();
       const newSandbox = await createSandbox(
         session.cloneUrl ?? undefined,
         session.branch ?? undefined,
         shouldCreateNewBranch,
         session.id,
         preferredSandboxType,
+        accessToken,
       );
       setSandboxInfo(newSandbox);
       setSandboxTypeFromUnknown(newSandbox.type);
@@ -2552,6 +2559,7 @@ export function SessionChatContent({
     session.branch,
     session.id,
     preferredSandboxType,
+    getAccessToken,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,

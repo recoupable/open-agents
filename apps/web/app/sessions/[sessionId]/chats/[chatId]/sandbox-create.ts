@@ -97,11 +97,19 @@ export async function createSandbox(
   branch: string | undefined,
   isNewBranch: boolean,
   sessionId: string,
-  sandboxType?: string,
+  sandboxType: string | undefined,
+  accessToken: string | null,
 ): Promise<CreateSandboxResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch("/api/sandbox", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       repoUrl: cloneUrl,
       branch: cloneUrl ? (branch ?? "main") : undefined,

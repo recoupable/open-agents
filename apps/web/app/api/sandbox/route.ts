@@ -133,9 +133,14 @@ export async function POST(req: Request) {
       newBranch: isNewBranch ? branch : undefined,
     };
   } else {
-    const githubRepo = await fetchAccountGithubRepo(session.accessToken);
-    if (githubRepo && parseGitHubUrl(githubRepo) && githubToken) {
-      source = { repo: githubRepo };
+    const accessToken = req.headers
+      .get("authorization")
+      ?.match(/^Bearer (.+)$/i)?.[1];
+    if (accessToken) {
+      const githubRepo = await fetchAccountGithubRepo(accessToken);
+      if (githubRepo && parseGitHubUrl(githubRepo) && githubToken) {
+        source = { repo: githubRepo };
+      }
     }
   }
 
