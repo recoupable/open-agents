@@ -1,4 +1,4 @@
-import type { SandboxInfo } from "./session-chat-context";
+import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
 
 type CreateSandboxResponse = SandboxInfo & {
   type: string;

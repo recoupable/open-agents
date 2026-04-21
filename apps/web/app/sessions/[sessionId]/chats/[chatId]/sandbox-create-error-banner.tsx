@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import Link from "next/link";
-import type { SandboxCreateErrorDetails } from "./sandbox-create";
+import type { SandboxCreateErrorDetails } from "@/lib/sandbox/create-sandbox";
 
 function isSafeActionUrl(url: string): boolean {
   if (url.startsWith("/")) {
