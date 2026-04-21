@@ -132,11 +132,8 @@ import { useAutoCommitStatus } from "./hooks/use-auto-commit-status";
 import { useCodeEditor } from "./hooks/use-code-editor";
 import { useDevServer } from "./hooks/use-dev-server";
 import { useGitPanel } from "./git-panel-context";
-import {
-  createSandbox,
-  getSandboxCreateErrorDetails,
-  type SandboxCreateErrorDetails,
-} from "./sandbox-create";
+import { useSandboxCreate } from "@/hooks/use-sandbox-create";
+import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 import { SandboxCreateErrorBanner } from "./sandbox-create-error-banner";
 import { WorkspaceFileViewer } from "./workspace-file-viewer";
 import "streamdown/styles.css";
@@ -392,13 +389,6 @@ function GitDataPartCard({
       {subtitle && <p className="sr-only">{subtitle}</p>}
     </div>
   );
-}
-
-function isSandboxValid(sandboxInfo: SandboxInfo | null): boolean {
-  if (!sandboxInfo) return false;
-  if (sandboxInfo.timeout === null) return true; // No timeout = always valid
-  const expiresAt = sandboxInfo.createdAt + sandboxInfo.timeout;
-  return Date.now() < expiresAt;
 }
 
 function formatUsd(amount: number): string {
@@ -1066,7 +1056,6 @@ export function SessionChatContent({
 }) {
   const router = useRouter();
   const [input, setInput] = useState("");
-  const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
   const [_isUnarchiving, _setIsUnarchiving] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
@@ -1881,8 +1870,6 @@ export function SessionChatContent({
   });
 
   const [restoreError, setRestoreError] = useState<string | null>(null);
-  const [sandboxCreateError, setSandboxCreateError] =
-    useState<SandboxCreateErrorDetails | null>(null);
   const [deleteMessageError, setDeleteMessageError] = useState<string | null>(
     null,
   );
@@ -2269,43 +2256,20 @@ export function SessionChatContent({
     waitForSandboxReady,
   ]);
 
-  const handleCreateNewSandbox = useCallback(async () => {
-    setIsCreatingSandbox(true);
-    setSandboxCreateError(null);
-
-    try {
-      const branchExistsOnOrigin = session.prNumber != null;
-      const shouldCreateNewBranch =
-        session.isNewBranch && !branchExistsOnOrigin;
-      const newSandbox = await createSandbox(
-        session.cloneUrl ?? undefined,
-        session.branch ?? undefined,
-        shouldCreateNewBranch,
-        session.id,
-        preferredSandboxType,
-      );
-      setSandboxInfo(newSandbox);
-      setSandboxTypeFromUnknown(newSandbox.type);
-      setSandboxCreateError(null);
-      void requestStatusSync("force");
-    } catch (err) {
-      const details = getSandboxCreateErrorDetails(err);
-      setSandboxCreateError(details);
-      console.error("Failed to create sandbox:", err);
-    } finally {
-      setIsCreatingSandbox(false);
-    }
-  }, [
-    session.prNumber,
-    session.isNewBranch,
-    session.cloneUrl,
-    session.branch,
-    session.id,
+  const {
+    isCreatingSandbox,
+    sandboxCreateError,
+    setSandboxCreateError,
+    handleCreateNewSandbox,
+    ensureSandboxReady,
+  } = useSandboxCreate({
+    session,
+    sandboxInfo,
     preferredSandboxType,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,
-  ]);
+  });
 
   useEffect(() => {
     if (isAtBottom) {
@@ -2505,55 +2469,6 @@ export function SessionChatContent({
     isCreatingSandbox,
     isRestoringSnapshot,
     reconnectionStatus,
-    requestStatusSync,
-  ]);
-
-  const ensureSandboxReady = useCallback(async () => {
-    if (isSandboxValid(sandboxInfo)) {
-      return true;
-    }
-    if (isCreatingSandbox) {
-      return false;
-    }
-
-    try {
-      setIsCreatingSandbox(true);
-      setSandboxCreateError(null);
-
-      const branchExistsOnOrigin = session.prNumber != null;
-      const shouldCreateNewBranch =
-        session.isNewBranch && !branchExistsOnOrigin;
-      const newSandbox = await createSandbox(
-        session.cloneUrl ?? undefined,
-        session.branch ?? undefined,
-        shouldCreateNewBranch,
-        session.id,
-        preferredSandboxType,
-      );
-      setSandboxInfo(newSandbox);
-      setSandboxTypeFromUnknown(newSandbox.type);
-      setSandboxCreateError(null);
-      void requestStatusSync("force");
-      return true;
-    } catch (err) {
-      const details = getSandboxCreateErrorDetails(err);
-      setSandboxCreateError(details);
-      console.error("Failed to create sandbox:", err);
-      return false;
-    } finally {
-      setIsCreatingSandbox(false);
-    }
-  }, [
-    sandboxInfo,
-    isCreatingSandbox,
-    session.prNumber,
-    session.isNewBranch,
-    session.cloneUrl,
-    session.branch,
-    session.id,
-    preferredSandboxType,
-    setSandboxInfo,
-    setSandboxTypeFromUnknown,
     requestStatusSync,
   ]);
 

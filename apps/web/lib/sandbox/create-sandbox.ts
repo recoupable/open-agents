@@ -1,4 +1,5 @@
-import type { SandboxInfo } from "./session-chat-context";
+import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
+import { SandboxCreateRequestError } from "./sandbox-create-request-error";
 
 type CreateSandboxResponse = SandboxInfo & {
   type: string;
@@ -9,35 +10,6 @@ type CreateSandboxErrorResponse = {
   reason?: string;
   actionUrl?: string;
 };
-
-export type SandboxCreateErrorDetails = {
-  message: string;
-  actionUrl?: string;
-};
-
-class SandboxCreateRequestError extends Error {
-  readonly reason?: string;
-  readonly actionUrl?: string;
-  readonly status: number;
-  readonly responseBody?: string;
-
-  constructor(
-    message: string,
-    options: {
-      status: number;
-      reason?: string;
-      actionUrl?: string;
-      responseBody?: string;
-    },
-  ) {
-    super(message);
-    this.name = "SandboxCreateRequestError";
-    this.reason = options.reason;
-    this.actionUrl = options.actionUrl;
-    this.status = options.status;
-    this.responseBody = options.responseBody;
-  }
-}
 
 function parseCreateSandboxErrorResponse(
   rawBody: string,
@@ -67,23 +39,6 @@ function getOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export function getSandboxCreateErrorDetails(
-  error: unknown,
-): SandboxCreateErrorDetails {
-  if (error instanceof SandboxCreateRequestError) {
-    return {
-      message: error.message,
-      actionUrl: error.actionUrl,
-    };
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return { message: error.message };
-  }
-
-  return { message: "Failed to create sandbox. Please try again." };
-}
-
 function getFallbackSandboxCreateErrorMessage(status: number): string {
   if (status === 403) {
     return "Sandbox access denied. Please reconnect GitHub and try again.";
@@ -97,11 +52,19 @@ export async function createSandbox(
   branch: string | undefined,
   isNewBranch: boolean,
   sessionId: string,
-  sandboxType?: string,
+  sandboxType: string | undefined,
+  accessToken: string | null,
 ): Promise<CreateSandboxResponse> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   const response = await fetch("/api/sandbox", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       repoUrl: cloneUrl,
       branch: cloneUrl ? (branch ?? "main") : undefined,
