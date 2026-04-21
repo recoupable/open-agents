@@ -40,23 +40,16 @@ function extractBearerToken(req: Request): string | undefined {
   return req.headers.get("authorization")?.match(/^Bearer (.+)$/i)?.[1];
 }
 
-async function resolveAccountRepoSource(params: {
-  req: Request;
-  githubToken: string | null;
-}): Promise<SandboxSource | undefined> {
-  const accessToken = extractBearerToken(params.req);
+async function resolveAccountRepoSource(
+  req: Request,
+): Promise<SandboxSource | undefined> {
+  const accessToken = extractBearerToken(req);
   if (!accessToken) {
-    console.info(
-      "[sandbox] account-repo fallback skipped: no Authorization: Bearer header on request",
-    );
     return undefined;
   }
 
   const githubRepo = await fetchAccountGithubRepo(accessToken);
   if (!githubRepo) {
-    console.info(
-      "[sandbox] account-repo fallback skipped: Recoupable API returned no github_repo for this account",
-    );
     return undefined;
   }
   if (!parseGitHubUrl(githubRepo)) {
@@ -65,14 +58,7 @@ async function resolveAccountRepoSource(params: {
     );
     return undefined;
   }
-  if (!params.githubToken) {
-    console.info(
-      "[sandbox] account-repo fallback skipped: user has no connected GitHub token in open-agents",
-    );
-    return undefined;
-  }
 
-  console.info(`[sandbox] account-repo fallback cloning ${githubRepo}`);
   return { repo: githubRepo };
 }
 
@@ -170,7 +156,7 @@ export async function handleCreateSandboxRequest(
         branch: isNewBranch ? undefined : branch,
         newBranch: isNewBranch ? branch : undefined,
       }
-    : await resolveAccountRepoSource({ req, githubToken });
+    : await resolveAccountRepoSource(req);
 
   const sandbox = await connectSandbox({
     state: {
