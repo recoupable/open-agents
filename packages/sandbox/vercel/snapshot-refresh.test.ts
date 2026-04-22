@@ -166,6 +166,44 @@ describe("refreshBaseSnapshot", () => {
     expect(stop).toHaveBeenCalledTimes(1);
   });
 
+  test("passes sandboxName + forceCreate through when provided", async () => {
+    const connectCalls: SandboxConnectConfig[] = [];
+    const stop = mock(async () => {});
+    const snapshot = mock(async () => ({ snapshotId: "snap-org" }));
+
+    await refreshBaseSnapshot(
+      {
+        baseSnapshotId: "snap-current",
+        sandboxTimeoutMs: 600_000,
+        sandboxName: "org-rostrum-pacific-abc",
+        githubToken: "ghs_secret",
+        commands: [
+          "git clone --depth=1 https://github.com/recoupable/org-rostrum-pacific-abc .",
+        ],
+      },
+      {
+        connectSandbox: async (config) => {
+          connectCalls.push(config);
+          return createSandbox({ stop, snapshot });
+        },
+      },
+    );
+
+    expect(connectCalls).toEqual([
+      {
+        state: { type: "vercel", sandboxName: "org-rostrum-pacific-abc" },
+        options: {
+          baseSnapshotId: "snap-current",
+          timeout: 600_000,
+          persistent: false,
+          skipGitWorkspaceBootstrap: true,
+          forceCreate: true,
+          githubToken: "ghs_secret",
+        },
+      },
+    ]);
+  });
+
   test("stops the sandbox when snapshot support is unavailable", async () => {
     const stop = mock(async () => {});
 

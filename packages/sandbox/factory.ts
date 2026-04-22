@@ -34,6 +34,12 @@ export interface ConnectOptions {
   resume?: boolean;
   /** Whether to create the named sandbox when it does not already exist */
   createIfMissing?: boolean;
+  /**
+   * When true, skip the reconnect-first path for named sandboxes and always
+   * create a fresh one. Useful for ephemeral build sandboxes that reuse the
+   * same name across runs only for snapshot filtering.
+   */
+  forceCreate?: boolean;
   /** Whether new sandboxes should persist filesystem state between sessions */
   persistent?: boolean;
   /** Default expiration for automatic persistent-sandbox snapshots */

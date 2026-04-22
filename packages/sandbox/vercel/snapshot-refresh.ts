@@ -22,6 +22,14 @@ export interface RefreshBaseSnapshotOptions {
   ports?: number[];
   env?: Record<string, string>;
   log?: (message: string) => void;
+  /**
+   * Optional persistent name for the build sandbox. The Vercel API records
+   * this name against any snapshots the sandbox creates, which lets callers
+   * filter with `Snapshot.list({ name })` later.
+   */
+  sandboxName?: string;
+  /** Optional token for authenticated git operations inside the build sandbox. */
+  githubToken?: string;
 }
 
 export interface RefreshBaseSnapshotCommandResult {
@@ -89,12 +97,19 @@ export async function refreshBaseSnapshot(
     // Skip git init so the new base image does not ship `.git` in /vercel/sandbox
     // (would break `git clone … .` for agent sandboxes).
     sandbox = await connectSnapshotSandbox({
-      state: { type: "vercel" },
+      state: {
+        type: "vercel",
+        ...(options.sandboxName ? { sandboxName: options.sandboxName } : {}),
+      },
       options: {
         baseSnapshotId: options.baseSnapshotId,
         timeout: options.sandboxTimeoutMs,
         persistent: false,
         skipGitWorkspaceBootstrap: true,
+        ...(options.sandboxName ? { forceCreate: true } : {}),
+        ...(options.githubToken !== undefined && {
+          githubToken: options.githubToken,
+        }),
         ...(options.ports !== undefined && { ports: options.ports }),
         ...(options.env !== undefined && { env: options.env }),
       },
