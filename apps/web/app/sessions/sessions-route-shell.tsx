@@ -86,23 +86,27 @@ export function SessionsRouteShell({
   const { preferences } = useUserPreferences();
 
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
-  const createBlankSession = useCallback(async () => {
-    if (isCreatingBlank) return;
-    setIsCreatingBlank(true);
-    try {
-      const { session: created, chat } = await createSession({
-        isNewBranch: false,
-        sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
-        autoCommitPush: preferences?.autoCommitPush ?? false,
-        autoCreatePr: preferences?.autoCreatePr ?? false,
-      });
-      router.push(`/sessions/${created.id}/chats/${chat.id}`);
-    } catch (error) {
-      console.error("Failed to create new session:", error);
-    } finally {
-      setIsCreatingBlank(false);
-    }
-  }, [createSession, isCreatingBlank, preferences, router]);
+  const createBlankSession = useCallback(
+    async (cloneUrl: string) => {
+      if (isCreatingBlank) return;
+      setIsCreatingBlank(true);
+      try {
+        const { session: created, chat } = await createSession({
+          cloneUrl,
+          isNewBranch: false,
+          sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
+          autoCommitPush: preferences?.autoCommitPush ?? false,
+          autoCreatePr: preferences?.autoCreatePr ?? false,
+        });
+        router.push(`/sessions/${created.id}/chats/${chat.id}`);
+      } catch (error) {
+        console.error("Failed to create new session:", error);
+      } finally {
+        setIsCreatingBlank(false);
+      }
+    },
+    [createSession, isCreatingBlank, preferences, router],
+  );
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
@@ -282,7 +286,7 @@ export function SessionsRouteShell({
               onRenameSession={handleRenameSession}
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
-              onOpenNewSession={createBlankSession}
+              onOpenNewSession={() => router.push("/sessions")}
               onCreateSessionForRepo={handleCreateSessionForRepo}
               onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}

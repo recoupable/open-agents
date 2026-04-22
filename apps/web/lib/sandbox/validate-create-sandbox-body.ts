@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const createSandboxBodySchema = z.object({
-  repoUrl: z.string().optional(),
+  repoUrl: z.string().min(1),
   branch: z.string().optional(),
   isNewBranch: z.boolean().optional(),
   sessionId: z.string().optional(),
