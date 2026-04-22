@@ -46,6 +46,7 @@ export async function handleCreateSandboxRequest(
     branch = "main",
     isNewBranch = false,
     sessionId,
+    orgSlug,
   } = validated.data;
 
   const session = await getServerSession();
@@ -112,11 +113,12 @@ export async function handleCreateSandboxRequest(
       repo: repoUrl,
       branch: isNewBranch ? undefined : branch,
       newBranch: isNewBranch ? branch : undefined,
+      orgSlug,
     };
   } else {
     const resolved = await resolveAccountRepoSource(req);
     if (resolved) {
-      source = resolved.source;
+      source = { ...resolved.source, orgSlug };
       cloneToken = resolved.cloneToken;
     }
   }

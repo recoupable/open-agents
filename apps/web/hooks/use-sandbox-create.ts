@@ -13,7 +13,7 @@ import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
 type SessionFields = Pick<
   Session,
-  "id" | "cloneUrl" | "branch" | "isNewBranch" | "prNumber"
+  "id" | "cloneUrl" | "branch" | "isNewBranch" | "prNumber" | "orgSlug"
 >;
 
 type CreatedSandbox = SandboxInfo & { type: string };
@@ -54,6 +54,7 @@ export function useSandboxCreate({
       session.id,
       preferredSandboxType,
       accessToken,
+      session.orgSlug ?? undefined,
     );
     setSandboxInfo(newSandbox);
     setSandboxTypeFromUnknown(newSandbox.type);
@@ -65,6 +66,7 @@ export function useSandboxCreate({
     session.cloneUrl,
     session.branch,
     session.id,
+    session.orgSlug,
     preferredSandboxType,
     getAccessToken,
     setSandboxInfo,

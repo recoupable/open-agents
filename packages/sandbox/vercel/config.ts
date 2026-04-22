@@ -22,6 +22,8 @@ export interface VercelSandboxConfig {
      * Useful for isolating agent changes from the main branch.
      */
     newBranch?: string;
+    /** If set, only initialize this org's submodule instead of all submodules */
+    orgSlug?: string;
   };
   /**
    * Optional snapshot ID to restore this sandbox from.

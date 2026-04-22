@@ -54,6 +54,7 @@ export async function createSandbox(
   sessionId: string,
   sandboxType: string | undefined,
   accessToken: string | null,
+  orgSlug?: string,
 ): Promise<CreateSandboxResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -71,6 +72,7 @@ export async function createSandbox(
       isNewBranch: cloneUrl ? isNewBranch : false,
       sessionId,
       sandboxType: sandboxType ?? "vercel",
+      orgSlug,
     }),
   });
 

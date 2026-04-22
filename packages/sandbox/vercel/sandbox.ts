@@ -596,13 +596,14 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     }
 
     // Initialize submodules for any git-sourced clone (both SDK-managed and
-    // manual-clone paths). The rewrite makes auth work for private submodules
-    // whose `.gitmodules` URLs don't carry the token.
+    // manual-clone paths). When orgSlug is set, only that org's submodule is
+    // initialized — dramatically reducing sandbox startup time.
     if (source) {
       await initSubmodules({
         sdk,
         workingDirectory,
         token: source.token,
+        orgSlug: source.orgSlug,
       });
     }
 

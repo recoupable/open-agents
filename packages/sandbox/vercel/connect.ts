@@ -69,6 +69,7 @@ function buildCreateConfig(
             branch: state.source.branch,
             token: state.source.token,
             newBranch: state.source.newBranch,
+            orgSlug: state.source.orgSlug,
           },
         }
       : {}),

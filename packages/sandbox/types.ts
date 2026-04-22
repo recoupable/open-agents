@@ -10,6 +10,8 @@ export interface Source {
   token?: string;
   /** If set, create and checkout a new branch with this name after cloning */
   newBranch?: string;
+  /** If set, only initialize this org's submodule instead of all submodules */
+  orgSlug?: string;
 }
 
 /**

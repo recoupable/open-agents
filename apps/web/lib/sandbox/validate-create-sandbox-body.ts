@@ -6,6 +6,7 @@ const createSandboxBodySchema = z.object({
   isNewBranch: z.boolean().optional(),
   sessionId: z.string().optional(),
   sandboxType: z.literal("vercel").optional(),
+  orgSlug: z.string().optional(),
 });
 
 export type CreateSandboxBody = z.infer<typeof createSandboxBodySchema>;

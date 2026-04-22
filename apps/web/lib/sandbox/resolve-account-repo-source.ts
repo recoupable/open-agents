@@ -6,6 +6,7 @@ export type SandboxSource = {
   repo: string;
   branch?: string;
   newBranch?: string;
+  orgSlug?: string;
 };
 
 export type ResolvedSource = {

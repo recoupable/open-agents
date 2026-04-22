@@ -1,8 +1,8 @@
 "use client";
 
-import { Loader2, MessageSquare, Plus } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
+import { Loader2, MessageSquare } from "lucide-react";
+import { useCallback } from "react";
+import { OrgSelector } from "@/components/org-selector";
 import {
   Empty,
   EmptyContent,
@@ -12,24 +12,17 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useSessions } from "@/hooks/use-sessions";
 import { useSessionsShell } from "./sessions-shell-context";
 
 export function SessionsIndexShell() {
   const { createBlankSession, isCreatingBlank } = useSessionsShell();
-  const { sessions, loading } = useSessions({ includeArchived: false });
-  const autoCreatedRef = useRef(false);
 
-  // First-time (or all-archived) users get dropped straight into a fresh
-  // sandbox session instead of seeing an empty list with a dialog.
-  useEffect(() => {
-    if (loading || isCreatingBlank || autoCreatedRef.current) return;
-    if (sessions.length > 0) return;
-    autoCreatedRef.current = true;
-    void createBlankSession();
-  }, [loading, sessions.length, createBlankSession, isCreatingBlank]);
-
-  const showCreating = isCreatingBlank || loading;
+  const handleSelectOrg = useCallback(
+    (orgSlug: string) => {
+      void createBlankSession(orgSlug);
+    },
+    [createBlankSession],
+  );
 
   return (
     <>
@@ -42,27 +35,29 @@ export function SessionsIndexShell() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              {showCreating ? (
+              {isCreatingBlank ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <MessageSquare />
               )}
             </EmptyMedia>
             <EmptyTitle>
-              {showCreating ? "Starting a sandbox…" : "Select a Session"}
+              {isCreatingBlank
+                ? "Starting a sandbox..."
+                : "Select an Organization"}
             </EmptyTitle>
             <EmptyDescription>
-              {showCreating
+              {isCreatingBlank
                 ? "Your new sandbox is being provisioned."
-                : "Choose a session from the sidebar to continue, or start a new one."}
+                : "Choose an organization to start a new session."}
             </EmptyDescription>
           </EmptyHeader>
-          {!showCreating && (
+          {!isCreatingBlank && (
             <EmptyContent>
-              <Button onClick={createBlankSession}>
-                <Plus className="h-4 w-4" />
-                New Session
-              </Button>
+              <OrgSelector
+                onSelectOrg={handleSelectOrg}
+                disabled={isCreatingBlank}
+              />
             </EmptyContent>
           )}
         </Empty>
