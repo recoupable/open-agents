@@ -13,9 +13,8 @@ import {
 } from "@/app/api/generate-pr/_lib/generate-pr-helpers";
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { getSessionById, updateSession } from "@/lib/db/sessions";
-import { buildGitHubAuthRemoteUrl } from "@/lib/github/repo-identifiers";
+import { ensureAuthenticatedOrigin } from "@/lib/github/ensure-authenticated-origin";
 import { generatePullRequestContentFromSandbox } from "@/lib/git/pr-content";
-import { getUserGitHubToken } from "@/lib/github/user-token";
 import { getAppCoAuthorTrailer } from "@/lib/github/app-auth";
 import { isSandboxActive } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
@@ -98,30 +97,23 @@ export async function POST(req: Request) {
   // 3. Connect to sandbox
   const sandbox = await connectSandbox(sessionRecord.sandboxState);
   const cwd = sandbox.workingDirectory;
-  let userToken: string | null = null;
 
-  if (sessionRecord.repoOwner && sessionRecord.repoName) {
-    userToken = await getUserGitHubToken(session.user.id);
-    if (!userToken) {
-      return Response.json(
-        { error: "No GitHub token available for this repository" },
-        { status: 403 },
-      );
-    }
-
-    const authUrl = buildGitHubAuthRemoteUrl({
-      token: userToken,
-      owner: sessionRecord.repoOwner,
-      repo: sessionRecord.repoName,
-    });
-    if (!authUrl) {
-      return Response.json(
-        { error: "Invalid repository configuration" },
-        { status: 400 },
-      );
-    }
-    await sandbox.exec(`git remote set-url origin "${authUrl}"`, cwd, 5000);
+  const originResult = await ensureAuthenticatedOrigin({
+    sandbox,
+    cloneUrl: sessionRecord.cloneUrl,
+  });
+  if (!originResult.ok) {
+    return Response.json(
+      { error: `Failed to configure git remote: ${originResult.reason}` },
+      { status: 500 },
+    );
   }
+
+  // Personal-fork push fallback from the template fork is dead code now that
+  // all repos are recoupable-owned and pushed with the service token. Kept as
+  // a guarded block so the surrounding logic compiles; scheduled for removal
+  // in the follow-up YAGNI cleanup.
+  const userToken: string | null = null;
 
   // 3a. Resolve live branch from sandbox
   let resolvedBranch = branchName === "HEAD" ? baseBranch : branchName;

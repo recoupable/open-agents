@@ -4,7 +4,6 @@ import {
   enablePullRequestAutoMerge,
   parseGitHubUrl,
 } from "@/lib/github/client";
-import { getUserGitHubToken } from "@/lib/github/user-token";
 import { getServerSession } from "@/lib/session/get-server-session";
 
 interface CreatePRRequest {
@@ -135,7 +134,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid head owner" }, { status: 400 });
   }
 
-  const userToken = await getUserGitHubToken(session.user.id);
+  const userToken = process.env.GITHUB_TOKEN?.trim() || null;
   if (!userToken) {
     return Response.json(
       { error: "No GitHub token available for this repository" },

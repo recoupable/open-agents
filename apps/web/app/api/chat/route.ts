@@ -156,7 +156,6 @@ export async function POST(req: Request) {
   void persistAssistantMessagesWithToolResults(chatId, messages);
 
   const runtimePromise = createChatRuntime({
-    userId,
     sessionId,
     sessionRecord,
   });

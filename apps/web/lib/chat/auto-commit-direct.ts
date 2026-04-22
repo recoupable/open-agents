@@ -4,7 +4,6 @@ import { gateway } from "@open-harness/agent";
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { buildGitHubAuthRemoteUrl } from "@/lib/github/repo-identifiers";
 import { getAppCoAuthorTrailer } from "@/lib/github/app-auth";
-import { getUserGitHubToken } from "@/lib/github/user-token";
 
 export interface AutoCommitParams {
   sandbox: Sandbox;
@@ -39,8 +38,9 @@ export async function performAutoCommit(
     return { committed: false, pushed: false };
   }
 
-  // 2. Set up auth on the remote
-  const repoToken = await getUserGitHubToken(userId);
+  // 2. Set up auth on the remote — all repos are recoupable-owned, so the
+  // service token has access.
+  const repoToken = process.env.GITHUB_TOKEN?.trim() || undefined;
 
   if (repoToken) {
     const authUrl = buildGitHubAuthRemoteUrl({
