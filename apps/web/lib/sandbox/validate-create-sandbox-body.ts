@@ -1,12 +1,11 @@
 import { z } from "zod";
 
 const createSandboxBodySchema = z.object({
-  repoUrl: z.string().optional(),
+  repoUrl: z.string().min(1),
   branch: z.string().optional(),
   isNewBranch: z.boolean().optional(),
   sessionId: z.string().optional(),
   sandboxType: z.literal("vercel").optional(),
-  orgSlug: z.string().optional(),
 });
 
 export type CreateSandboxBody = z.infer<typeof createSandboxBodySchema>;

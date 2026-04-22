@@ -6,7 +6,6 @@ import {
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
-import { getUserGitHubToken } from "@/lib/github/user-token";
 import {
   DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
   DEFAULT_SANDBOX_PORTS,
@@ -18,10 +17,6 @@ import {
   getNextLifecycleVersion,
 } from "@/lib/sandbox/lifecycle";
 import { kickSandboxLifecycleWorkflow } from "@/lib/sandbox/lifecycle-kick";
-import {
-  resolveAccountRepoSource,
-  type SandboxSource,
-} from "@/lib/sandbox/resolve-account-repo-source";
 import { getSessionSandboxName } from "@/lib/sandbox/utils";
 import { validateCreateSandboxBody } from "@/lib/sandbox/validate-create-sandbox-body";
 import { getServerSession } from "@/lib/session/get-server-session";
@@ -46,7 +41,6 @@ export async function handleCreateSandboxRequest(
     branch = "main",
     isNewBranch = false,
     sessionId,
-    orgSlug,
   } = validated.data;
 
   const session = await getServerSession();
@@ -54,23 +48,18 @@ export async function handleCreateSandboxRequest(
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const githubToken = await getUserGitHubToken(session.user.id);
+  if (!parseGitHubUrl(repoUrl)) {
+    return Response.json(
+      { error: "Invalid GitHub repository URL" },
+      { status: 400 },
+    );
+  }
 
-  if (repoUrl) {
-    const parsedRepo = parseGitHubUrl(repoUrl);
-    if (!parsedRepo) {
-      return Response.json(
-        { error: "Invalid GitHub repository URL" },
-        { status: 400 },
-      );
-    }
-
-    if (!githubToken) {
-      return Response.json(
-        { error: "Connect GitHub to access repositories" },
-        { status: 403 },
-      );
-    }
+  const cloneToken = process.env.GITHUB_TOKEN?.trim() || undefined;
+  if (!cloneToken) {
+    console.warn(
+      "[sandbox] GITHUB_TOKEN is not set; clone will fail for private repos",
+    );
   }
 
   let sessionRecord: SessionRecord | undefined;
@@ -101,27 +90,13 @@ export async function handleCreateSandboxRequest(
       `${session.user.username}@users.noreply.github.com`,
   };
 
-  // ============================================
-  // CREATE OR RESUME: Create a named persistent sandbox for this session.
-  // ============================================
   const startTime = Date.now();
 
-  let source: SandboxSource | undefined;
-  let cloneToken: string | undefined;
-  if (repoUrl) {
-    source = {
-      repo: repoUrl,
-      branch: isNewBranch ? undefined : branch,
-      newBranch: isNewBranch ? branch : undefined,
-      orgSlug,
-    };
-  } else {
-    const resolved = await resolveAccountRepoSource(req);
-    if (resolved) {
-      source = { ...resolved.source, orgSlug };
-      cloneToken = resolved.cloneToken;
-    }
-  }
+  const source = {
+    repo: repoUrl,
+    branch: isNewBranch ? undefined : branch,
+    newBranch: isNewBranch ? branch : undefined,
+  };
 
   let sandbox: Awaited<ReturnType<typeof connectSandbox>>;
   try {
@@ -132,7 +107,7 @@ export async function handleCreateSandboxRequest(
         source,
       },
       options: {
-        githubToken: cloneToken ?? githubToken ?? undefined,
+        githubToken: cloneToken,
         gitUser,
         timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
         ports: DEFAULT_SANDBOX_PORTS,
@@ -187,7 +162,7 @@ export async function handleCreateSandboxRequest(
   return Response.json({
     createdAt: Date.now(),
     timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
-    currentBranch: repoUrl ? branch : undefined,
+    currentBranch: branch,
     mode: "vercel",
     timing: { readyMs },
   });

@@ -18,8 +18,8 @@ export function SessionsIndexShell() {
   const { createBlankSession, isCreatingBlank } = useSessionsShell();
 
   const handleSelectOrg = useCallback(
-    (orgSlug: string) => {
-      void createBlankSession(orgSlug);
+    (cloneUrl: string) => {
+      void createBlankSession(cloneUrl);
     },
     [createBlankSession],
   );

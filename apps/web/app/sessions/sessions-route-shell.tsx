@@ -87,16 +87,16 @@ export function SessionsRouteShell({
 
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const createBlankSession = useCallback(
-    async (orgSlug?: string) => {
+    async (cloneUrl: string) => {
       if (isCreatingBlank) return;
       setIsCreatingBlank(true);
       try {
         const { session: created, chat } = await createSession({
+          cloneUrl,
           isNewBranch: false,
           sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
           autoCommitPush: preferences?.autoCommitPush ?? false,
           autoCreatePr: preferences?.autoCreatePr ?? false,
-          orgSlug,
         });
         router.push(`/sessions/${created.id}/chats/${chat.id}`);
       } catch (error) {
@@ -107,6 +107,10 @@ export function SessionsRouteShell({
     },
     [createSession, isCreatingBlank, preferences, router],
   );
+
+  const openOrgPicker = useCallback(() => {
+    router.push("/sessions");
+  }, [router]);
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
@@ -258,9 +262,10 @@ export function SessionsRouteShell({
   const shellContextValue = useMemo(
     () => ({
       createBlankSession,
+      openOrgPicker,
       isCreatingBlank,
     }),
-    [createBlankSession, isCreatingBlank],
+    [createBlankSession, openOrgPicker, isCreatingBlank],
   );
 
   return (
@@ -286,7 +291,7 @@ export function SessionsRouteShell({
               onRenameSession={handleRenameSession}
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
-              onOpenNewSession={createBlankSession}
+              onOpenNewSession={openOrgPicker}
               onCreateSessionForRepo={handleCreateSessionForRepo}
               onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}

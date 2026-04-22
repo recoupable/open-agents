@@ -48,31 +48,21 @@ function getFallbackSandboxCreateErrorMessage(status: number): string {
 }
 
 export async function createSandbox(
-  cloneUrl: string | undefined,
+  cloneUrl: string,
   branch: string | undefined,
   isNewBranch: boolean,
   sessionId: string,
   sandboxType: string | undefined,
-  accessToken: string | null,
-  orgSlug?: string,
 ): Promise<CreateSandboxResponse> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (accessToken) {
-    headers.Authorization = `Bearer ${accessToken}`;
-  }
-
   const response = await fetch("/api/sandbox", {
     method: "POST",
-    headers,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       repoUrl: cloneUrl,
-      branch: cloneUrl ? (branch ?? "main") : undefined,
-      isNewBranch: cloneUrl ? isNewBranch : false,
+      branch: branch ?? "main",
+      isNewBranch,
       sessionId,
       sandboxType: sandboxType ?? "vercel",
-      orgSlug,
     }),
   });
 

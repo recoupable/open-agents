@@ -36,7 +36,6 @@ interface CreateSessionInput {
   sandboxType: "vercel";
   autoCommitPush: boolean;
   autoCreatePr: boolean;
-  orgSlug?: string;
 }
 
 interface SessionsResponse {

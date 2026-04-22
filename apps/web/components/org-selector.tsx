@@ -5,20 +5,26 @@ import { Building2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useOrgs, type Org } from "@/hooks/use-orgs";
+import { buildOrgRepoUrl } from "@/lib/recoupable/build-org-repo-url";
 
 type OrgSelectorProps = {
-  onSelectOrg: (orgSlug: string) => void;
+  onSelectOrg: (cloneUrl: string) => void;
   disabled?: boolean;
 };
 
 export function OrgSelector({ onSelectOrg, disabled }: OrgSelectorProps) {
   const { orgs, loading, error } = useOrgs();
-  const [selectedOrgSlug, setSelectedOrgSlug] = useState<string | null>(null);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   function handleOrgClick(org: Org) {
     if (disabled) return;
-    setSelectedOrgSlug(org.organization_name);
-    onSelectOrg(org.organization_name);
+    setSelectedOrgId(org.organization_id);
+    onSelectOrg(
+      buildOrgRepoUrl({
+        organizationName: org.organization_name,
+        organizationId: org.organization_id,
+      }),
+    );
   }
 
   if (loading) {
@@ -41,7 +47,7 @@ export function OrgSelector({ onSelectOrg, disabled }: OrgSelectorProps) {
       </p>
       <div className="grid gap-2">
         {orgs.map((org) => {
-          const isSelected = selectedOrgSlug === org.organization_name;
+          const isSelected = selectedOrgId === org.organization_id;
           return (
             <Button
               key={org.id}

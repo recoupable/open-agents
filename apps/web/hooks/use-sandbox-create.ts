@@ -13,7 +13,7 @@ import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
 type SessionFields = Pick<
   Session,
-  "id" | "cloneUrl" | "branch" | "isNewBranch" | "prNumber" | "orgSlug"
+  "id" | "cloneUrl" | "branch" | "isNewBranch" | "prNumber"
 >;
 
 type CreatedSandbox = SandboxInfo & { type: string };
@@ -35,7 +35,7 @@ export function useSandboxCreate({
   setSandboxTypeFromUnknown,
   requestStatusSync,
 }: UseSandboxCreateParams) {
-  const { ready, getAccessToken } = usePrivy();
+  const { ready } = usePrivy();
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [sandboxCreateError, setSandboxCreateError] =
     useState<SandboxCreateErrorDetails | null>(null);
@@ -44,17 +44,17 @@ export function useSandboxCreate({
   const createInFlightRef = useRef(false);
 
   const runCreateSandbox = useCallback(async (): Promise<CreatedSandbox> => {
+    if (!session.cloneUrl) {
+      throw new Error("Session is missing a clone URL");
+    }
     const branchExistsOnOrigin = session.prNumber != null;
     const shouldCreateNewBranch = session.isNewBranch && !branchExistsOnOrigin;
-    const accessToken = await getAccessToken();
     const newSandbox = await createSandbox(
-      session.cloneUrl ?? undefined,
+      session.cloneUrl,
       session.branch ?? undefined,
       shouldCreateNewBranch,
       session.id,
       preferredSandboxType,
-      accessToken,
-      session.orgSlug ?? undefined,
     );
     setSandboxInfo(newSandbox);
     setSandboxTypeFromUnknown(newSandbox.type);
@@ -66,9 +66,7 @@ export function useSandboxCreate({
     session.cloneUrl,
     session.branch,
     session.id,
-    session.orgSlug,
     preferredSandboxType,
-    getAccessToken,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,

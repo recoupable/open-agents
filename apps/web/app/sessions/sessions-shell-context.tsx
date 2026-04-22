@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 
 type SessionsShellContextValue = {
-  createBlankSession: (orgSlug?: string) => Promise<void>;
+  createBlankSession: (cloneUrl: string) => Promise<void>;
+  openOrgPicker: () => void;
   isCreatingBlank: boolean;
 };
 

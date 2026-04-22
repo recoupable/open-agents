@@ -30,7 +30,6 @@ interface CreateSessionRequest {
   sandboxType?: "vercel";
   autoCommitPush?: boolean;
   autoCreatePr?: boolean;
-  orgSlug?: string;
 }
 
 function generateBranchName(username: string, name?: string | null): string {
@@ -230,7 +229,6 @@ export async function POST(req: Request) {
     sandboxType = "vercel",
     autoCommitPush,
     autoCreatePr,
-    orgSlug,
   } = body;
 
   let finalBranch = branch;
@@ -261,7 +259,6 @@ export async function POST(req: Request) {
         repoName,
         branch: finalBranch,
         cloneUrl,
-        orgSlug: orgSlug ?? null,
         isNewBranch: isNewBranch ?? false,
         autoCommitPushOverride: effectiveAutoCommitPush,
         autoCreatePrOverride: effectiveAutoCommitPush

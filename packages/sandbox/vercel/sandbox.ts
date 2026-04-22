@@ -596,14 +596,12 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     }
 
     // Initialize submodules for any git-sourced clone (both SDK-managed and
-    // manual-clone paths). When orgSlug is set, only that org's submodule is
-    // initialized — dramatically reducing sandbox startup time.
+    // manual-clone paths). No-op when the cloned repo has no submodules.
     if (source) {
       await initSubmodules({
         sdk,
         workingDirectory,
         token: source.token,
-        orgSlug: source.orgSlug,
       });
     }
 

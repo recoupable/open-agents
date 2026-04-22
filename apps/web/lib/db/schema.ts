@@ -115,8 +115,6 @@ export const sessions = pgTable(
     repoName: text("repo_name"),
     branch: text("branch"),
     cloneUrl: text("clone_url"),
-    // Organization slug — when set, only this org's submodule is initialized
-    orgSlug: text("org_slug"),
     // Whether this session uses a new auto-generated branch
     isNewBranch: boolean("is_new_branch").default(false).notNull(),
     // Optional per-session override for auto commit + push behavior.
