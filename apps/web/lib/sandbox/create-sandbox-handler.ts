@@ -6,11 +6,14 @@ import {
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
+import { extractOrgRepoName } from "@/lib/recoupable/extract-org-repo-name";
+import { kickBuildOrgSnapshotWorkflow } from "@/lib/sandbox/build-org-snapshot-kick";
 import {
   DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
   DEFAULT_SANDBOX_PORTS,
   DEFAULT_SANDBOX_TIMEOUT_MS,
 } from "@/lib/sandbox/config";
+import { findOrgSnapshot } from "@/lib/sandbox/find-org-snapshot";
 import { installSessionGlobalSkills } from "@/lib/sandbox/install-session-global-skills";
 import {
   buildActiveLifecycleUpdate,
@@ -92,10 +95,24 @@ export async function handleCreateSandboxRequest(
 
   const startTime = Date.now();
 
+  // Look up a per-org base snapshot so we can skip the 75s full-repo clone.
+  // Falls back to the default base snapshot + full clone when no per-org
+  // snapshot exists yet; a background workflow builds one for next time.
+  const orgRepoName = extractOrgRepoName(repoUrl);
+  const orgSnapshotId = orgRepoName ? await findOrgSnapshot(orgRepoName) : null;
+
+  if (orgRepoName && !orgSnapshotId) {
+    kickBuildOrgSnapshotWorkflow({
+      cloneUrl: repoUrl,
+      sandboxName: orgRepoName,
+    });
+  }
+
   const source = {
     repo: repoUrl,
     branch: isNewBranch ? undefined : branch,
     newBranch: isNewBranch ? branch : undefined,
+    prebuilt: !!orgSnapshotId,
   };
 
   let sandbox: Awaited<ReturnType<typeof connectSandbox>>;
@@ -111,7 +128,7 @@ export async function handleCreateSandboxRequest(
         gitUser,
         timeout: DEFAULT_SANDBOX_TIMEOUT_MS,
         ports: DEFAULT_SANDBOX_PORTS,
-        baseSnapshotId: DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
+        baseSnapshotId: orgSnapshotId ?? DEFAULT_SANDBOX_BASE_SNAPSHOT_ID,
         persistent: !!sandboxName,
         resume: !!sandboxName,
         createIfMissing: !!sandboxName,

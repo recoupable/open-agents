@@ -571,7 +571,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     // snapshot has files in /vercel/sandbox (dotfiles, tool configs, etc.), the
     // clone will fail. Consider using git init + remote add + fetch + checkout
     // instead, which works regardless of existing directory contents.
-    if (source && baseSnapshotId) {
+    if (source && baseSnapshotId && !source.prebuilt) {
       const cloneUrl = source.token
         ? (buildAuthenticatedGitHubUrl(source.url, source.token) ?? source.url)
         : source.url;
@@ -590,6 +590,33 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       if (cloneResult.exitCode !== 0) {
         throw new Error(
           `Failed to clone repository '${source.url}' (exit code ${cloneResult.exitCode})`,
+        );
+      }
+    }
+
+    // Fast path: the base snapshot already contains the cloned repo. Sync to
+    // the tip of the requested branch with a shallow fetch + hard reset so any
+    // drift since the snapshot was built is caught up in one round-trip.
+    if (source?.prebuilt && baseSnapshotId) {
+      const refBranch = source.branch ?? "main";
+      const fetchResult = await sdk.runCommand({
+        cmd: "git",
+        args: ["fetch", "--depth=1", "origin", refBranch],
+        cwd: workingDirectory,
+      });
+      if (fetchResult.exitCode !== 0) {
+        throw new Error(
+          `Failed to fetch '${refBranch}' in prebuilt snapshot for '${source.url}' (exit code ${fetchResult.exitCode})`,
+        );
+      }
+      const resetResult = await sdk.runCommand({
+        cmd: "git",
+        args: ["reset", "--hard", `origin/${refBranch}`],
+        cwd: workingDirectory,
+      });
+      if (resetResult.exitCode !== 0) {
+        throw new Error(
+          `Failed to reset to 'origin/${refBranch}' in prebuilt snapshot for '${source.url}' (exit code ${resetResult.exitCode})`,
         );
       }
     }

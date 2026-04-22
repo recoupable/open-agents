@@ -13,6 +13,7 @@ interface ConnectOptions {
   baseSnapshotId?: string;
   resume?: boolean;
   createIfMissing?: boolean;
+  forceCreate?: boolean;
   persistent?: boolean;
   snapshotExpiration?: number;
   skipGitWorkspaceBootstrap?: boolean;
@@ -69,6 +70,7 @@ function buildCreateConfig(
             branch: state.source.branch,
             token: state.source.token,
             newBranch: state.source.newBranch,
+            prebuilt: state.source.prebuilt,
           },
         }
       : {}),
@@ -137,7 +139,7 @@ export async function connectVercel(
 ): Promise<Sandbox> {
   const sandboxName = getSandboxName(state);
 
-  if (sandboxName) {
+  if (sandboxName && !options?.forceCreate) {
     return connectNamedSandbox(state, options);
   }
 

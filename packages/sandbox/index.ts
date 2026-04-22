@@ -27,4 +27,7 @@ export {
   type VercelSandboxConfig,
   type VercelSandboxConnectConfig,
   type VercelState,
+  refreshBaseSnapshot,
+  type RefreshBaseSnapshotOptions,
+  type RefreshBaseSnapshotResult,
 } from "./vercel";

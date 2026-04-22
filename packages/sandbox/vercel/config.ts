@@ -22,6 +22,12 @@ export interface VercelSandboxConfig {
      * Useful for isolating agent changes from the main branch.
      */
     newBranch?: string;
+    /**
+     * When true, the base snapshot is expected to already contain a clone of
+     * `url`. Skip the initial `git clone` and run a fast
+     * `git fetch && git reset --hard origin/<branch>` instead.
+     */
+    prebuilt?: boolean;
   };
   /**
    * Optional snapshot ID to restore this sandbox from.

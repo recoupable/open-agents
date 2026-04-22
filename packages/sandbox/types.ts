@@ -10,6 +10,12 @@ export interface Source {
   token?: string;
   /** If set, create and checkout a new branch with this name after cloning */
   newBranch?: string;
+  /**
+   * When true, the working directory is expected to already contain a clone
+   * of `repo` (e.g. from a per-org base snapshot). Skips the initial `git clone`
+   * and runs `git fetch && git reset --hard origin/<branch>` instead.
+   */
+  prebuilt?: boolean;
 }
 
 /**
