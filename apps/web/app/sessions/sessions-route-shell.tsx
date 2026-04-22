@@ -108,10 +108,6 @@ export function SessionsRouteShell({
     [createSession, isCreatingBlank, preferences, router],
   );
 
-  const openOrgPicker = useCallback(() => {
-    router.push("/sessions");
-  }, [router]);
-
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
       if (targetSession.id === (optimisticActiveSessionId ?? routeSessionId)) {
@@ -262,10 +258,9 @@ export function SessionsRouteShell({
   const shellContextValue = useMemo(
     () => ({
       createBlankSession,
-      openOrgPicker,
       isCreatingBlank,
     }),
-    [createBlankSession, openOrgPicker, isCreatingBlank],
+    [createBlankSession, isCreatingBlank],
   );
 
   return (
@@ -291,7 +286,8 @@ export function SessionsRouteShell({
               onRenameSession={handleRenameSession}
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
-              onOpenNewSession={openOrgPicker}
+              onStartNewSession={createBlankSession}
+              isCreatingNewSession={isCreatingBlank}
               onCreateSessionForRepo={handleCreateSessionForRepo}
               onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}

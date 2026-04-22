@@ -19,6 +19,7 @@ import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BranchPickerDialog } from "@/components/branch-picker-dialog";
 import { getValidRenameTitle } from "@/components/inbox-sidebar-rename";
+import { OrgSelector } from "@/components/org-selector";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,7 +61,8 @@ type InboxSidebarProps = {
   onRenameSession?: (sessionId: string, title: string) => Promise<void>;
   onArchiveSession: (sessionId: string) => Promise<void>;
   onUnarchiveSession: (sessionId: string) => Promise<void>;
-  onOpenNewSession: () => void;
+  onStartNewSession: (cloneUrl: string) => void;
+  isCreatingNewSession: boolean;
   onCreateSessionForRepo: (repoOwner: string, repoName: string) => void;
   onCreateSessionFromBranch: (
     repoOwner: string,
@@ -648,11 +650,13 @@ export function InboxSidebar({
   onRenameSession,
   onArchiveSession,
   onUnarchiveSession,
-  onOpenNewSession,
+  onStartNewSession,
+  isCreatingNewSession,
   onCreateSessionForRepo,
   onCreateSessionFromBranch,
   initialUser,
 }: InboxSidebarProps) {
+  const [isOrgPickerOpen, setIsOrgPickerOpen] = useState(false);
   const router = useRouter();
   const { session } = useSession();
   const { rank: leaderboardRank, loading: leaderboardLoading } =
@@ -928,20 +932,35 @@ export function InboxSidebar({
           <div className="flex items-center px-2 py-1.5 text-sm text-primary">
             <span>Sessions</span>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              if (isMobile) {
-                setOpenMobile(false);
-              }
-              onOpenNewSession();
-            }}
-            className="h-7 w-7"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+          <Popover open={isOrgPickerOpen} onOpenChange={setIsOrgPickerOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                disabled={isCreatingNewSession}
+              >
+                {isCreatingNewSession ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-72 p-3">
+              <OrgSelector
+                disabled={isCreatingNewSession}
+                onSelectOrg={(cloneUrl) => {
+                  setIsOrgPickerOpen(false);
+                  if (isMobile) {
+                    setOpenMobile(false);
+                  }
+                  onStartNewSession(cloneUrl);
+                }}
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex gap-1">

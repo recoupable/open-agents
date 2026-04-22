@@ -5,7 +5,6 @@ import { createContext, useContext } from "react";
 
 type SessionsShellContextValue = {
   createBlankSession: (cloneUrl: string) => Promise<void>;
-  openOrgPicker: () => void;
   isCreatingBlank: boolean;
 };
 
