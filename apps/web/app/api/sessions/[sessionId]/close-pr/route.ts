@@ -4,6 +4,7 @@ import {
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
 import { closePullRequest } from "@/lib/github/client";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
   params: Promise<{ sessionId: string }>;
@@ -63,7 +64,7 @@ export async function POST(_req: Request, context: RouteContext) {
     } satisfies ClosePullRequestResponse);
   }
 
-  const token = process.env.GITHUB_TOKEN?.trim() || null;
+  const token = getServiceGitHubToken();
   if (!token) {
     return Response.json(
       { error: "No GitHub token available for this repository" },

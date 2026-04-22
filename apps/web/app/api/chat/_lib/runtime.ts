@@ -1,5 +1,6 @@
 import { discoverSkills } from "@open-harness/agent";
 import { connectSandbox } from "@open-harness/sandbox";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { DEFAULT_SANDBOX_PORTS } from "@/lib/sandbox/config";
 import { getSandboxSkillDirectories } from "@/lib/skills/directories";
 import { getCachedSkills, setCachedSkills } from "@/lib/skills-cache";
@@ -43,7 +44,7 @@ export async function createChatRuntime(params: {
     throw new Error("Sandbox state is required to create chat runtime");
   }
 
-  const githubToken = process.env.GITHUB_TOKEN?.trim() || null;
+  const githubToken = getServiceGitHubToken();
 
   const sandbox = await connectSandbox(sandboxState, {
     githubToken: githubToken ?? undefined,

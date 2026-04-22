@@ -7,6 +7,7 @@ import {
   type PullRequestCheckRun,
   type PullRequestMergeMethod,
 } from "@/lib/github/client";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
   params: Promise<{ sessionId: string }>;
@@ -145,7 +146,7 @@ export async function GET(_req: Request, context: RouteContext) {
     );
   }
 
-  const token = process.env.GITHUB_TOKEN?.trim() || null;
+  const token = getServiceGitHubToken();
   if (!token) {
     return Response.json(
       buildUnavailableResponse(

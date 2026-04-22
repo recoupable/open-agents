@@ -3,6 +3,7 @@ import "server-only";
 import type { Sandbox } from "@open-harness/sandbox";
 import { parseGitHubUrl } from "@/lib/github/client";
 import { buildGitHubAuthRemoteUrl } from "@/lib/github/repo-identifiers";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 export type EnsureAuthenticatedOriginResult =
   | { ok: true }
@@ -26,7 +27,7 @@ export async function ensureAuthenticatedOrigin(params: {
     return { ok: false, reason: "Session has no cloneUrl" };
   }
 
-  const token = process.env.GITHUB_TOKEN?.trim();
+  const token = getServiceGitHubToken();
   if (!token) {
     return { ok: false, reason: "GITHUB_TOKEN env var is not set" };
   }

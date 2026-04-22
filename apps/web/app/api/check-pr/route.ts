@@ -5,6 +5,7 @@ import {
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
 import { findPullRequestByBranch } from "@/lib/github/client";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { isSandboxActive } from "@/lib/sandbox/utils";
 
 interface CheckPrRequest {
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
     const currentPrStatus = branchChanged ? null : sessionRecord.prStatus;
 
     // 3. Check GitHub for an existing PR on this branch
-    const token = process.env.GITHUB_TOKEN?.trim() || null;
+    const token = getServiceGitHubToken();
     if (!token) {
       // No token available -- return existing PR info if we have it
       return Response.json({

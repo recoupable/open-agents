@@ -11,6 +11,7 @@ import {
   isValidGitHubRepoName,
   isValidGitHubRepoOwner,
 } from "@/lib/github/repo-identifiers";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { generatePullRequestContentFromSandbox } from "@/lib/git/pr-content";
 
 const SAFE_BRANCH_PATTERN = /^[\w\-/.]+$/;
@@ -137,7 +138,7 @@ export async function performAutoCreatePr(
 
   // All repos are recoupable-owned; use the service token for both remote
   // push auth and GitHub API calls.
-  const userToken = process.env.GITHUB_TOKEN?.trim();
+  const userToken = getServiceGitHubToken();
   if (!userToken) {
     return {
       created: false,

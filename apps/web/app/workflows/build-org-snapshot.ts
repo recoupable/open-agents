@@ -1,4 +1,5 @@
 import { refreshBaseSnapshot } from "@open-harness/sandbox";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { DEFAULT_SANDBOX_BASE_SNAPSHOT_ID } from "@/lib/sandbox/config";
 
 const BUILD_SANDBOX_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -18,7 +19,7 @@ async function buildSnapshotStep(
     `[build-org-snapshot] step:start name='${input.sandboxName}' url='${input.cloneUrl}'`,
   );
 
-  const githubToken = process.env.GITHUB_TOKEN?.trim() || undefined;
+  const githubToken = getServiceGitHubToken() ?? undefined;
   if (!githubToken) {
     throw new Error(
       "[build-org-snapshot] GITHUB_TOKEN is not set; cannot clone org repo",
