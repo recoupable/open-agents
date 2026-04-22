@@ -1,9 +1,4 @@
-function toKebabCase(input: string): string {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+import { toKebabCase } from "@/lib/string/to-kebab-case";
 
 /**
  * Builds the GitHub URL for an org's per-org repository.

@@ -1,6 +1,5 @@
 import { Sandbox as VercelSandboxSDK } from "@vercel/sandbox";
 import type { Dirent } from "fs";
-import { initSubmodules } from "./init-submodules";
 import type {
   ExecResult,
   Sandbox,
@@ -593,16 +592,6 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
           `Failed to clone repository '${source.url}' (exit code ${cloneResult.exitCode})`,
         );
       }
-    }
-
-    // Initialize submodules for any git-sourced clone (both SDK-managed and
-    // manual-clone paths). No-op when the cloned repo has no submodules.
-    if (source) {
-      await initSubmodules({
-        sdk,
-        workingDirectory,
-        token: source.token,
-      });
     }
 
     // Initialize git repo for empty sandboxes (no source provided)

@@ -286,8 +286,7 @@ export function SessionsRouteShell({
               onRenameSession={handleRenameSession}
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
-              onStartNewSession={createBlankSession}
-              isCreatingNewSession={isCreatingBlank}
+              onOpenNewSession={() => router.push("/sessions")}
               onCreateSessionForRepo={handleCreateSessionForRepo}
               onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}
