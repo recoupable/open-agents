@@ -193,51 +193,6 @@ export function SessionsRouteShell({
     [routeSessionId, unarchiveSession],
   );
 
-  const handleCreateSessionForRepo = useCallback(
-    async (repoOwner: string, repoName: string) => {
-      try {
-        const { session: created, chat } = await createSession({
-          repoOwner,
-          repoName,
-          cloneUrl: `https://github.com/${repoOwner}/${repoName}`,
-          isNewBranch: true,
-          sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
-          autoCommitPush: preferences?.autoCommitPush ?? false,
-          autoCreatePr: preferences?.autoCreatePr ?? false,
-        });
-        router.push(`/sessions/${created.id}/chats/${chat.id}`, {
-          scroll: false,
-        });
-      } catch (error) {
-        console.error("Failed to create session for repo:", error);
-      }
-    },
-    [createSession, preferences, router],
-  );
-
-  const handleCreateSessionFromBranch = useCallback(
-    async (repoOwner: string, repoName: string, branch: string) => {
-      try {
-        const { session: created, chat } = await createSession({
-          repoOwner,
-          repoName,
-          branch,
-          cloneUrl: `https://github.com/${repoOwner}/${repoName}`,
-          isNewBranch: false,
-          sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
-          autoCommitPush: preferences?.autoCommitPush ?? false,
-          autoCreatePr: preferences?.autoCreatePr ?? false,
-        });
-        router.push(`/sessions/${created.id}/chats/${chat.id}`, {
-          scroll: false,
-        });
-      } catch (error) {
-        console.error("Failed to create session from branch:", error);
-      }
-    },
-    [createSession, preferences, router],
-  );
-
   useEffect(() => {
     if (
       optimisticActiveSessionId &&
@@ -287,8 +242,6 @@ export function SessionsRouteShell({
               onArchiveSession={handleArchiveSession}
               onUnarchiveSession={handleUnarchiveSession}
               onOpenNewSession={() => router.push("/sessions")}
-              onCreateSessionForRepo={handleCreateSessionForRepo}
-              onCreateSessionFromBranch={handleCreateSessionFromBranch}
               initialUser={currentUser}
             />
           </SidebarContent>

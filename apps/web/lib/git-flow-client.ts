@@ -10,24 +10,17 @@ interface GeneratePrRequest {
   commitBody?: string;
 }
 
-export interface RepoBranchesResponse {
-  branches: string[];
-  defaultBranch: string;
-}
-
 export interface GitActionsResult {
   committed?: boolean;
   commitMessage?: string;
   commitSha?: string;
   pushed?: boolean;
-  pushedToFork?: boolean;
 }
 
 export interface GeneratePrResult {
   title?: string;
   body?: string;
   branchName?: string;
-  prHeadOwner?: string;
   gitActions?: GitActionsResult;
   error?: string;
 }
@@ -54,7 +47,6 @@ function parseGitActions(value: unknown): GitActionsResult | undefined {
     commitMessage: readString(value.commitMessage),
     commitSha: readString(value.commitSha),
     pushed: readBoolean(value.pushed),
-    pushedToFork: readBoolean(value.pushedToFork),
   };
 }
 
@@ -67,38 +59,8 @@ function parseGeneratePrResult(value: unknown): GeneratePrResult {
     title: readString(value.title),
     body: readString(value.body),
     branchName: readString(value.branchName),
-    prHeadOwner: readString(value.prHeadOwner),
     gitActions: parseGitActions(value.gitActions),
     error: readString(value.error),
-  };
-}
-
-export async function fetchRepoBranches(
-  owner: string,
-  repo: string,
-): Promise<RepoBranchesResponse> {
-  const response = await fetch(
-    `/api/github/branches?owner=${owner}&repo=${repo}`,
-  );
-  if (!response.ok) {
-    throw new Error("Failed to fetch branches");
-  }
-
-  const data: unknown = await response.json();
-  if (!isRecord(data)) {
-    throw new Error("Invalid branches response");
-  }
-
-  const branches = Array.isArray(data.branches)
-    ? data.branches.filter(
-        (branch): branch is string => typeof branch === "string",
-      )
-    : [];
-  const defaultBranch = readString(data.defaultBranch) ?? "main";
-
-  return {
-    branches,
-    defaultBranch,
   };
 }
 

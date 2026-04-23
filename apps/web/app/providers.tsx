@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import {
-  Suspense,
   createContext,
   useCallback,
   useContext,
@@ -13,7 +12,6 @@ import {
 } from "react";
 import { Toaster } from "sonner";
 import { SWRConfig } from "swr";
-import { GitHubReconnectGate } from "@/components/github-reconnect-gate";
 import { PrivyProvider } from "@/components/providers/privy-provider";
 import { FetchError } from "@/lib/swr";
 
@@ -128,12 +126,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeContext.Provider value={themeContextValue}>
       <PrivyProvider>
-        <SWRConfig value={{ onError: handleError }}>
-          {children}
-          <Suspense fallback={null}>
-            <GitHubReconnectGate />
-          </Suspense>
-        </SWRConfig>
+        <SWRConfig value={{ onError: handleError }}>{children}</SWRConfig>
         <Toaster theme={resolvedTheme} />
       </PrivyProvider>
     </ThemeContext.Provider>

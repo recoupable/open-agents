@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BranchPickerDialog } from "@/components/branch-picker-dialog";
 import { getValidRenameTitle } from "@/components/inbox-sidebar-rename";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -61,12 +60,6 @@ type InboxSidebarProps = {
   onArchiveSession: (sessionId: string) => Promise<void>;
   onUnarchiveSession: (sessionId: string) => Promise<void>;
   onOpenNewSession: () => void;
-  onCreateSessionForRepo: (repoOwner: string, repoName: string) => void;
-  onCreateSessionFromBranch: (
-    repoOwner: string,
-    repoName: string,
-    branch: string,
-  ) => void;
   initialUser?: AuthSession["user"];
 };
 
@@ -649,8 +642,6 @@ export function InboxSidebar({
   onArchiveSession,
   onUnarchiveSession,
   onOpenNewSession,
-  onCreateSessionForRepo,
-  onCreateSessionFromBranch,
   initialUser,
 }: InboxSidebarProps) {
   const router = useRouter();
@@ -669,11 +660,6 @@ export function InboxSidebar({
   const [hasMoreArchivedSessions, setHasMoreArchivedSessions] = useState(false);
   const archivedRequestInFlightRef = useRef(false);
   const lastLoadedArchivedCountRef = useRef(0);
-  const [branchPickerRepo, setBranchPickerRepo] = useState<{
-    owner: string;
-    repo: string;
-  } | null>(null);
-  const [isCreatingFromBranch, setIsCreatingFromBranch] = useState(false);
   const [archiveConfirmSession, setArchiveConfirmSession] =
     useState<SessionWithUnread | null>(null);
 
@@ -888,39 +874,6 @@ export function InboxSidebar({
     void fetchArchivedSessionsPage({ offset: 0, replace: true });
   }, [fetchArchivedSessionsPage]);
 
-  const handleCreateForRepo = useCallback(
-    (owner: string, repo: string) => {
-      if (isMobile) setOpenMobile(false);
-      onCreateSessionForRepo(owner, repo);
-    },
-    [isMobile, setOpenMobile, onCreateSessionForRepo],
-  );
-
-  const handleOpenBranchPicker = useCallback((owner: string, repo: string) => {
-    setBranchPickerRepo({ owner, repo });
-  }, []);
-
-  const handleBranchSelected = useCallback(
-    async (branch: string) => {
-      if (!branchPickerRepo) return;
-      setIsCreatingFromBranch(true);
-      try {
-        await onCreateSessionFromBranch(
-          branchPickerRepo.owner,
-          branchPickerRepo.repo,
-          branch,
-        );
-        setBranchPickerRepo(null);
-        if (isMobile) setOpenMobile(false);
-      } catch (error) {
-        console.error("Failed to create session from branch:", error);
-      } finally {
-        setIsCreatingFromBranch(false);
-      }
-    },
-    [branchPickerRepo, onCreateSessionFromBranch, isMobile, setOpenMobile],
-  );
-
   return (
     <>
       <div className="border-b border-border p-3">
@@ -1017,11 +970,6 @@ export function InboxSidebar({
                 const groupHasActiveSession = group.id === activeGroupId;
                 const groupContentId = getRepoGroupContentId(group.id);
 
-                const groupRepoOwner =
-                  group.sessions[0]?.repoOwner?.trim() ?? "";
-                const groupRepoName = group.sessions[0]?.repoName?.trim() ?? "";
-                const hasRepo = Boolean(groupRepoOwner && groupRepoName);
-
                 return (
                   <section key={group.id} className="space-y-1.5">
                     <div
@@ -1050,54 +998,6 @@ export function InboxSidebar({
                           {group.label}
                         </span>
                       </button>
-                      {hasRepo ? (
-                        <span
-                          className={`shrink-0 items-center gap-0.5 ${isMobile ? "flex" : "hidden group-hover/repo:flex"}`}
-                        >
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenBranchPicker(
-                                    groupRepoOwner,
-                                    groupRepoName,
-                                  );
-                                }}
-                                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground"
-                                aria-label={`Create session from branch for ${group.label}`}
-                              >
-                                <GitBranch className="h-3 w-3" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" sideOffset={4}>
-                              Create from branch
-                            </TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCreateForRepo(
-                                    groupRepoOwner,
-                                    groupRepoName,
-                                  );
-                                }}
-                                className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground/70 transition-colors hover:text-foreground"
-                                aria-label={`Create session for ${group.label}`}
-                              >
-                                <Plus className="h-3 w-3" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" sideOffset={4}>
-                              Create session
-                            </TooltipContent>
-                          </Tooltip>
-                        </span>
-                      ) : null}
                     </div>
                     <div
                       id={groupContentId}
@@ -1208,19 +1108,6 @@ export function InboxSidebar({
             </Button>
           </div>
         </div>
-      ) : null}
-
-      {branchPickerRepo ? (
-        <BranchPickerDialog
-          open={Boolean(branchPickerRepo)}
-          onOpenChange={(open) => {
-            if (!open) setBranchPickerRepo(null);
-          }}
-          owner={branchPickerRepo.owner}
-          repo={branchPickerRepo.repo}
-          isCreating={isCreatingFromBranch}
-          onSelectBranch={handleBranchSelected}
-        />
       ) : null}
 
       {/* Archive confirmation dialog */}
