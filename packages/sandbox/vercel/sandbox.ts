@@ -471,34 +471,22 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     return runtimeEnv;
   }
 
-  private getCommandEnv(): Record<string, string> | undefined {
+  private getCommandEnv(
+    perCallEnv?: Record<string, string>,
+  ): Record<string, string> | undefined {
     const runtimePreviewEnv = this.getRuntimePreviewEnv();
-    if (!this.env && Object.keys(runtimePreviewEnv).length === 0) {
+    const hasPerCall = perCallEnv && Object.keys(perCallEnv).length > 0;
+    if (
+      !this.env &&
+      Object.keys(runtimePreviewEnv).length === 0 &&
+      !hasPerCall
+    ) {
       return undefined;
     }
 
     return {
       ...this.env,
       ...runtimePreviewEnv,
-    };
-  }
-
-  /**
-   * Merge per-invocation env on top of the persistent sandbox env. The
-   * per-invocation entries win so callers can pass short-lived credentials
-   * (e.g. access tokens) scoped to a single command without polluting the
-   * sandbox-wide env.
-   */
-  private mergeCommandEnv(
-    perCallEnv?: Record<string, string>,
-  ): Record<string, string> | undefined {
-    const base = this.getCommandEnv();
-    if (!perCallEnv || Object.keys(perCallEnv).length === 0) {
-      return base;
-    }
-
-    return {
-      ...base,
       ...perCallEnv,
     };
   }
@@ -954,7 +942,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       const result = await this.session.runCommand({
         cmd: "bash",
         args: ["-c", `cd "${cwd}" && ${command}`],
-        env: this.mergeCommandEnv(options?.env),
+        env: this.getCommandEnv(options?.env),
         signal,
       });
 
@@ -1010,7 +998,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     const result = await this.session.runCommand({
       cmd: "bash",
       args: ["-c", `cd "${cwd}" && ${command}`],
-      env: this.mergeCommandEnv(options?.env),
+      env: this.getCommandEnv(options?.env),
       detached: true,
     });
 

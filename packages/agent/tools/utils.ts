@@ -3,7 +3,7 @@ import type { LanguageModel, ModelMessage } from "ai";
 import * as path from "path";
 import type { AgentContext } from "../types";
 
-function isAgentContext(value: unknown): value is AgentContext {
+export function isAgentContext(value: unknown): value is AgentContext {
   return (
     typeof value === "object" &&
     value !== null &&
@@ -120,36 +120,6 @@ export function getSandboxContext(
     sandbox: context.sandbox,
     workingDirectory: context.sandbox.workingDirectory,
   };
-}
-
-/**
- * Read the per-prompt Recoupable access token from agent context.
- * Returns undefined when no token is present (e.g. callers that do not
- * authenticate against the Recoupable API).
- */
-export function getRecoupAccessToken(
-  experimental_context: unknown,
-): string | undefined {
-  const context = isAgentContext(experimental_context)
-    ? experimental_context
-    : undefined;
-  return context?.recoupAccessToken;
-}
-
-/**
- * Build a per-invocation env override carrying the Recoupable access
- * token when one is available, so outbound shell commands (curl, scripts)
- * can authenticate without the token persisting on the sandbox.
- */
-export function buildRecoupExecEnv(
-  experimental_context: unknown,
-): { RECOUP_ACCESS_TOKEN: string } | undefined {
-  const token = getRecoupAccessToken(experimental_context);
-  if (!token) {
-    return undefined;
-  }
-
-  return { RECOUP_ACCESS_TOKEN: token };
 }
 
 /**

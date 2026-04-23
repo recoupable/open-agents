@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { buildRecoupExecEnv, getSandbox, shellEscape } from "./utils";
+import { buildRecoupExecEnv } from "./build-recoup-exec-env";
+import { getSandbox, shellEscape } from "./utils";
 
 const TIMEOUT_MS = 30_000;
 export const MAX_BODY_LENGTH = 10_000;

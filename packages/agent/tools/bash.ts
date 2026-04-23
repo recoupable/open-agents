@@ -1,7 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 import * as path from "path";
-import { buildRecoupExecEnv, getSandbox } from "./utils";
+import { buildRecoupExecEnv } from "./build-recoup-exec-env";
+import { getSandbox } from "./utils";
 
 const TIMEOUT_MS = 120_000;
 
