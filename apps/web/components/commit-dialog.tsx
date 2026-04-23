@@ -59,7 +59,7 @@ export function CommitDialog({
   onGitMessage,
   onOpenCreatePr,
 }: CommitDialogProps) {
-  const [baseBranch] = useState("main");
+  const baseBranch = "main";
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);

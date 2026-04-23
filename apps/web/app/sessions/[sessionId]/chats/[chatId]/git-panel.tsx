@@ -1633,7 +1633,7 @@ export function GitPanel(props: GitPanelProps) {
     isAgentWorking,
   } = props;
   const { refreshFiles } = useSessionChatWorkspaceContext();
-  const [baseBranch] = useState("main");
+  const baseBranch = "main";
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<{
     filePath: string;
