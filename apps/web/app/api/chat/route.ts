@@ -20,8 +20,7 @@ import {
 } from "@/lib/model-access";
 import { getAllVariants } from "@/lib/model-variants";
 import { createCancelableReadableStream } from "@/lib/chat/create-cancelable-readable-stream";
-import { assistantFileLinkPrompt } from "@/lib/assistant-file-links";
-import { recoupApiSkillPrompt } from "@/lib/recoup-api-skill-prompt";
+import { agentCustomInstructions } from "@/lib/agent-custom-instructions";
 import { getServerSession } from "@/lib/session/get-server-session";
 import {
   isManagedTemplateTrialUser,
@@ -236,10 +235,7 @@ export async function POST(req: Request) {
           ? { subagentModel: subagentModelSelection }
           : {}),
         ...(skills.length > 0 && { skills }),
-        customInstructions: [
-          assistantFileLinkPrompt,
-          recoupApiSkillPrompt,
-        ].join("\n\n"),
+        customInstructions: agentCustomInstructions,
         ...(recoupAccessToken ? { recoupAccessToken } : {}),
       },
       ...(shouldAutoCommitPush &&
