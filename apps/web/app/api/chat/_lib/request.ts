@@ -1,17 +1,27 @@
+import { z } from "zod";
 import type { WebAgentUIMessage } from "@/app/types";
 
-export interface ChatRequestBody {
-  messages: WebAgentUIMessage[];
-  sessionId?: string;
-  chatId?: string;
+const chatRequestBodySchema = z.object({
+  messages: z.custom<WebAgentUIMessage[]>((val) => Array.isArray(val), {
+    message: "messages must be an array",
+  }),
+  sessionId: z.string().optional(),
+  chatId: z.string().optional(),
   /**
    * Short-lived Recoupable access token (Privy JWT) for this prompt.
    * Forwarded into the agent's `experimental_context` so tools making
    * outbound calls to the Recoupable API authenticate as the user for
    * the duration of this prompt only.
    */
-  recoupAccessToken?: string;
-}
+  recoupAccessToken: z.string().min(1).max(8192).optional(),
+  context: z
+    .object({
+      contextLimit: z.number(),
+    })
+    .optional(),
+});
+
+export type ChatRequestBody = z.infer<typeof chatRequestBodySchema>;
 
 type ParseChatRequestResult =
   | {
@@ -37,15 +47,28 @@ type RequireChatIdentifiersResult =
 export async function parseChatRequestBody(
   req: Request,
 ): Promise<ParseChatRequestResult> {
+  let rawBody: unknown;
   try {
-    const body = (await req.json()) as ChatRequestBody;
-    return { ok: true, body };
+    rawBody = await req.json();
   } catch {
     return {
       ok: false,
       response: Response.json({ error: "Invalid JSON body" }, { status: 400 }),
     };
   }
+
+  const parsed = chatRequestBodySchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: "Invalid request body", issues: parsed.error.issues },
+        { status: 400 },
+      ),
+    };
+  }
+
+  return { ok: true, body: parsed.data };
 }
 
 export function requireChatIdentifiers(

@@ -138,11 +138,7 @@ export interface Sandbox {
   /**
    * Execute a shell command in detached mode (returns immediately).
    */
-  execDetached?(
-    command: string,
-    cwd: string,
-    options?: { env?: Record<string, string> },
-  ): Promise<{ commandId: string }>;
+  execDetached?(command: string, cwd: string): Promise<{ commandId: string }>;
 
   /**
    * Get the public URL for an exposed port.

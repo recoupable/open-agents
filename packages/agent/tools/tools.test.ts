@@ -371,17 +371,13 @@ describe("tools execute behavior", () => {
     });
   });
 
-  test("bashTool forwards recoupAccessToken as RECOUP_ACCESS_TOKEN in exec env", async () => {
+  test("bashTool forwards recoupAccessToken to foreground exec only, never detached", async () => {
     const execCalls: Array<{
       command: string;
       cwd: string;
       options?: { signal?: AbortSignal; env?: Record<string, string> };
     }> = [];
-    const detachedCalls: Array<{
-      command: string;
-      cwd: string;
-      options?: { env?: Record<string, string> };
-    }> = [];
+    const detachedCalls: Array<{ command: string; cwd: string }> = [];
 
     const sandbox = {
       workingDirectory: "/repo",
@@ -400,12 +396,8 @@ describe("tools execute behavior", () => {
           truncated: false,
         };
       },
-      execDetached: async (
-        command: string,
-        cwd: string,
-        options?: { env?: Record<string, string> },
-      ) => {
-        detachedCalls.push({ command, cwd, options });
+      execDetached: async (command: string, cwd: string) => {
+        detachedCalls.push({ command, cwd });
         return { commandId: "cmd-detached" };
       },
     };
@@ -425,15 +417,13 @@ describe("tools execute behavior", () => {
       RECOUP_ACCESS_TOKEN: "privy-jwt-abc",
     });
 
+    // Detached processes outlive the prompt — token must NOT be injected.
     await bashTool().execute?.(
       { command: "npm run dev", detached: true },
       executionOptions(context),
     );
 
     expect(detachedCalls).toHaveLength(1);
-    expect(detachedCalls[0]?.options?.env).toEqual({
-      RECOUP_ACCESS_TOKEN: "privy-jwt-abc",
-    });
 
     const contextWithoutToken = createContext({
       workingDirectory: "/repo",
@@ -459,6 +449,7 @@ describe("tools execute behavior", () => {
       executionOptions(contextWithoutToken),
     );
 
+    expect(execCalls).toHaveLength(2);
     expect(execCalls[1]?.options?.env).toBeUndefined();
   });
 

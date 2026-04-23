@@ -993,12 +993,11 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
   async execDetached(
     command: string,
     cwd: string,
-    options?: { env?: Record<string, string> },
   ): Promise<{ commandId: string }> {
     const result = await this.session.runCommand({
       cmd: "bash",
       args: ["-c", `cd "${cwd}" && ${command}`],
-      env: this.getCommandEnv(options?.env),
+      env: this.getCommandEnv(),
       detached: true,
     });
 

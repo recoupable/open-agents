@@ -127,11 +127,11 @@ EXAMPLES:
         }
 
         try {
-          const { commandId } = await sandbox.execDetached(
-            command,
-            workingDir,
-            recoupEnv ? { env: recoupEnv } : undefined,
-          );
+          // Detached processes outlive the prompt, so we deliberately do
+          // not inject RECOUP_ACCESS_TOKEN here — the token is scoped to
+          // foreground execs whose lifetime tracks the prompt. Long-
+          // running services must authenticate via their own mechanism.
+          const { commandId } = await sandbox.execDetached(command, workingDir);
           return {
             success: true,
             exitCode: null,
