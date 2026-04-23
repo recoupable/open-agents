@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     return parsedBody.response;
   }
 
-  const { messages } = parsedBody.body;
+  const { messages, recoupAccessToken } = parsedBody.body;
 
   // 2. Require sessionId and chatId to ensure sandbox ownership verification
   const chatIdentifiers = requireChatIdentifiers(parsedBody.body);
@@ -236,6 +236,7 @@ export async function POST(req: Request) {
           : {}),
         ...(skills.length > 0 && { skills }),
         customInstructions: assistantFileLinkPrompt,
+        ...(recoupAccessToken ? { recoupAccessToken } : {}),
       },
       ...(shouldAutoCommitPush &&
         sessionRecord.repoOwner &&

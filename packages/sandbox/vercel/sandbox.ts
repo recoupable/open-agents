@@ -471,15 +471,23 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     return runtimeEnv;
   }
 
-  private getCommandEnv(): Record<string, string> | undefined {
+  private getCommandEnv(
+    perCallEnv?: Record<string, string>,
+  ): Record<string, string> | undefined {
     const runtimePreviewEnv = this.getRuntimePreviewEnv();
-    if (!this.env && Object.keys(runtimePreviewEnv).length === 0) {
+    const hasPerCall = perCallEnv && Object.keys(perCallEnv).length > 0;
+    if (
+      !this.env &&
+      Object.keys(runtimePreviewEnv).length === 0 &&
+      !hasPerCall
+    ) {
       return undefined;
     }
 
     return {
       ...this.env,
       ...runtimePreviewEnv,
+      ...perCallEnv,
     };
   }
 
@@ -923,7 +931,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     command: string,
     cwd: string,
     timeoutMs: number,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; env?: Record<string, string> },
   ): Promise<ExecResult> {
     try {
       const timeoutSignal = AbortSignal.timeout(timeoutMs);
@@ -934,7 +942,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       const result = await this.session.runCommand({
         cmd: "bash",
         args: ["-c", `cd "${cwd}" && ${command}`],
-        env: this.getCommandEnv(),
+        env: this.getCommandEnv(options?.env),
         signal,
       });
 

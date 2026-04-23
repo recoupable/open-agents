@@ -44,6 +44,13 @@ const callOptionsSchema = z.object({
   subagentModel: z.custom<OpenHarnessAgentModelInput>().optional(),
   customInstructions: z.string().optional(),
   skills: z.custom<SkillMetadata[]>().optional(),
+  /**
+   * Short-lived Recoupable API access token forwarded by the caller on a
+   * per-prompt basis. Surfaced to tools via `experimental_context` so
+   * outbound calls to the Recoupable API can authenticate as the user
+   * without persisting a long-lived credential in the sandbox env.
+   */
+  recoupAccessToken: z.string().optional(),
 });
 
 export type OpenHarnessAgentCallOptions = z.infer<typeof callOptionsSchema>;
@@ -114,6 +121,7 @@ export const openHarnessAgent = new ToolLoopAgent({
     const customInstructions = options.customInstructions;
     const sandbox = options.sandbox;
     const skills = options.skills ?? [];
+    const recoupAccessToken = options.recoupAccessToken;
 
     const instructions = buildSystemPrompt({
       cwd: sandbox.workingDirectory,
@@ -137,6 +145,7 @@ export const openHarnessAgent = new ToolLoopAgent({
         skills,
         model: callModel,
         subagentModel,
+        ...(recoupAccessToken ? { recoupAccessToken } : {}),
       },
     };
   },

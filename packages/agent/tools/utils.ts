@@ -3,7 +3,7 @@ import type { LanguageModel, ModelMessage } from "ai";
 import * as path from "path";
 import type { AgentContext } from "../types";
 
-function isAgentContext(value: unknown): value is AgentContext {
+export function isAgentContext(value: unknown): value is AgentContext {
   return (
     typeof value === "object" &&
     value !== null &&

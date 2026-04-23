@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import * as path from "path";
+import { buildRecoupExecEnv } from "./build-recoup-exec-env";
 import { getSandbox } from "./utils";
 
 const TIMEOUT_MS = 120_000;
@@ -104,6 +105,7 @@ EXAMPLES:
     ) => {
       const sandbox = await getSandbox(experimental_context, "bash");
       const workingDirectory = sandbox.workingDirectory;
+      const recoupEnv = buildRecoupExecEnv(experimental_context);
 
       // Resolve the working directory
       const workingDir = cwd
@@ -125,6 +127,10 @@ EXAMPLES:
         }
 
         try {
+          // Detached processes outlive the prompt, so we deliberately do
+          // not inject RECOUP_ACCESS_TOKEN here — the token is scoped to
+          // foreground execs whose lifetime tracks the prompt. Long-
+          // running services must authenticate via their own mechanism.
           const { commandId } = await sandbox.execDetached(command, workingDir);
           return {
             success: true,
@@ -144,6 +150,7 @@ EXAMPLES:
 
       const result = await sandbox.exec(command, workingDir, TIMEOUT_MS, {
         signal: abortSignal,
+        ...(recoupEnv ? { env: recoupEnv } : {}),
       });
 
       return {

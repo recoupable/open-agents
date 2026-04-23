@@ -1,6 +1,7 @@
 "use client";
 
 import { type UseChatHelpers, useChat } from "@ai-sdk/react";
+import { usePrivy } from "@privy-io/react-auth";
 import { isToolUIPart } from "ai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { WebAgentUIMessage } from "@/app/types";
@@ -85,15 +86,28 @@ export function useSessionChatRuntime({
     contextLimitRef.current = contextLimit;
   }, [contextLimit]);
 
+  // Attach a fresh Privy access token to each prompt so outbound calls
+  // from the sandbox to the Recoupable API authenticate as the user with
+  // a short-lived credential that dies with the prompt.
+  const { getAccessToken } = usePrivy();
+
   const transport = useMemo(
     () =>
       new AbortableChatTransport({
         api: "/api/chat",
-        body: () => {
+        body: async () => {
           const requestContextLimit = contextLimitRef.current;
+          const recoupAccessToken = await getAccessToken().catch((error) => {
+            console.error(
+              "[chat] failed to fetch Privy access token for prompt",
+              error,
+            );
+            return null;
+          });
           return {
             sessionId,
             chatId,
+            ...(recoupAccessToken ? { recoupAccessToken } : {}),
             ...(requestContextLimit !== null
               ? {
                   context: {
@@ -107,7 +121,7 @@ export function useSessionChatRuntime({
           api: `/api/chat/${id}/stream`,
         }),
       }),
-    [sessionId, chatId],
+    [sessionId, chatId, getAccessToken],
   );
 
   const { instance: chatInstance, alreadyExisted } = useMemo(
