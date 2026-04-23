@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import { assistantFileLinkPrompt } from "@/lib/assistant-file-links";
+import { recoupApiSkillPrompt } from "@/lib/recoup-api-skill-prompt";
 
 mock.module("server-only", () => ({}));
 
@@ -311,7 +312,10 @@ describe("/api/chat route", () => {
       expect.objectContaining({
         maxSteps: 500,
         agentOptions: expect.objectContaining({
-          customInstructions: assistantFileLinkPrompt,
+          customInstructions: [
+            assistantFileLinkPrompt,
+            recoupApiSkillPrompt,
+          ].join("\n\n"),
         }),
       }),
     ]);
