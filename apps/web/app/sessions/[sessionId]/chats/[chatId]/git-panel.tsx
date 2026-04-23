@@ -64,7 +64,6 @@ import {
   commitAndPushSessionChanges,
   createSessionBranch,
   discardSessionUncommittedChanges,
-  fetchRepoBranches,
   generatePullRequestContent,
 } from "@/lib/git-flow-client";
 import type { SessionGitStatus } from "@/hooks/use-session-git-status";
@@ -625,7 +624,6 @@ function InlinePrCreatePanel({
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [resolvedBranch, setResolvedBranch] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [prHeadOwner, setPrHeadOwner] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [enableAutoMerge, setEnableAutoMerge] = useState(false);
 
@@ -639,14 +637,7 @@ function InlinePrCreatePanel({
   const isDetachedHead = gitStatus?.isDetachedHead ?? false;
   const needsNewBranch = displayBranch === baseBranch || isDetachedHead;
 
-  const normalizedRepoOwner = session.repoOwner?.toLowerCase() ?? null;
-  const normalizedHeadOwner = prHeadOwner?.toLowerCase() ?? null;
-  const shouldOpenCompareInsteadOfApi = Boolean(
-    normalizedRepoOwner &&
-    normalizedHeadOwner &&
-    normalizedHeadOwner !== normalizedRepoOwner,
-  );
-  const canEnableAutoMerge = !shouldOpenCompareInsteadOfApi;
+  const canEnableAutoMerge = true;
 
   useEffect(() => {
     if (!canEnableAutoMerge) {
@@ -693,9 +684,6 @@ function InlinePrCreatePanel({
       });
       setPrTitle(generated.title ?? session.title);
       setPrBody(generated.body ?? "");
-      if (generated.prHeadOwner) {
-        setPrHeadOwner(generated.prHeadOwner);
-      }
       if (generated.branchName && generated.branchName !== "HEAD") {
         setResolvedBranch(generated.branchName);
       }
@@ -729,9 +717,6 @@ function InlinePrCreatePanel({
           });
           finalTitle = generated.title ?? session.title;
           finalBody = finalBody || (generated.body ?? "");
-          if (generated.prHeadOwner) {
-            setPrHeadOwner(generated.prHeadOwner);
-          }
           if (generated.branchName && generated.branchName !== "HEAD") {
             setResolvedBranch(generated.branchName);
           }
@@ -754,45 +739,6 @@ function InlinePrCreatePanel({
         ],
       });
 
-      // Check if we need to open compare page instead
-      const headOwner = prHeadOwner?.trim() || session.repoOwner;
-      const ownerMismatch =
-        headOwner &&
-        session.repoOwner &&
-        headOwner.toLowerCase() !== session.repoOwner.toLowerCase();
-
-      if (ownerMismatch && session.repoOwner && session.repoName) {
-        const headRef = `${headOwner}:${displayBranch}`;
-        const compareUrl = new URL(
-          `https://github.com/${session.repoOwner}/${session.repoName}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(headRef)}`,
-        );
-        compareUrl.searchParams.set("expand", "1");
-        if (finalTitle) compareUrl.searchParams.set("title", finalTitle);
-        if (finalBody) compareUrl.searchParams.set("body", finalBody);
-        window.open(compareUrl.toString(), "_blank", "noopener,noreferrer");
-        setPrSuccess({
-          prUrl: compareUrl.toString(),
-          requiresManualCreation: true,
-        });
-        await onGitMessage?.({
-          id: gitMessageId,
-          role: "assistant",
-          metadata: {},
-          parts: [
-            {
-              type: "data-pr",
-              id: prPartId,
-              data: {
-                status: "success",
-                url: compareUrl.toString(),
-                requiresManualCreation: true,
-              },
-            },
-          ],
-        });
-        return;
-      }
-
       const res = await fetch("/api/pr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -803,7 +749,6 @@ function InlinePrCreatePanel({
           title: finalTitle,
           body: finalBody,
           baseBranch,
-          headOwner: prHeadOwner ?? undefined,
           isDraft,
           enableAutoMerge: !isDraft && enableAutoMerge,
         }),
@@ -1025,9 +970,7 @@ function InlinePrCreatePanel({
             <div className="space-y-0.5 pr-3">
               <p className="text-xs font-medium">Auto-merge</p>
               <p className="text-[10px] text-muted-foreground">
-                {shouldOpenCompareInsteadOfApi
-                  ? "Unavailable for compare page flow."
-                  : "Merge automatically once checks pass."}
+                Merge automatically once checks pass.
               </p>
             </div>
             <Switch
@@ -1690,7 +1633,7 @@ export function GitPanel(props: GitPanelProps) {
     isAgentWorking,
   } = props;
   const { refreshFiles } = useSessionChatWorkspaceContext();
-  const [baseBranch, setBaseBranch] = useState("main");
+  const [baseBranch] = useState("main");
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [discardTarget, setDiscardTarget] = useState<{
     filePath: string;
@@ -1728,26 +1671,6 @@ export function GitPanel(props: GitPanelProps) {
     setDiscardTarget(null);
     setIsDiscardingChanges(false);
   }, [discardTarget, refreshDiff, refreshFiles, refreshGitStatus, session.id]);
-
-  useEffect(() => {
-    if (!session.repoOwner || !session.repoName) {
-      return;
-    }
-
-    let cancelled = false;
-
-    void fetchRepoBranches(session.repoOwner, session.repoName)
-      .then((data) => {
-        if (!cancelled) {
-          setBaseBranch(data.defaultBranch);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session.repoOwner, session.repoName]);
 
   const { files: sessionFiles, isLoading: filesLoading } = useSessionFiles(
     session.id,

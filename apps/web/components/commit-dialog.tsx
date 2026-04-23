@@ -21,13 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type SessionGitStatus } from "@/hooks/use-session-git-status";
@@ -35,7 +28,6 @@ import type { Session } from "@/lib/db/schema";
 import {
   commitAndPushSessionChanges,
   createSessionBranch,
-  fetchRepoBranches,
   type GitActionsResult,
 } from "@/lib/git-flow-client";
 
@@ -67,9 +59,7 @@ export function CommitDialog({
   onGitMessage,
   onOpenCreatePr,
 }: CommitDialogProps) {
-  const [baseBranch, setBaseBranch] = useState("main");
-  const [branches, setBranches] = useState<string[]>([]);
-  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [baseBranch] = useState("main");
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [isCreatingBranch, setIsCreatingBranch] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,31 +71,11 @@ export function CommitDialog({
   const [mode, setMode] = useState<CommitMode>("ai");
   const [manualTitle, setManualTitle] = useState("");
   const [manualBody, setManualBody] = useState("");
-  const [prHeadOwner, setPrHeadOwner] = useState<string | null>(null);
   const [statusSnapshot, setStatusSnapshot] = useState<SessionGitStatus | null>(
     null,
   );
   const statusRequestIdRef = useRef(0);
   const wasOpenRef = useRef(false);
-
-  const fetchBranches = useCallback(async () => {
-    if (!session.repoOwner || !session.repoName) return;
-    setIsLoadingBranches(true);
-
-    try {
-      const branchData = await fetchRepoBranches(
-        session.repoOwner,
-        session.repoName,
-      );
-      setBranches(branchData.branches);
-      setBaseBranch(branchData.defaultBranch);
-    } catch (err) {
-      console.error("Failed to fetch branches:", err);
-      setBranches(["main"]);
-    } finally {
-      setIsLoadingBranches(false);
-    }
-  }, [session.repoName, session.repoOwner]);
 
   const syncGitStatus = useCallback(async () => {
     if (!hasSandbox) {
@@ -162,12 +132,10 @@ export function CommitDialog({
     setMode("ai");
     setManualTitle("");
     setManualBody("");
-    setPrHeadOwner(null);
     setStatusSnapshot(gitStatus);
 
-    void fetchBranches();
     void syncGitStatus();
-  }, [open, fetchBranches, gitStatus, syncGitStatus]);
+  }, [open, gitStatus, syncGitStatus]);
 
   const effectiveStatus = statusSnapshot ?? gitStatus;
   const branchFromStatus =
@@ -285,17 +253,9 @@ export function CommitDialog({
         setResolvedBranch(response.branchName);
       }
 
-      if (response.prHeadOwner) {
-        setPrHeadOwner(response.prHeadOwner);
-      }
-
-      const commitOwner =
-        response.gitActions?.pushedToFork && response.prHeadOwner
-          ? response.prHeadOwner
-          : session.repoOwner;
       const commitUrl =
-        response.gitActions?.commitSha && commitOwner && session.repoName
-          ? `https://github.com/${commitOwner}/${session.repoName}/commit/${response.gitActions.commitSha}`
+        response.gitActions?.commitSha && session.repoOwner && session.repoName
+          ? `https://github.com/${session.repoOwner}/${session.repoName}/commit/${response.gitActions.commitSha}`
           : undefined;
 
       await onGitMessage?.({
@@ -357,11 +317,9 @@ export function CommitDialog({
     : "Push commits";
   const isDisabled = isCheckingStatus || isCreatingBranch || isSubmitting;
 
-  const commitOwner =
-    gitActions?.pushedToFork && prHeadOwner ? prHeadOwner : session.repoOwner;
   const commitUrl =
-    gitActions?.commitSha && commitOwner && session.repoName
-      ? `https://github.com/${commitOwner}/${session.repoName}/commit/${gitActions.commitSha}`
+    gitActions?.commitSha && session.repoOwner && session.repoName
+      ? `https://github.com/${session.repoOwner}/${session.repoName}/commit/${gitActions.commitSha}`
       : null;
   const prUrl =
     session.prNumber && session.repoOwner && session.repoName
@@ -387,39 +345,11 @@ export function CommitDialog({
           )}
 
           {step === "create-branch" && (
-            <>
-              <div className="grid gap-2">
-                <Label htmlFor="base-branch">Base branch</Label>
-                <Select
-                  value={baseBranch}
-                  onValueChange={setBaseBranch}
-                  disabled={isDisabled || isLoadingBranches}
-                >
-                  <SelectTrigger id="base-branch" className="w-full">
-                    <SelectValue placeholder="Select base branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {isLoadingBranches ? (
-                      <SelectItem value="loading" disabled>
-                        Loading branches...
-                      </SelectItem>
-                    ) : (
-                      branches.map((branch) => (
-                        <SelectItem key={branch} value={branch}>
-                          {branch}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-                {isDetachedHead
-                  ? "You are in detached HEAD state. Create a branch before committing."
-                  : "You are on the base branch. Create a new branch before committing."}
-              </div>
-            </>
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+              {isDetachedHead
+                ? "You are in detached HEAD state. Create a branch before committing."
+                : `You are on the base branch. A new branch will be created off ${baseBranch} before committing.`}
+            </div>
           )}
 
           {step === "commit" && (
@@ -537,11 +467,7 @@ export function CommitDialog({
                 )}
 
                 {gitActions?.pushed && (
-                  <p className="text-muted-foreground">
-                    {gitActions.pushedToFork
-                      ? "Pushed to fork remote"
-                      : "Pushed to origin"}
-                  </p>
+                  <p className="text-muted-foreground">Pushed to origin</p>
                 )}
 
                 {commitUrl && (
