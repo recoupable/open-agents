@@ -1,15 +1,10 @@
 import { connectSandbox } from "@open-harness/sandbox";
 import { gateway, generateText } from "ai";
 import {
-  ensureForkExists,
-  extractGitHubOwnerFromRemoteUrl,
-  forkPushRetryConfig,
   generateBranchName,
   isPermissionPushError,
-  isRetryableForkPushError,
   looksLikeCommitHash,
   redactGitHubToken,
-  sleepForForkRetry,
 } from "@/app/api/generate-pr/_lib/generate-pr-helpers";
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { getSessionById, updateSession } from "@/lib/db/sessions";
@@ -108,12 +103,6 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   }
-
-  // Personal-fork push fallback from the template fork is dead code now that
-  // all repos are recoupable-owned and pushed with the service token. Kept as
-  // a guarded block so the surrounding logic compiles; scheduled for removal
-  // in the follow-up YAGNI cleanup.
-  const userToken: string | null = null;
 
   // 3a. Resolve live branch from sandbox
   let resolvedBranch = branchName === "HEAD" ? baseBranch : branchName;
@@ -270,9 +259,7 @@ export async function POST(req: Request) {
     commitMessage?: string;
     commitSha?: string;
     pushed?: boolean;
-    pushedToFork?: boolean;
   } = {};
-  let prHeadOwner: string | null = null;
 
   if (hasUncommittedChanges) {
     // 4a. Stage all changes first so untracked files are included in diff
@@ -392,24 +379,6 @@ Respond with ONLY the commit message, nothing else.`,
     trackingResult.stdout.includes("needs-push") ||
     trackingResult.stdout.trim().length > 0;
 
-  const upstreamRefResult = await sandbox.exec(
-    "git rev-parse --abbrev-ref --symbolic-full-name @{upstream} 2>/dev/null || true",
-    cwd,
-    10000,
-  );
-  const upstreamRef = upstreamRefResult.stdout.trim();
-  if (upstreamRef.startsWith("fork/")) {
-    const forkUrlResult = await sandbox.exec(
-      "git remote get-url fork 2>/dev/null || true",
-      cwd,
-      10000,
-    );
-    const forkOwner = extractGitHubOwnerFromRemoteUrl(forkUrlResult.stdout);
-    if (forkOwner) {
-      prHeadOwner = forkOwner;
-    }
-  }
-
   if (needsPush) {
     // 5a. Fetch latest from origin to check for conflicts
     await sandbox.exec("git fetch origin", cwd, 30000);
@@ -436,155 +405,25 @@ Respond with ONLY the commit message, nothing else.`,
       console.log(
         `[generate-pr] Push to origin failed (exitCode=${pushResult.exitCode}, output=${redactedPushOutput.slice(0, 200) || "none"})`,
       );
-      let errorMessage = "Failed to push branch.";
-      let isPermissionError = isPermissionPushError(pushOutput);
+      const isPermissionError =
+        isPermissionPushError(pushOutput) ||
+        (!pushOutput && pushResult.exitCode === 128);
 
-      // Cloud sandboxes backed by Vercel can return empty output on push failure even when
-      // the actual error is a permission denial (exitCode 128 with no stderr).
-      // Treat empty-output failures as potential permission errors so fallback
-      // paths (user token, fork) are still attempted.
-      if (!isPermissionError && !pushOutput && pushResult.exitCode === 128) {
-        isPermissionError = true;
-      }
-
+      let errorMessage: string;
       if (
-        !gitActions.pushed &&
-        isPermissionError &&
-        sessionRecord.repoOwner &&
-        sessionRecord.repoName
+        pushOutput.includes("rejected") ||
+        pushOutput.includes("non-fast-forward")
       ) {
-        const githubAccount = await getGitHubAccount(session.user.id);
-
-        if (userToken && githubAccount?.username) {
-          const forkOwner = githubAccount.username;
-          const forkResult = await ensureForkExists({
-            token: userToken,
-            upstreamOwner: sessionRecord.repoOwner,
-            upstreamRepo: sessionRecord.repoName,
-            forkOwner,
-          });
-
-          if (!forkResult.success) {
-            return Response.json(
-              {
-                error: `Failed to push to upstream and fork fallback failed: ${forkResult.error}`,
-              },
-              { status: 500 },
-            );
-          }
-
-          const { forkRepoName } = forkResult;
-          const forkAuthUrl = `https://x-access-token:${userToken}@github.com/${forkOwner}/${forkRepoName}.git`;
-
-          await sandbox.exec(
-            "git remote remove fork 2>/dev/null || true",
-            cwd,
-            10000,
-          );
-          const addForkResult = await sandbox.exec(
-            `git remote add fork "${forkAuthUrl}"`,
-            cwd,
-            10000,
-          );
-
-          if (!addForkResult.success) {
-            return Response.json(
-              {
-                error: `Failed to configure fork remote: ${(addForkResult.stderr ?? addForkResult.stdout).slice(0, 200)}`,
-              },
-              { status: 500 },
-            );
-          }
-
-          let pushToForkSucceeded = false;
-          let lastPushForkOutput = "";
-
-          for (
-            let attempt = 1;
-            attempt <= forkPushRetryConfig.attempts;
-            attempt += 1
-          ) {
-            const pushForkResult = await sandbox.exec(
-              `GIT_TERMINAL_PROMPT=0 git push --verbose -u fork ${resolvedBranch}`,
-              cwd,
-              60000,
-            );
-
-            if (pushForkResult.success) {
-              pushToForkSucceeded = true;
-              console.log(
-                `[generate-pr] Push to origin denied; pushed branch to fork ${forkOwner}/${forkRepoName}`,
-              );
-              prHeadOwner = forkOwner;
-              gitActions.pushed = true;
-              gitActions.pushedToFork = true;
-              break;
-            }
-
-            lastPushForkOutput =
-              `${pushForkResult.stdout}\n${pushForkResult.stderr ?? ""}`.trim();
-
-            if (
-              isRetryableForkPushError(lastPushForkOutput) &&
-              attempt < forkPushRetryConfig.attempts
-            ) {
-              console.log(
-                `[generate-pr] Fork push retry ${attempt}/${forkPushRetryConfig.attempts}: waiting for fork repository to become available`,
-              );
-              await sleepForForkRetry();
-              continue;
-            }
-
-            break;
-          }
-
-          if (!pushToForkSucceeded) {
-            if (isPermissionPushError(lastPushForkOutput)) {
-              return Response.json(
-                {
-                  error:
-                    "Failed to push to your fork. Ensure your linked GitHub account has permission to create and push to forks.",
-                },
-                { status: 403 },
-              );
-            }
-
-            return Response.json(
-              {
-                error: `Failed to push to fork ${forkOwner}/${forkRepoName}: ${redactGitHubToken(lastPushForkOutput).slice(0, 200)}`,
-              },
-              { status: 500 },
-            );
-          }
-        } else {
-          return Response.json(
-            {
-              error:
-                "Failed to push to upstream and no linked GitHub account is available for fork fallback.",
-            },
-            { status: 500 },
-          );
-        }
+        errorMessage = branchExistsOnRemote
+          ? `Branch '${resolvedBranch}' already exists on remote with different commits. Try creating a new branch or pull the latest changes.`
+          : "Push rejected. The remote may have changes that conflict with your local branch.";
+      } else if (isPermissionError) {
+        errorMessage = "Permission denied. Check your GitHub access.";
+      } else {
+        errorMessage = `Push failed: ${redactedPushOutput.slice(0, 200)}`;
       }
 
-      if (!gitActions.pushed) {
-        if (
-          pushOutput.includes("rejected") ||
-          pushOutput.includes("non-fast-forward")
-        ) {
-          if (branchExistsOnRemote) {
-            errorMessage = `Branch '${resolvedBranch}' already exists on remote with different commits. Try creating a new branch or pull the latest changes.`;
-          } else {
-            errorMessage = `Push rejected. The remote may have changes that conflict with your local branch.`;
-          }
-        } else if (isPermissionError) {
-          errorMessage = "Permission denied. Check your GitHub access.";
-        } else {
-          errorMessage = `Push failed: ${redactedPushOutput.slice(0, 200)}`;
-        }
-
-        return Response.json({ error: errorMessage }, { status: 500 });
-      }
+      return Response.json({ error: errorMessage }, { status: 500 });
     }
 
     gitActions.pushed = true;
@@ -595,7 +434,6 @@ Respond with ONLY the commit message, nothing else.`,
     return Response.json({
       branchName: resolvedBranch,
       gitActions,
-      ...(prHeadOwner ? { prHeadOwner } : {}),
     });
   }
 
@@ -617,7 +455,6 @@ Respond with ONLY the commit message, nothing else.`,
     title: prContentResult.title,
     body: prContentResult.body,
     branchName: resolvedBranch,
-    ...(prHeadOwner ? { prHeadOwner } : {}),
     ...(Object.keys(gitActions).length > 0 && { gitActions }),
   });
 }

@@ -155,11 +155,6 @@ const ClosePrDialog = dynamic(
   { ssr: false },
 );
 
-const CreateRepoDialog = dynamic(
-  () =>
-    import("@/components/create-repo-dialog").then((m) => m.CreateRepoDialog),
-  { ssr: false },
-);
 const Streamdown = dynamic(
   () => import("streamdown").then((m) => m.Streamdown),
   { ssr: false },
@@ -1060,7 +1055,6 @@ export function SessionChatContent({
   const [_isUnarchiving, _setIsUnarchiving] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [repoDialogOpen, setRepoDialogOpen] = useState(false);
   const [showDiffPanel, setShowDiffPanel] = useState(false);
   const [selectedWorkspaceFile, setSelectedWorkspaceFile] = useState<
     string | null
@@ -1226,7 +1220,6 @@ export function SessionChatContent({
     lifecycleTiming,
     syncSandboxStatus,
     attemptReconnection,
-    updateSessionRepo,
     updateSessionPullRequest,
     checkBranchAndPr,
     modelOptions,
@@ -3006,7 +2999,6 @@ export function SessionChatContent({
       diffFiles={diff?.files ?? null}
       diffSummary={diff?.summary ?? null}
       diffRefreshing={diffRefreshing}
-      onCreateRepoClick={() => setRepoDialogOpen(true)}
       refreshDiff={refreshDiff}
       onMerged={handleMerged}
       onCloseAndArchiveClick={() => setCloseDialogOpen(true)}
@@ -4351,24 +4343,6 @@ export function SessionChatContent({
           onOpenChange={setCloseDialogOpen}
           session={session}
           onClosed={handleClosed}
-        />
-      )}
-
-      {/* Create Repo Dialog */}
-      {session && (
-        <CreateRepoDialog
-          open={repoDialogOpen}
-          onOpenChange={setRepoDialogOpen}
-          session={session}
-          hasSandbox={sandboxInfo !== null}
-          onRepoCreated={(result) => {
-            updateSessionRepo({
-              cloneUrl: result.cloneUrl,
-              repoOwner: result.owner,
-              repoName: result.repoName,
-              branch: result.branch,
-            });
-          }}
         />
       )}
 

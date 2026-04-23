@@ -5,7 +5,6 @@ import {
   Check,
   ChevronDown,
   ExternalLink,
-  FolderGit2,
   GitBranch,
   GitCommit,
   GitMerge,
@@ -125,7 +124,6 @@ type GitPanelProps = {
   diffRefreshing: boolean;
 
   // Actions
-  onCreateRepoClick: () => void;
   refreshDiff: () => Promise<void>;
 
   // Merge
@@ -1672,13 +1670,11 @@ export function GitPanel(props: GitPanelProps) {
     isDeploymentStale,
     isDeploymentFailed,
     hasUncommittedGitChanges,
-    supportsRepoCreation,
     hasDiff,
     canCloseAndArchive,
     diffFiles,
     diffSummary,
     diffRefreshing,
-    onCreateRepoClick,
     refreshDiff,
     onMerged,
     onCloseAndArchiveClick,
@@ -1874,18 +1870,6 @@ export function GitPanel(props: GitPanelProps) {
               Preview
               <ExternalLink className="h-3 w-3 text-muted-foreground" />
             </a>
-          )}
-
-          {!hasRepo && supportsRepoCreation && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 text-xs"
-              onClick={onCreateRepoClick}
-            >
-              <FolderGit2 className="mr-1.5 h-3.5 w-3.5" />
-              Create Repo
-            </Button>
           )}
         </div>
       </div>
