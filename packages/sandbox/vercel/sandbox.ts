@@ -519,6 +519,20 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       skipGitWorkspaceBootstrap = false,
     } = config;
 
+    const createStart = Date.now();
+    let lastStep = createStart;
+    const logTiming = (phase: string, extra?: Record<string, unknown>) => {
+      const now = Date.now();
+      console.log("[sandbox-timing]", {
+        name: name ?? "unnamed",
+        phase,
+        step_ms: now - lastStep,
+        elapsed_ms: now - createStart,
+        ...extra,
+      });
+      lastStep = now;
+    };
+
     // Clamp proactive timeout to stay under the SDK's hard max when buffer is applied.
     const effectiveTimeout = Math.min(timeout, MAX_PROACTIVE_TIMEOUT_MS);
     if (effectiveTimeout !== timeout) {
@@ -542,17 +556,21 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     };
 
     let sdk: VercelSandboxSDK;
+    let provisionMode: string;
     if (restoreSnapshotId) {
+      provisionMode = "restore_snapshot";
       sdk = await VercelSandboxSDK.create({
         ...createBaseConfig,
         source: { type: "snapshot", snapshotId: restoreSnapshotId },
       });
     } else if (baseSnapshotId) {
+      provisionMode = "base_snapshot";
       sdk = await VercelSandboxSDK.create({
         ...createBaseConfig,
         source: { type: "snapshot", snapshotId: baseSnapshotId },
       });
     } else if (source) {
+      provisionMode = "sdk_git";
       sdk = await VercelSandboxSDK.create({
         ...createBaseConfig,
         source: source.token
@@ -570,8 +588,10 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
             },
       });
     } else {
+      provisionMode = "empty";
       sdk = await VercelSandboxSDK.create(createBaseConfig);
     }
+    logTiming("vm_provision", { mode: provisionMode });
 
     const workingDirectory = DEFAULT_WORKING_DIRECTORY;
 
@@ -600,6 +620,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
           `Failed to clone repository '${source.url}' (exit code ${cloneResult.exitCode})`,
         );
       }
+      logTiming("git_clone", { repo: source.url });
     }
 
     // Fast path: the base snapshot already contains the cloned repo. Sync to
@@ -654,6 +675,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
           args: ["remote", "set-url", "origin", authenticatedUrl],
           cwd: workingDirectory,
         });
+        logTiming("git_remote_set_url");
       }
     }
 
@@ -669,6 +691,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
         args: ["config", "user.email", gitUser.email],
         cwd: workingDirectory,
       });
+      logTiming("git_config_user");
     }
 
     // Create initial empty commit for empty sandboxes so HEAD exists
@@ -705,6 +728,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       }
 
       currentBranch = source.newBranch;
+      logTiming("git_checkout_new_branch", { branch: source.newBranch });
     } else if (source?.branch) {
       currentBranch = source.branch;
     }
@@ -729,8 +753,10 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     // Call afterStart hook if provided
     if (hooks?.afterStart) {
       await hooks.afterStart(sandbox);
+      logTiming("after_start_hook");
     }
 
+    logTiming("create_total");
     return sandbox;
   }
 

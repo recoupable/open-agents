@@ -28,6 +28,24 @@ import { getServerSession } from "@/lib/session/get-server-session";
 export async function handleCreateSandboxRequest(
   req: Request,
 ): Promise<Response> {
+  const handlerStart = Date.now();
+  let lastStep = handlerStart;
+  const logTiming = (
+    phase: string,
+    sessionId: string | undefined,
+    extra?: Record<string, unknown>,
+  ) => {
+    const now = Date.now();
+    console.log("[sandbox-handler-timing]", {
+      sessionId: sessionId ?? "unknown",
+      phase,
+      step_ms: now - lastStep,
+      elapsed_ms: now - handlerStart,
+      ...extra,
+    });
+    lastStep = now;
+  };
+
   let rawBody: unknown;
   try {
     rawBody = await req.json();
@@ -94,7 +112,7 @@ export async function handleCreateSandboxRequest(
       `${session.user.username}@users.noreply.github.com`,
   };
 
-  const startTime = Date.now();
+  logTiming("auth_and_db_lookups", sessionId);
 
   // Look up a per-org base snapshot so we can skip the 75s full-repo clone.
   // Falls back to the default base snapshot + full clone when no per-org
@@ -142,6 +160,7 @@ export async function handleCreateSandboxRequest(
       { status: 502 },
     );
   }
+  logTiming("connect_sandbox", sessionId);
 
   if (sessionId && sandbox.getState) {
     const nextState = sandbox.getState() as SandboxState;
@@ -154,12 +173,16 @@ export async function handleCreateSandboxRequest(
       ),
       ...buildActiveLifecycleUpdate(nextState),
     });
+    logTiming("update_session_state", sessionId);
 
     if (sessionRecord) {
       try {
         await installSessionGlobalSkills({
           sessionRecord,
           sandbox,
+        });
+        logTiming("install_global_skills", sessionId, {
+          skillCount: sessionRecord.globalSkillRefs?.length ?? 0,
         });
       } catch (error) {
         console.error(
@@ -175,7 +198,8 @@ export async function handleCreateSandboxRequest(
     });
   }
 
-  const readyMs = Date.now() - startTime;
+  const readyMs = Date.now() - handlerStart;
+  logTiming("handler_total", sessionId, { readyMs });
 
   return Response.json({
     createdAt: Date.now(),
