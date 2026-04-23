@@ -3,6 +3,7 @@ import {
   requireOwnedSession,
 } from "@/app/api/sessions/_lib/session-context";
 import type { PullRequestCheckRun } from "@/lib/github/client";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { Octokit } from "@octokit/rest";
 import { gateway, generateText } from "ai";
@@ -204,7 +205,8 @@ export async function POST(req: Request, context: RouteContext) {
 
   const { sessionRecord } = sessionContext;
 
-  if (!sessionRecord.repoOwner || !sessionRecord.repoName) {
+  const repo = resolveSessionRepo(sessionRecord);
+  if (!repo) {
     return Response.json(
       { error: "Session is not linked to a GitHub repository" },
       { status: 400 },
@@ -243,8 +245,8 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     const octokit = new Octokit({ auth: token });
-    const owner = sessionRecord.repoOwner;
-    const repo = sessionRecord.repoName;
+    const owner = repo.owner;
+    const repoName = repo.repo;
 
     await Promise.all(
       runsWithIds.map(async (run) => {
@@ -255,7 +257,7 @@ export async function POST(req: Request, context: RouteContext) {
           octokit.rest.checks
             .listAnnotations({
               owner,
-              repo,
+              repo: repoName,
               check_run_id: run.id,
               per_page: 50,
             })
@@ -265,7 +267,7 @@ export async function POST(req: Request, context: RouteContext) {
           octokit.rest.actions
             .downloadJobLogsForWorkflowRun({
               owner,
-              repo,
+              repo: repoName,
               job_id: run.id,
             })
             .then((res) =>

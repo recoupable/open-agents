@@ -7,6 +7,7 @@ import {
   type PullRequestCheckRun,
   type PullRequestMergeMethod,
 } from "@/lib/github/client";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
@@ -98,30 +99,24 @@ export async function GET(_req: Request, context: RouteContext) {
   }
 
   const { sessionRecord } = sessionContext;
+  const repo = resolveSessionRepo(sessionRecord);
 
-  const repoIdentifier =
-    sessionRecord.repoOwner && sessionRecord.repoName
-      ? `${sessionRecord.repoOwner}/${sessionRecord.repoName}`
-      : null;
-
-  if (!sessionRecord.cloneUrl || !repoIdentifier || !sessionRecord.repoOwner) {
+  if (!repo) {
     return Response.json(
       buildUnavailableResponse(
         "Session is not linked to a GitHub repository",
         sessionRecord.prNumber,
-        repoIdentifier,
+        null,
       ) satisfies MergeReadinessResponse,
     );
   }
-
-  const cloneUrl = sessionRecord.cloneUrl;
 
   if (!sessionRecord.prNumber) {
     return Response.json(
       buildUnavailableResponse(
         "No pull request found for this session",
         null,
-        repoIdentifier,
+        repo.identifier,
       ) satisfies MergeReadinessResponse,
     );
   }
@@ -131,7 +126,7 @@ export async function GET(_req: Request, context: RouteContext) {
       buildUnavailableResponse(
         "Pull request is already merged",
         sessionRecord.prNumber,
-        repoIdentifier,
+        repo.identifier,
       ) satisfies MergeReadinessResponse,
     );
   }
@@ -141,7 +136,7 @@ export async function GET(_req: Request, context: RouteContext) {
       buildUnavailableResponse(
         "Pull request is closed",
         sessionRecord.prNumber,
-        repoIdentifier,
+        repo.identifier,
       ) satisfies MergeReadinessResponse,
     );
   }
@@ -152,13 +147,13 @@ export async function GET(_req: Request, context: RouteContext) {
       buildUnavailableResponse(
         "No GitHub token available for this repository",
         sessionRecord.prNumber,
-        repoIdentifier,
+        repo.identifier,
       ) satisfies MergeReadinessResponse,
     );
   }
 
   const readiness = await getPullRequestMergeReadiness({
-    repoUrl: cloneUrl,
+    repoUrl: repo.cloneUrl,
     prNumber: sessionRecord.prNumber,
     token,
   });
@@ -182,7 +177,7 @@ export async function GET(_req: Request, context: RouteContext) {
           : [readiness.error ?? "Failed to check pull request readiness"],
     pr: {
       number: sessionRecord.prNumber,
-      repo: repoIdentifier,
+      repo: repo.identifier,
       title: readiness.pr?.title ?? null,
       body: readiness.pr?.body ?? null,
       baseBranch: readiness.pr?.baseBranch ?? null,
