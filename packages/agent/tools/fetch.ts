@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { getSandbox, shellEscape } from "./utils";
+import { buildRecoupExecEnv, getSandbox, shellEscape } from "./utils";
 
 const TIMEOUT_MS = 30_000;
 export const MAX_BODY_LENGTH = 10_000;
@@ -54,6 +54,7 @@ EXAMPLES:
   ) => {
     const sandbox = await getSandbox(experimental_context, "web_fetch");
     const workingDirectory = sandbox.workingDirectory;
+    const recoupEnv = buildRecoupExecEnv(experimental_context);
 
     const args: string[] = [
       "curl",
@@ -92,6 +93,7 @@ EXAMPLES:
     try {
       const result = await sandbox.exec(command, workingDirectory, TIMEOUT_MS, {
         signal: abortSignal,
+        ...(recoupEnv ? { env: recoupEnv } : {}),
       });
 
       if (result.exitCode !== 0 && result.exitCode !== 23) {

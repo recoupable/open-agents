@@ -484,6 +484,26 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
   }
 
   /**
+   * Merge per-invocation env on top of the persistent sandbox env. The
+   * per-invocation entries win so callers can pass short-lived credentials
+   * (e.g. access tokens) scoped to a single command without polluting the
+   * sandbox-wide env.
+   */
+  private mergeCommandEnv(
+    perCallEnv?: Record<string, string>,
+  ): Record<string, string> | undefined {
+    const base = this.getCommandEnv();
+    if (!perCallEnv || Object.keys(perCallEnv).length === 0) {
+      return base;
+    }
+
+    return {
+      ...base,
+      ...perCallEnv,
+    };
+  }
+
+  /**
    * Create a new Vercel Sandbox instance.
    * If `baseSnapshotId` is provided, sandbox bootstraps from that snapshot first.
    * If a source is provided with `baseSnapshotId`, the repo is cloned after bootstrap.
@@ -923,7 +943,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     command: string,
     cwd: string,
     timeoutMs: number,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; env?: Record<string, string> },
   ): Promise<ExecResult> {
     try {
       const timeoutSignal = AbortSignal.timeout(timeoutMs);
@@ -934,7 +954,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       const result = await this.session.runCommand({
         cmd: "bash",
         args: ["-c", `cd "${cwd}" && ${command}`],
-        env: this.getCommandEnv(),
+        env: this.mergeCommandEnv(options?.env),
         signal,
       });
 
@@ -985,11 +1005,12 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
   async execDetached(
     command: string,
     cwd: string,
+    options?: { env?: Record<string, string> },
   ): Promise<{ commandId: string }> {
     const result = await this.session.runCommand({
       cmd: "bash",
       args: ["-c", `cd "${cwd}" && ${command}`],
-      env: this.getCommandEnv(),
+      env: this.mergeCommandEnv(options?.env),
       detached: true,
     });
 

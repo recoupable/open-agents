@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import * as path from "path";
-import { getSandbox } from "./utils";
+import { buildRecoupExecEnv, getSandbox } from "./utils";
 
 const TIMEOUT_MS = 120_000;
 
@@ -104,6 +104,7 @@ EXAMPLES:
     ) => {
       const sandbox = await getSandbox(experimental_context, "bash");
       const workingDirectory = sandbox.workingDirectory;
+      const recoupEnv = buildRecoupExecEnv(experimental_context);
 
       // Resolve the working directory
       const workingDir = cwd
@@ -125,7 +126,11 @@ EXAMPLES:
         }
 
         try {
-          const { commandId } = await sandbox.execDetached(command, workingDir);
+          const { commandId } = await sandbox.execDetached(
+            command,
+            workingDir,
+            recoupEnv ? { env: recoupEnv } : undefined,
+          );
           return {
             success: true,
             exitCode: null,
@@ -144,6 +149,7 @@ EXAMPLES:
 
       const result = await sandbox.exec(command, workingDir, TIMEOUT_MS, {
         signal: abortSignal,
+        ...(recoupEnv ? { env: recoupEnv } : {}),
       });
 
       return {

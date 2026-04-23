@@ -4,6 +4,13 @@ export interface ChatRequestBody {
   messages: WebAgentUIMessage[];
   sessionId?: string;
   chatId?: string;
+  /**
+   * Short-lived Recoupable access token (Privy JWT) for this prompt.
+   * Forwarded into the agent's `experimental_context` so tools making
+   * outbound calls to the Recoupable API authenticate as the user for
+   * the duration of this prompt only.
+   */
+  recoupAccessToken?: string;
 }
 
 type ParseChatRequestResult =

@@ -371,6 +371,97 @@ describe("tools execute behavior", () => {
     });
   });
 
+  test("bashTool forwards recoupAccessToken as RECOUP_ACCESS_TOKEN in exec env", async () => {
+    const execCalls: Array<{
+      command: string;
+      cwd: string;
+      options?: { signal?: AbortSignal; env?: Record<string, string> };
+    }> = [];
+    const detachedCalls: Array<{
+      command: string;
+      cwd: string;
+      options?: { env?: Record<string, string> };
+    }> = [];
+
+    const sandbox = {
+      workingDirectory: "/repo",
+      exec: async (
+        command: string,
+        cwd: string,
+        _timeoutMs: number,
+        options?: { signal?: AbortSignal; env?: Record<string, string> },
+      ) => {
+        execCalls.push({ command, cwd, options });
+        return {
+          success: true,
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          truncated: false,
+        };
+      },
+      execDetached: async (
+        command: string,
+        cwd: string,
+        options?: { env?: Record<string, string> },
+      ) => {
+        detachedCalls.push({ command, cwd, options });
+        return { commandId: "cmd-detached" };
+      },
+    };
+
+    const context = {
+      ...createContext(sandbox),
+      recoupAccessToken: "privy-jwt-abc",
+    };
+
+    await bashTool().execute?.(
+      { command: "curl https://developers.recoupable.com/ping" },
+      executionOptions(context),
+    );
+
+    expect(execCalls).toHaveLength(1);
+    expect(execCalls[0]?.options?.env).toEqual({
+      RECOUP_ACCESS_TOKEN: "privy-jwt-abc",
+    });
+
+    await bashTool().execute?.(
+      { command: "npm run dev", detached: true },
+      executionOptions(context),
+    );
+
+    expect(detachedCalls).toHaveLength(1);
+    expect(detachedCalls[0]?.options?.env).toEqual({
+      RECOUP_ACCESS_TOKEN: "privy-jwt-abc",
+    });
+
+    const contextWithoutToken = createContext({
+      workingDirectory: "/repo",
+      exec: async (
+        command: string,
+        cwd: string,
+        _timeoutMs: number,
+        options?: { signal?: AbortSignal; env?: Record<string, string> },
+      ) => {
+        execCalls.push({ command, cwd, options });
+        return {
+          success: true,
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          truncated: false,
+        };
+      },
+    });
+
+    await bashTool().execute?.(
+      { command: "ls" },
+      executionOptions(contextWithoutToken),
+    );
+
+    expect(execCalls[1]?.options?.env).toBeUndefined();
+  });
+
   test("commandNeedsApproval flags only rm -rf commands", () => {
     expect(commandNeedsApproval("ls -la")).toBe(false);
     expect(commandNeedsApproval("git status --short")).toBe(false);

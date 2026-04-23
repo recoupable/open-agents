@@ -1,6 +1,7 @@
 "use client";
 
 import { type UseChatHelpers, useChat } from "@ai-sdk/react";
+import { usePrivy } from "@privy-io/react-auth";
 import { isToolUIPart } from "ai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { WebAgentUIMessage } from "@/app/types";
@@ -85,15 +86,36 @@ export function useSessionChatRuntime({
     contextLimitRef.current = contextLimit;
   }, [contextLimit]);
 
+  // Keep the Privy access-token fetcher in a ref so the transport memo
+  // stays stable across renders while still reading the latest token on
+  // each send. A fresh token is attached per-prompt so the sandbox's
+  // outbound Recoupable API calls authenticate with a short-lived
+  // credential scoped to that prompt.
+  const { getAccessToken } = usePrivy();
+  const getAccessTokenRef = useRef(getAccessToken);
+  useEffect(() => {
+    getAccessTokenRef.current = getAccessToken;
+  }, [getAccessToken]);
+
   const transport = useMemo(
     () =>
       new AbortableChatTransport({
         api: "/api/chat",
-        body: () => {
+        body: async () => {
           const requestContextLimit = contextLimitRef.current;
+          let recoupAccessToken: string | null = null;
+          try {
+            recoupAccessToken = await getAccessTokenRef.current();
+          } catch (error) {
+            console.error(
+              "[chat] failed to fetch Privy access token for prompt",
+              error,
+            );
+          }
           return {
             sessionId,
             chatId,
+            ...(recoupAccessToken ? { recoupAccessToken } : {}),
             ...(requestContextLimit !== null
               ? {
                   context: {

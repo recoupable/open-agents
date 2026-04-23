@@ -21,6 +21,12 @@ export interface AgentContext {
   skills?: SkillMetadata[];
   model: LanguageModel;
   subagentModel?: LanguageModel;
+  /**
+   * Short-lived Recoupable API access token (Privy JWT) scoped to the
+   * current prompt. Tools that call out to the Recoupable API should
+   * forward this as a Bearer token instead of holding a long-lived key.
+   */
+  recoupAccessToken?: string;
 }
 
 export interface SandboxExecutionContext {
