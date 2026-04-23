@@ -4,6 +4,7 @@ import {
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
 import { closePullRequest } from "@/lib/github/client";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
@@ -31,12 +32,9 @@ export async function POST(_req: Request, context: RouteContext) {
   }
 
   const { sessionRecord } = sessionContext;
+  const repo = resolveSessionRepo(sessionRecord);
 
-  if (
-    !sessionRecord.cloneUrl ||
-    !sessionRecord.repoOwner ||
-    !sessionRecord.repoName
-  ) {
+  if (!repo) {
     return Response.json(
       { error: "Session is not linked to a GitHub repository" },
       { status: 400 },
@@ -73,7 +71,7 @@ export async function POST(_req: Request, context: RouteContext) {
   }
 
   const closeResult = await closePullRequest({
-    repoUrl: sessionRecord.cloneUrl,
+    repoUrl: repo.cloneUrl,
     prNumber: sessionRecord.prNumber,
     token,
   });

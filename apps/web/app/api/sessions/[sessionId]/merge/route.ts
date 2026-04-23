@@ -9,6 +9,7 @@ import {
   mergePullRequest,
   type PullRequestMergeMethod,
 } from "@/lib/github/client";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
@@ -85,12 +86,9 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   const { sessionRecord } = sessionContext;
+  const repo = resolveSessionRepo(sessionRecord);
 
-  if (
-    !sessionRecord.cloneUrl ||
-    !sessionRecord.repoOwner ||
-    !sessionRecord.repoName
-  ) {
+  if (!repo) {
     return Response.json(
       { error: "Session is not linked to a GitHub repository" },
       { status: 400 },
@@ -151,7 +149,7 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   const readiness = await getPullRequestMergeReadiness({
-    repoUrl: sessionRecord.cloneUrl,
+    repoUrl: repo.cloneUrl,
     prNumber: sessionRecord.prNumber,
     token,
   });
@@ -213,7 +211,7 @@ export async function POST(req: Request, context: RouteContext) {
   }
 
   const mergeResult = await mergePullRequest({
-    repoUrl: sessionRecord.cloneUrl,
+    repoUrl: repo.cloneUrl,
     prNumber: sessionRecord.prNumber,
     mergeMethod: requestedMethod,
     expectedHeadSha,
@@ -234,7 +232,7 @@ export async function POST(req: Request, context: RouteContext) {
   const shouldDeleteBranch = parsedBody.deleteBranch ?? true;
 
   if (shouldDeleteBranch && readiness.pr.headBranch) {
-    const normalizedRepoOwner = sessionRecord.repoOwner.toLowerCase();
+    const normalizedRepoOwner = repo.owner.toLowerCase();
     const normalizedHeadOwner = readiness.pr.headOwner?.toLowerCase() ?? null;
 
     if (!normalizedHeadOwner) {
@@ -244,7 +242,7 @@ export async function POST(req: Request, context: RouteContext) {
       branchDeleteError = "Source branch belongs to a fork and was not deleted";
     } else {
       const deleteResult = await deleteBranchRef({
-        repoUrl: sessionRecord.cloneUrl,
+        repoUrl: repo.cloneUrl,
         branchName: readiness.pr.headBranch,
         token,
       });
