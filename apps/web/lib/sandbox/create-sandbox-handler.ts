@@ -6,6 +6,7 @@ import {
 import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { extractOrgRepoName } from "@/lib/recoupable/extract-org-repo-name";
 import { kickBuildOrgSnapshotWorkflow } from "@/lib/sandbox/build-org-snapshot-kick";
 import {
@@ -58,7 +59,7 @@ export async function handleCreateSandboxRequest(
     );
   }
 
-  const cloneToken = process.env.GITHUB_TOKEN?.trim() || undefined;
+  const cloneToken = getServiceGitHubToken() ?? undefined;
   if (!cloneToken) {
     console.warn(
       "[sandbox] GITHUB_TOKEN is not set; clone will fail for private repos",

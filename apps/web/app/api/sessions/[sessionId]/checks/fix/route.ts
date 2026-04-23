@@ -3,7 +3,7 @@ import {
   requireOwnedSession,
 } from "@/app/api/sessions/_lib/session-context";
 import type { PullRequestCheckRun } from "@/lib/github/client";
-import { getUserGitHubToken } from "@/lib/github/user-token";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { Octokit } from "@octokit/rest";
 import { gateway, generateText } from "ai";
 
@@ -235,7 +235,7 @@ export async function POST(req: Request, context: RouteContext) {
   const allAnnotations: Record<string, CheckAnnotation[]> = {};
 
   if (runsWithIds.length > 0) {
-    const token = await getUserGitHubToken(authResult.userId);
+    const token = getServiceGitHubToken();
     if (!token) {
       return Response.json(
         formatFixResponse(checkRuns, compactedLogs, allAnnotations),

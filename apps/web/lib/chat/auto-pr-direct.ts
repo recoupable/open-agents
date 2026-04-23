@@ -11,7 +11,7 @@ import {
   isValidGitHubRepoName,
   isValidGitHubRepoOwner,
 } from "@/lib/github/repo-identifiers";
-import { getUserGitHubToken } from "@/lib/github/user-token";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { generatePullRequestContentFromSandbox } from "@/lib/git/pr-content";
 
 const SAFE_BRANCH_PATTERN = /^[\w\-/.]+$/;
@@ -98,8 +98,7 @@ async function findExistingOpenPullRequest(params: {
 export async function performAutoCreatePr(
   params: AutoCreatePrParams,
 ): Promise<AutoCreatePrResult> {
-  const { sandbox, userId, sessionId, sessionTitle, repoOwner, repoName } =
-    params;
+  const { sandbox, sessionId, sessionTitle, repoOwner, repoName } = params;
   const cwd = sandbox.workingDirectory;
 
   const branchResult = await sandbox.exec(
@@ -137,13 +136,15 @@ export async function performAutoCreatePr(
     };
   }
 
-  const userToken = await getUserGitHubToken(userId);
+  // All repos are recoupable-owned; use the service token for both remote
+  // push auth and GitHub API calls.
+  const userToken = getServiceGitHubToken();
   if (!userToken) {
     return {
       created: false,
       syncedExisting: false,
       skipped: true,
-      skipReason: "No GitHub token available for this repository",
+      skipReason: "GITHUB_TOKEN env var is not set",
     };
   }
 

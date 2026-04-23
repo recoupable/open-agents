@@ -9,7 +9,7 @@ import {
   mergePullRequest,
   type PullRequestMergeMethod,
 } from "@/lib/github/client";
-import { getUserGitHubToken } from "@/lib/github/user-token";
+import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 type RouteContext = {
   params: Promise<{ sessionId: string }>;
@@ -142,7 +142,7 @@ export async function POST(req: Request, context: RouteContext) {
     );
   }
 
-  const token = await getUserGitHubToken(authResult.userId);
+  const token = getServiceGitHubToken();
   if (!token) {
     return Response.json(
       { error: "No GitHub token available for this repository" },
