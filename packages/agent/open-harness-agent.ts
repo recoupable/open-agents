@@ -51,6 +51,14 @@ const callOptionsSchema = z.object({
    * without persisting a long-lived credential in the sandbox env.
    */
   recoupAccessToken: z.string().optional(),
+  /**
+   * UUID of the Recoupable organization this sandbox was opened for,
+   * derived server-side from the session's clone URL. Forwarded into
+   * `experimental_context` as `recoupOrgId` and surfaced to shell/fetch
+   * tools as `RECOUP_ORG_ID` so list-style API calls scope to the right
+   * org instead of returning cross-org results.
+   */
+  recoupOrgId: z.string().optional(),
 });
 
 export type OpenHarnessAgentCallOptions = z.infer<typeof callOptionsSchema>;
@@ -122,6 +130,7 @@ export const openHarnessAgent = new ToolLoopAgent({
     const sandbox = options.sandbox;
     const skills = options.skills ?? [];
     const recoupAccessToken = options.recoupAccessToken;
+    const recoupOrgId = options.recoupOrgId;
 
     const instructions = buildSystemPrompt({
       cwd: sandbox.workingDirectory,
@@ -146,6 +155,7 @@ export const openHarnessAgent = new ToolLoopAgent({
         model: callModel,
         subagentModel,
         ...(recoupAccessToken ? { recoupAccessToken } : {}),
+        ...(recoupOrgId ? { recoupOrgId } : {}),
       },
     };
   },

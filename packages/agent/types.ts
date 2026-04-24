@@ -27,6 +27,13 @@ export interface AgentContext {
    * forward this as a Bearer token instead of holding a long-lived key.
    */
   recoupAccessToken?: string;
+  /**
+   * UUID of the Recoupable organization the sandbox was opened for,
+   * derived from the session's clone URL. Surfaced to tools as
+   * `RECOUP_ORG_ID` so list-style API calls can scope to the correct
+   * org instead of returning cross-org results on the user-scoped token.
+   */
+  recoupOrgId?: string;
 }
 
 export interface SandboxExecutionContext {

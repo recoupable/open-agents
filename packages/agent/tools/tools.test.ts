@@ -453,6 +453,92 @@ describe("tools execute behavior", () => {
     expect(execCalls[1]?.options?.env).toBeUndefined();
   });
 
+  test("bashTool forwards RECOUP_ORG_ID to foreground exec when present", async () => {
+    const execCalls: Array<{
+      command: string;
+      options?: { env?: Record<string, string> };
+    }> = [];
+
+    const sandbox = {
+      workingDirectory: "/repo",
+      exec: async (
+        command: string,
+        _cwd: string,
+        _timeoutMs: number,
+        options?: { signal?: AbortSignal; env?: Record<string, string> },
+      ) => {
+        execCalls.push({ command, options });
+        return {
+          success: true,
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          truncated: false,
+        };
+      },
+    };
+
+    const context = {
+      ...createContext(sandbox),
+      recoupAccessToken: "privy-jwt-abc",
+      recoupOrgId: "cebcc866-34c3-451c-8cd7-f63309acff0a",
+    };
+
+    await bashTool().execute?.(
+      {
+        command:
+          'curl -H "Authorization: Bearer $RECOUP_ACCESS_TOKEN" https://recoup-api.vercel.app/api/organizations/$RECOUP_ORG_ID/artists',
+      },
+      executionOptions(context),
+    );
+
+    expect(execCalls).toHaveLength(1);
+    expect(execCalls[0]?.options?.env).toEqual({
+      RECOUP_ACCESS_TOKEN: "privy-jwt-abc",
+      RECOUP_ORG_ID: "cebcc866-34c3-451c-8cd7-f63309acff0a",
+    });
+  });
+
+  test("bashTool injects RECOUP_ORG_ID alone when no access token is set", async () => {
+    const execCalls: Array<{
+      options?: { env?: Record<string, string> };
+    }> = [];
+
+    const sandbox = {
+      workingDirectory: "/repo",
+      exec: async (
+        _command: string,
+        _cwd: string,
+        _timeoutMs: number,
+        options?: { signal?: AbortSignal; env?: Record<string, string> },
+      ) => {
+        execCalls.push({ options });
+        return {
+          success: true,
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+          truncated: false,
+        };
+      },
+    };
+
+    const context = {
+      ...createContext(sandbox),
+      recoupOrgId: "cebcc866-34c3-451c-8cd7-f63309acff0a",
+    };
+
+    await bashTool().execute?.(
+      { command: "echo $RECOUP_ORG_ID" },
+      executionOptions(context),
+    );
+
+    expect(execCalls).toHaveLength(1);
+    expect(execCalls[0]?.options?.env).toEqual({
+      RECOUP_ORG_ID: "cebcc866-34c3-451c-8cd7-f63309acff0a",
+    });
+  });
+
   test("commandNeedsApproval flags only rm -rf commands", () => {
     expect(commandNeedsApproval("ls -la")).toBe(false);
     expect(commandNeedsApproval("git status --short")).toBe(false);

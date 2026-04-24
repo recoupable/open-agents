@@ -47,6 +47,7 @@ describe("installSessionGlobalSkills", () => {
     expect(installGlobalSkillsCalls).toHaveLength(1);
     expect(installGlobalSkillsCalls[0]?.globalSkillRefs).toEqual([
       { source: "recoupable/skills", skillName: "recoup-api" },
+      { source: "recoupable/skills", skillName: "artist-workspace" },
     ]);
   });
 
@@ -59,6 +60,7 @@ describe("installSessionGlobalSkills", () => {
     expect(installGlobalSkillsCalls).toHaveLength(1);
     expect(installGlobalSkillsCalls[0]?.globalSkillRefs).toEqual([
       { source: "recoupable/skills", skillName: "recoup-api" },
+      { source: "recoupable/skills", skillName: "artist-workspace" },
     ]);
   });
 
@@ -73,6 +75,7 @@ describe("installSessionGlobalSkills", () => {
     expect(installGlobalSkillsCalls).toHaveLength(1);
     expect(installGlobalSkillsCalls[0]?.globalSkillRefs).toEqual([
       { source: "recoupable/skills", skillName: "recoup-api" },
+      { source: "recoupable/skills", skillName: "artist-workspace" },
       { source: "vercel/ai", skillName: "ai-sdk" },
     ]);
   });
