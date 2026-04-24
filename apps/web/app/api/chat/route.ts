@@ -21,6 +21,7 @@ import {
 import { getAllVariants } from "@/lib/model-variants";
 import { createCancelableReadableStream } from "@/lib/chat/create-cancelable-readable-stream";
 import { agentCustomInstructions } from "@/lib/agent-custom-instructions";
+import { extractOrgId } from "@/lib/recoupable/extract-org-id";
 import { getServerSession } from "@/lib/session/get-server-session";
 import {
   isManagedTemplateTrialUser,
@@ -204,6 +205,15 @@ export async function POST(req: Request) {
       })
     : undefined;
 
+  // Derive the sandbox's Recoupable org UUID from the clone URL (or repo name
+  // as fallback). Recoupable org repos follow `org-<slug>-<uuid-v4>`, so the
+  // UUID is always the trailing 36 chars. Deriving server-side avoids client
+  // tampering and needs no schema column.
+  const recoupOrgId =
+    (sessionRecord.cloneUrl && extractOrgId(sessionRecord.cloneUrl)) ||
+    (sessionRecord.repoName && extractOrgId(sessionRecord.repoName)) ||
+    undefined;
+
   // Determine if auto-commit and auto-PR should run after a natural finish.
   const shouldAutoCommitPush =
     sessionRecord.autoCommitPushOverride ??
@@ -237,6 +247,7 @@ export async function POST(req: Request) {
         ...(skills.length > 0 && { skills }),
         customInstructions: agentCustomInstructions,
         ...(recoupAccessToken ? { recoupAccessToken } : {}),
+        ...(recoupOrgId ? { recoupOrgId } : {}),
       },
       ...(shouldAutoCommitPush &&
         sessionRecord.repoOwner &&

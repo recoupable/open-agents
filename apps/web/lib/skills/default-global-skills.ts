@@ -12,4 +12,8 @@ export const DEFAULT_GLOBAL_SKILL_REFS: readonly GlobalSkillRef[] = [
     source: "recoupable/skills",
     skillName: "recoup-api",
   },
+  {
+    source: "recoupable/skills",
+    skillName: "artist-workspace",
+  },
 ];
