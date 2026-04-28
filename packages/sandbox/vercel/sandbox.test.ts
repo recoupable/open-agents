@@ -249,6 +249,47 @@ describe("VercelSandbox.environmentDetails", () => {
   });
 });
 
+describe("VercelSandbox.exec abort handling", () => {
+  test("returns a recoverable failure when the SDK aborts without the caller's signal firing", async () => {
+    runCommandMock = async () => {
+      const abortError = new Error("aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    };
+
+    const sandbox = await sandboxModule.VercelSandbox.connect("sbx-test", {
+      remainingTimeout: 0,
+    });
+
+    const result = await sandbox.exec("sleep 1", "/vercel/sandbox", 5_000);
+
+    expect(result.success).toBe(false);
+    expect(result.exitCode).toBeNull();
+    expect(result.stderr).toBe("Command was interrupted");
+  });
+
+  test("propagates the AbortError when the caller's signal fired", async () => {
+    runCommandMock = async () => {
+      const abortError = new Error("aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    };
+
+    const sandbox = await sandboxModule.VercelSandbox.connect("sbx-test", {
+      remainingTimeout: 0,
+    });
+
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      sandbox.exec("sleep 1", "/vercel/sandbox", 5_000, {
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
+});
+
 describe("VercelSandbox persistence", () => {
   test("connects by persistent sandbox name without auto-resume by default", async () => {
     const sandbox = await sandboxModule.VercelSandbox.connect("session_123", {

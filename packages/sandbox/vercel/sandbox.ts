@@ -973,7 +973,21 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       }
 
       if (error instanceof Error && error.name === "AbortError") {
-        throw error;
+        // Only propagate when the caller's signal fired (user-initiated stop /
+        // stream cancellation). Aborts originating elsewhere — sandbox-internal
+        // interruptions, transient SDK failures — are returned as a normal
+        // command failure so the model sees a tool error and can retry or move
+        // on, instead of tearing down the whole agent loop.
+        if (options?.signal?.aborted) {
+          throw error;
+        }
+        return {
+          success: false,
+          exitCode: null,
+          stdout: "",
+          stderr: "Command was interrupted",
+          truncated: false,
+        };
       }
 
       return {
