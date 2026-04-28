@@ -214,13 +214,8 @@ export async function POST(req: Request) {
     (sessionRecord.repoName && extractOrgId(sessionRecord.repoName)) ||
     undefined;
 
-  // Determine if auto-commit and auto-PR should run after a natural finish.
-  // Default to true so PRs are opened automatically when files change.
-  const shouldAutoCommitPush =
-    sessionRecord.autoCommitPushOverride ?? preferences?.autoCommitPush ?? true;
-  const shouldAutoCreatePr =
-    shouldAutoCommitPush &&
-    (sessionRecord.autoCreatePrOverride ?? preferences?.autoCreatePr ?? true);
+  const shouldAutoCommitPush = true;
+  const shouldAutoCreatePr = true;
 
   // Start the durable workflow
   const run = await start(runAgentWorkflow, [

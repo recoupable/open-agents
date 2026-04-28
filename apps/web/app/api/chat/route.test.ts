@@ -42,8 +42,6 @@ let compareAndSetDefaultResult = true;
 let compareAndSetResults: boolean[] = [];
 let startCalls: unknown[][] = [];
 let preferencesState: {
-  autoCommitPush?: boolean;
-  autoCreatePr?: boolean;
   modelVariants: Array<{
     id: string;
     name: string;
@@ -388,25 +386,6 @@ describe("/api/chat route", () => {
       expect.objectContaining({
         autoCommitEnabled: true,
         autoCreatePrEnabled: true,
-      }),
-    ]);
-  });
-
-  test("does not enable auto PR when auto commit preference is false", async () => {
-    const { POST } = await routeModulePromise;
-    preferencesState = {
-      autoCommitPush: false,
-      autoCreatePr: true,
-      modelVariants: [],
-    };
-
-    const response = await POST(createValidRequest());
-
-    expect(response.ok).toBe(true);
-    expect(startCalls).toHaveLength(1);
-    expect(startCalls[0]?.[1]).toEqual([
-      expect.not.objectContaining({
-        autoCommitEnabled: true,
       }),
     ]);
   });
