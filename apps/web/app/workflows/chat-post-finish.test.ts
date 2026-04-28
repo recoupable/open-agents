@@ -47,9 +47,6 @@ const spies = {
   performAutoCommit: mock(() =>
     Promise.resolve({ committed: true, pushed: true }),
   ),
-  performAutoCreatePr: mock(() =>
-    Promise.resolve({ created: true, syncedExisting: false, skipped: false }),
-  ),
 };
 
 // ── Module mocks (must appear before the module-under-test import) ──
@@ -86,10 +83,6 @@ mock.module("@/lib/chat/auto-commit-direct", () => ({
   performAutoCommit: spies.performAutoCommit,
 }));
 
-mock.module("@/lib/chat/auto-pr-direct", () => ({
-  performAutoCreatePr: spies.performAutoCreatePr,
-}));
-
 const {
   persistUserMessage,
   persistAssistantMessage,
@@ -99,7 +92,6 @@ const {
   refreshDiffCache,
   hasAutoCommitChangesStep,
   runAutoCommitStep,
-  runAutoCreatePrStep,
 } = await import("./chat-post-finish");
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -421,46 +413,6 @@ describe("runAutoCommitStep", () => {
     );
 
     await runAutoCommitStep({
-      userId: "user-1",
-      sessionId: "session-1",
-      sessionTitle: "My session",
-      repoOwner: "acme",
-      repoName: "repo",
-      sandboxState: { type: "vercel" } as never,
-    });
-  });
-});
-
-describe("runAutoCreatePrStep", () => {
-  test("connects sandbox and performs auto PR creation", async () => {
-    await runAutoCreatePrStep({
-      userId: "user-1",
-      sessionId: "session-1",
-      sessionTitle: "My session",
-      repoOwner: "acme",
-      repoName: "repo",
-      sandboxState: { type: "vercel" } as never,
-    });
-
-    expect(spies.connectSandbox).toHaveBeenCalledTimes(1);
-    expect(spies.performAutoCreatePr).toHaveBeenCalledTimes(1);
-    expect(spies.performAutoCreatePr).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        sessionId: "session-1",
-        sessionTitle: "My session",
-        repoOwner: "acme",
-        repoName: "repo",
-      }),
-    );
-  });
-
-  test("does not throw on error", async () => {
-    spies.performAutoCreatePr.mockImplementationOnce(() =>
-      Promise.reject(new Error("GitHub error")),
-    );
-
-    await runAutoCreatePrStep({
       userId: "user-1",
       sessionId: "session-1",
       sessionTitle: "My session",

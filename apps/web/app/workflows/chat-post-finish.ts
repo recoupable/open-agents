@@ -2,7 +2,6 @@ import type { LanguageModelUsage } from "ai";
 import type { SandboxState, Sandbox } from "@open-harness/sandbox";
 import type { WebAgentUIMessage } from "@/app/types";
 import type { AutoCommitResult } from "@/lib/chat/auto-commit-direct";
-import type { AutoCreatePrResult } from "@/lib/chat/auto-pr-direct";
 import {
   compareAndSetChatActiveStreamId,
   createChatMessageIfNotExists,
@@ -412,44 +411,6 @@ export async function runAutoCommitStep(params: {
       committed: false,
       pushed: false,
       error: error instanceof Error ? error.message : "Auto-commit failed",
-    };
-  }
-}
-
-export async function runAutoCreatePrStep(params: {
-  userId: string;
-  sessionId: string;
-  sessionTitle: string;
-  repoOwner: string;
-  repoName: string;
-  sandboxState: SandboxState;
-}): Promise<AutoCreatePrResult> {
-  "use step";
-  try {
-    const { connectSandbox } = await import("@open-harness/sandbox");
-    const { performAutoCreatePr } = await import("@/lib/chat/auto-pr-direct");
-    const sandbox = await connectSandbox(params.sandboxState);
-    const result = await performAutoCreatePr({
-      sandbox,
-      userId: params.userId,
-      sessionId: params.sessionId,
-      sessionTitle: params.sessionTitle,
-      repoOwner: params.repoOwner,
-      repoName: params.repoName,
-    });
-
-    if (result.error) {
-      console.warn("[workflow] Auto-PR failed:", result.error);
-    }
-
-    return result;
-  } catch (error) {
-    console.error("[workflow] Auto-PR failed:", error);
-    return {
-      created: false,
-      syncedExisting: false,
-      skipped: false,
-      error: error instanceof Error ? error.message : "Auto-PR failed",
     };
   }
 }

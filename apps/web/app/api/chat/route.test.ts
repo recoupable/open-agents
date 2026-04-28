@@ -42,17 +42,13 @@ let compareAndSetDefaultResult = true;
 let compareAndSetResults: boolean[] = [];
 let startCalls: unknown[][] = [];
 let preferencesState: {
-  autoCommitPush: boolean;
-  autoCreatePr: boolean;
   modelVariants: Array<{
     id: string;
     name: string;
     baseModelId: string;
     providerOptions: Record<string, unknown>;
   }>;
-} = {
-  autoCommitPush: true,
-  autoCreatePr: false,
+} | null = {
   modelVariants: [],
 };
 let cachedSkillsState: unknown = null;
@@ -258,8 +254,6 @@ describe("/api/chat route", () => {
     existingUserMessageCount = 0;
     existingChatMessage = null;
     preferencesState = {
-      autoCommitPush: true,
-      autoCreatePr: false,
       modelVariants: [],
     };
     compareAndSetChatActiveStreamIdSpy.mockClear();
@@ -324,14 +318,16 @@ describe("/api/chat route", () => {
     }
 
     chatRecord.modelId = "variant:test-model";
-    preferencesState.modelVariants = [
-      {
-        id: "variant:test-model",
-        name: "Test model",
-        baseModelId: "openai/gpt-5",
-        providerOptions: {},
-      },
-    ];
+    preferencesState = {
+      modelVariants: [
+        {
+          id: "variant:test-model",
+          name: "Test model",
+          baseModelId: "openai/gpt-5",
+          providerOptions: {},
+        },
+      ],
+    };
 
     const response = await POST(createValidRequest());
 
@@ -360,9 +356,8 @@ describe("/api/chat route", () => {
     ]);
   });
 
-  test("passes autoCreatePrEnabled when auto commit and auto PR are enabled", async () => {
+  test("enables auto commit by default", async () => {
     const { POST } = await routeModulePromise;
-    preferencesState.autoCreatePr = true;
 
     const response = await POST(createValidRequest());
 
@@ -370,43 +365,6 @@ describe("/api/chat route", () => {
     expect(startCalls).toHaveLength(1);
     expect(startCalls[0]?.[1]).toEqual([
       expect.objectContaining({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
-      }),
-    ]);
-  });
-
-  test("keeps auto PR enabled when the session already has PR metadata", async () => {
-    const { POST } = await routeModulePromise;
-    preferencesState.autoCreatePr = true;
-    if (!sessionRecord) {
-      throw new Error("sessionRecord must be set");
-    }
-    sessionRecord.prNumber = 42;
-
-    const response = await POST(createValidRequest());
-
-    expect(response.ok).toBe(true);
-    expect(startCalls).toHaveLength(1);
-    expect(startCalls[0]?.[1]).toEqual([
-      expect.objectContaining({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
-      }),
-    ]);
-  });
-
-  test("does not enable auto PR when auto commit is disabled", async () => {
-    const { POST } = await routeModulePromise;
-    preferencesState.autoCommitPush = false;
-    preferencesState.autoCreatePr = true;
-
-    const response = await POST(createValidRequest());
-
-    expect(response.ok).toBe(true);
-    expect(startCalls).toHaveLength(1);
-    expect(startCalls[0]?.[1]).toEqual([
-      expect.not.objectContaining({
         autoCommitEnabled: true,
       }),
     ]);

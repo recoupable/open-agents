@@ -22,6 +22,7 @@ import { getAllVariants } from "@/lib/model-variants";
 import { createCancelableReadableStream } from "@/lib/chat/create-cancelable-readable-stream";
 import { agentCustomInstructions } from "@/lib/agent-custom-instructions";
 import { extractOrgId } from "@/lib/recoupable/extract-org-id";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServerSession } from "@/lib/session/get-server-session";
 import {
   isManagedTemplateTrialUser,
@@ -214,14 +215,11 @@ export async function POST(req: Request) {
     (sessionRecord.repoName && extractOrgId(sessionRecord.repoName)) ||
     undefined;
 
-  // Determine if auto-commit and auto-PR should run after a natural finish.
-  const shouldAutoCommitPush =
-    sessionRecord.autoCommitPushOverride ??
-    preferences?.autoCommitPush ??
-    false;
-  const shouldAutoCreatePr =
-    shouldAutoCommitPush &&
-    (sessionRecord.autoCreatePrOverride ?? preferences?.autoCreatePr ?? false);
+  const sessionRepo = resolveSessionRepo({
+    cloneUrl: sessionRecord.cloneUrl,
+    repoOwner: sessionRecord.repoOwner,
+    repoName: sessionRecord.repoName,
+  });
 
   // Start the durable workflow
   const run = await start(runAgentWorkflow, [
@@ -249,15 +247,12 @@ export async function POST(req: Request) {
         ...(recoupAccessToken ? { recoupAccessToken } : {}),
         ...(recoupOrgId ? { recoupOrgId } : {}),
       },
-      ...(shouldAutoCommitPush &&
-        sessionRecord.repoOwner &&
-        sessionRecord.repoName && {
-          autoCommitEnabled: true,
-          autoCreatePrEnabled: shouldAutoCreatePr,
-          sessionTitle: sessionRecord.title,
-          repoOwner: sessionRecord.repoOwner,
-          repoName: sessionRecord.repoName,
-        }),
+      ...(sessionRepo && {
+        autoCommitEnabled: true,
+        sessionTitle: sessionRecord.title,
+        repoOwner: sessionRepo.owner,
+        repoName: sessionRepo.repo,
+      }),
     },
   ]);
 
