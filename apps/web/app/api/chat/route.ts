@@ -22,6 +22,7 @@ import { getAllVariants } from "@/lib/model-variants";
 import { createCancelableReadableStream } from "@/lib/chat/create-cancelable-readable-stream";
 import { agentCustomInstructions } from "@/lib/agent-custom-instructions";
 import { extractOrgId } from "@/lib/recoupable/extract-org-id";
+import { resolveSessionRepo } from "@/lib/github/resolve-session-repo";
 import { getServerSession } from "@/lib/session/get-server-session";
 import {
   isManagedTemplateTrialUser,
@@ -216,6 +217,11 @@ export async function POST(req: Request) {
 
   const shouldAutoCommitPush = true;
   const shouldAutoCreatePr = true;
+  const sessionRepo = resolveSessionRepo({
+    cloneUrl: sessionRecord.cloneUrl,
+    repoOwner: sessionRecord.repoOwner,
+    repoName: sessionRecord.repoName,
+  });
 
   // Start the durable workflow
   const run = await start(runAgentWorkflow, [
@@ -244,13 +250,12 @@ export async function POST(req: Request) {
         ...(recoupOrgId ? { recoupOrgId } : {}),
       },
       ...(shouldAutoCommitPush &&
-        sessionRecord.repoOwner &&
-        sessionRecord.repoName && {
+        sessionRepo && {
           autoCommitEnabled: true,
           autoCreatePrEnabled: shouldAutoCreatePr,
           sessionTitle: sessionRecord.title,
-          repoOwner: sessionRecord.repoOwner,
-          repoName: sessionRecord.repoName,
+          repoOwner: sessionRepo.owner,
+          repoName: sessionRepo.repo,
         }),
     },
   ]);
