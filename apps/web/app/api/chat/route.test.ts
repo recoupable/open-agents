@@ -356,7 +356,7 @@ describe("/api/chat route", () => {
     ]);
   });
 
-  test("enables auto commit and auto PR by default", async () => {
+  test("enables auto commit by default", async () => {
     const { POST } = await routeModulePromise;
 
     const response = await POST(createValidRequest());
@@ -366,26 +366,6 @@ describe("/api/chat route", () => {
     expect(startCalls[0]?.[1]).toEqual([
       expect.objectContaining({
         autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
-      }),
-    ]);
-  });
-
-  test("keeps auto PR enabled when the session already has PR metadata", async () => {
-    const { POST } = await routeModulePromise;
-    if (!sessionRecord) {
-      throw new Error("sessionRecord must be set");
-    }
-    sessionRecord.prNumber = 42;
-
-    const response = await POST(createValidRequest());
-
-    expect(response.ok).toBe(true);
-    expect(startCalls).toHaveLength(1);
-    expect(startCalls[0]?.[1]).toEqual([
-      expect.objectContaining({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
       }),
     ]);
   });

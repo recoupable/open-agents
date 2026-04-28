@@ -16,7 +16,6 @@ import { extractGatewayCost } from "./gateway-metadata";
 import type {
   WebAgentCommitData,
   WebAgentMessageMetadata,
-  WebAgentPrData,
   WebAgentStepFinishMetadata,
   WebAgentUIMessage,
 } from "@/app/types";
@@ -29,7 +28,6 @@ import {
   refreshDiffCache,
   refreshLifecycleActivity,
   runAutoCommitStep,
-  runAutoCreatePrStep,
 } from "./chat-post-finish";
 import { dedupeMessageReasoning } from "@/lib/chat/dedupe-message-reasoning";
 import type {
@@ -48,8 +46,6 @@ type Options = {
   maxSteps?: number;
   /** Whether auto-commit+push should run after a natural finish. */
   autoCommitEnabled?: boolean;
-  /** Whether auto PR creation should run after auto-commit on a natural finish. */
-  autoCreatePrEnabled?: boolean;
   /** Session title for commit message generation. */
   sessionTitle?: string;
   /** GitHub repo owner (required for auto-commit and diff refresh). */
@@ -360,53 +356,13 @@ function buildCommitData(
   };
 }
 
-function buildPrData(
-  result: Awaited<ReturnType<typeof runAutoCreatePrStep>>,
-): WebAgentPrData {
-  if (result.error) {
-    return {
-      status: "error",
-      created: result.created,
-      syncedExisting: result.syncedExisting,
-      prNumber: result.prNumber,
-      url: result.prUrl,
-      error: result.error,
-    };
-  }
-
-  if (result.skipped) {
-    return {
-      status: "skipped",
-      created: result.created,
-      syncedExisting: result.syncedExisting,
-      prNumber: result.prNumber,
-      url: result.prUrl,
-      skipReason: result.skipReason,
-    };
-  }
-
-  return {
-    status: "success",
-    created: result.created,
-    syncedExisting: result.syncedExisting,
-    prNumber: result.prNumber,
-    url: result.prUrl,
-  };
-}
-
 function upsertAssistantDataPart(
   message: WebAgentUIMessage,
-  part:
-    | {
-        type: "data-commit";
-        id: string;
-        data: WebAgentCommitData;
-      }
-    | {
-        type: "data-pr";
-        id: string;
-        data: WebAgentPrData;
-      },
+  part: {
+    type: "data-commit";
+    id: string;
+    data: WebAgentCommitData;
+  },
 ): WebAgentUIMessage {
   const nextParts = [...message.parts];
   const existingIndex = nextParts.findIndex(
@@ -428,17 +384,11 @@ function upsertAssistantDataPart(
 
 async function sendDataPart(
   writable: Writable,
-  part:
-    | {
-        type: "data-commit";
-        id: string;
-        data: WebAgentCommitData;
-      }
-    | {
-        type: "data-pr";
-        id: string;
-        data: WebAgentPrData;
-      },
+  part: {
+    type: "data-commit";
+    id: string;
+    data: WebAgentCommitData;
+  },
 ) {
   "use step";
   const writer = writable.getWriter();
@@ -594,7 +544,6 @@ export async function runAgentWorkflow(options: Options) {
       finalFinishReason !== undefined &&
       finalFinishReason !== "tool-calls";
     const commitPartId = `${assistantId}:commit`;
-    const prPartId = `${assistantId}:pr`;
     const repoOwner = options.repoOwner;
     const repoName = options.repoName;
     let didUpdateGitData = false;
@@ -653,64 +602,6 @@ export async function runAgentWorkflow(options: Options) {
           resolvedCommitPart,
         );
         await sendDataPart(writable, resolvedCommitPart);
-      }
-    }
-
-    const canAutoCreatePr =
-      autoCommitResult != null &&
-      !autoCommitResult.error &&
-      (autoCommitResult.pushed || !autoCommitResult.committed);
-
-    if (canAutoCommit && options.autoCreatePrEnabled) {
-      if (canAutoCreatePr) {
-        const pendingPrPart = {
-          type: "data-pr" as const,
-          id: prPartId,
-          data: { status: "pending" as const },
-        };
-        pendingAssistantResponse = upsertAssistantDataPart(
-          pendingAssistantResponse,
-          pendingPrPart,
-        );
-        await sendDataPart(writable, pendingPrPart);
-        didUpdateGitData = true;
-
-        const autoPrResult = await runAutoCreatePrStep({
-          userId: options.userId,
-          sessionId: options.sessionId,
-          sessionTitle: options.sessionTitle ?? "",
-          repoOwner,
-          repoName,
-          sandboxState,
-        });
-
-        const resolvedPrPart = {
-          type: "data-pr" as const,
-          id: prPartId,
-          data: buildPrData(autoPrResult),
-        };
-        pendingAssistantResponse = upsertAssistantDataPart(
-          pendingAssistantResponse,
-          resolvedPrPart,
-        );
-        await sendDataPart(writable, resolvedPrPart);
-      } else {
-        const skippedPrPart = {
-          type: "data-pr" as const,
-          id: prPartId,
-          data: {
-            status: "skipped" as const,
-            skipReason:
-              autoCommitResult?.error ??
-              "Auto-commit did not leave origin in sync with HEAD",
-          },
-        };
-        pendingAssistantResponse = upsertAssistantDataPart(
-          pendingAssistantResponse,
-          skippedPrPart,
-        );
-        await sendDataPart(writable, skippedPrPart);
-        didUpdateGitData = true;
       }
     }
 

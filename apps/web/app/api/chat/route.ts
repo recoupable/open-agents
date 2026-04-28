@@ -215,8 +215,6 @@ export async function POST(req: Request) {
     (sessionRecord.repoName && extractOrgId(sessionRecord.repoName)) ||
     undefined;
 
-  const shouldAutoCommitPush = true;
-  const shouldAutoCreatePr = true;
   const sessionRepo = resolveSessionRepo({
     cloneUrl: sessionRecord.cloneUrl,
     repoOwner: sessionRecord.repoOwner,
@@ -249,14 +247,12 @@ export async function POST(req: Request) {
         ...(recoupAccessToken ? { recoupAccessToken } : {}),
         ...(recoupOrgId ? { recoupOrgId } : {}),
       },
-      ...(shouldAutoCommitPush &&
-        sessionRepo && {
-          autoCommitEnabled: true,
-          autoCreatePrEnabled: shouldAutoCreatePr,
-          sessionTitle: sessionRecord.title,
-          repoOwner: sessionRepo.owner,
-          repoName: sessionRepo.repo,
-        }),
+      ...(sessionRepo && {
+        autoCommitEnabled: true,
+        sessionTitle: sessionRecord.title,
+        repoOwner: sessionRepo.owner,
+        repoName: sessionRepo.repo,
+      }),
     },
   ]);
 

@@ -17,15 +17,6 @@ const spies = {
   runAutoCommitStep: mock(() =>
     Promise.resolve({ committed: false, pushed: false }),
   ),
-  runAutoCreatePrStep: mock(() =>
-    Promise.resolve({
-      created: true,
-      syncedExisting: false,
-      skipped: false,
-      prNumber: 42,
-      prUrl: "https://github.com/acme/repo/pull/42",
-    }),
-  ),
 };
 
 // Track what the agent stream yields
@@ -920,27 +911,6 @@ describe("runAgentWorkflow", () => {
     );
   });
 
-  test("runs auto PR creation when enabled and not aborted", async () => {
-    await runAgentWorkflow(
-      makeOptions({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
-        sessionTitle: "My session",
-        repoOwner: "acme",
-        repoName: "repo",
-      }),
-    );
-
-    expect(spies.runAutoCreatePrStep).toHaveBeenCalledTimes(1);
-    expect(spies.runAutoCreatePrStep).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user-1",
-        repoOwner: "acme",
-        repoName: "repo",
-      }),
-    );
-  });
-
   test("skips optimistic commit streaming when preflight finds no changes", async () => {
     spies.hasAutoCommitChangesStep.mockImplementationOnce(() =>
       Promise.resolve(false),
@@ -949,14 +919,12 @@ describe("runAgentWorkflow", () => {
     await runAgentWorkflow(
       makeOptions({
         autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
         repoOwner: "acme",
         repoName: "repo",
       }),
     );
 
     expect(spies.runAutoCommitStep).not.toHaveBeenCalled();
-    expect(spies.runAutoCreatePrStep).toHaveBeenCalledTimes(1);
     expect(
       writtenChunks.filter((chunk) => chunk.type === "data-commit"),
     ).toEqual([]);
@@ -971,20 +939,10 @@ describe("runAgentWorkflow", () => {
         commitSha: "abc123",
       }),
     );
-    spies.runAutoCreatePrStep.mockImplementationOnce(() =>
-      Promise.resolve({
-        created: true,
-        syncedExisting: false,
-        skipped: false,
-        prNumber: 101,
-        prUrl: "https://github.com/acme/repo/pull/101",
-      }),
-    );
 
     await runAgentWorkflow(
       makeOptions({
         autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
         repoOwner: "acme",
         repoName: "repo",
       }),
@@ -1011,24 +969,6 @@ describe("runAgentWorkflow", () => {
         },
       },
     ]);
-    expect(writtenChunks.filter((chunk) => chunk.type === "data-pr")).toEqual([
-      {
-        type: "data-pr",
-        id: "gen-id-1:pr",
-        data: { status: "pending" },
-      },
-      {
-        type: "data-pr",
-        id: "gen-id-1:pr",
-        data: {
-          status: "success",
-          created: true,
-          syncedExisting: false,
-          prNumber: 101,
-          url: "https://github.com/acme/repo/pull/101",
-        },
-      },
-    ]);
 
     const persistCalls = spies.persistAssistantMessage.mock
       .calls as unknown[][];
@@ -1048,17 +988,6 @@ describe("runAgentWorkflow", () => {
             commitMessage: "feat: add auto git status",
             commitSha: "abc123",
             url: "https://github.com/acme/repo/commit/abc123",
-          },
-        },
-        {
-          type: "data-pr",
-          id: "gen-id-1:pr",
-          data: {
-            status: "success",
-            created: true,
-            syncedExisting: false,
-            prNumber: 101,
-            url: "https://github.com/acme/repo/pull/101",
           },
         },
       ]),
@@ -1107,28 +1036,6 @@ describe("runAgentWorkflow", () => {
     ]);
   });
 
-  test("skips auto PR creation when auto-commit does not push the latest commit", async () => {
-    spies.runAutoCommitStep.mockImplementationOnce(() =>
-      Promise.resolve({
-        committed: true,
-        pushed: false,
-        error: "Commit succeeded but push failed",
-      }),
-    );
-
-    await runAgentWorkflow(
-      makeOptions({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
-        repoOwner: "acme",
-        repoName: "repo",
-      }),
-    );
-
-    expect(spies.runAutoCommitStep).toHaveBeenCalledTimes(1);
-    expect(spies.runAutoCreatePrStep).not.toHaveBeenCalled();
-  });
-
   test("skips post-finish automation when the agent pauses for tool input", async () => {
     agentFinishReason = "tool-calls";
     agentRawFinishReason = "provider_tool_use";
@@ -1157,27 +1064,12 @@ describe("runAgentWorkflow", () => {
           },
         ],
         autoCommitEnabled: true,
-        autoCreatePrEnabled: true,
         repoOwner: "acme",
         repoName: "repo",
       }),
     );
 
     expect(spies.runAutoCommitStep).not.toHaveBeenCalled();
-    expect(spies.runAutoCreatePrStep).not.toHaveBeenCalled();
-  });
-
-  test("skips auto PR creation when not enabled", async () => {
-    await runAgentWorkflow(
-      makeOptions({
-        autoCommitEnabled: true,
-        autoCreatePrEnabled: false,
-        repoOwner: "acme",
-        repoName: "repo",
-      }),
-    );
-
-    expect(spies.runAutoCreatePrStep).not.toHaveBeenCalled();
   });
 
   test("skips auto-commit when not enabled", async () => {
