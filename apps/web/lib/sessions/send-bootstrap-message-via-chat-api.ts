@@ -1,3 +1,8 @@
+import {
+  buildChatApiCommonBody,
+  postChatApi,
+} from "@/lib/chat/chat-api-client";
+
 /**
  * Sends the personal-session onboarding prompt through the standard chat
  * endpoint so the agent workflow starts before navigating to the chat UI.
@@ -9,21 +14,19 @@ export async function sendBootstrapMessageViaChatApi(params: {
   accessToken: string;
 }): Promise<void> {
   const bootstrapMessageId = crypto.randomUUID();
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await postChatApi({
+    ...buildChatApiCommonBody({
       sessionId: params.sessionId,
       chatId: params.chatId,
       recoupAccessToken: params.accessToken,
-      messages: [
-        {
-          id: bootstrapMessageId,
-          role: "user",
-          parts: [{ type: "text", text: params.prompt }],
-        },
-      ],
     }),
+    messages: [
+      {
+        id: bootstrapMessageId,
+        role: "user",
+        parts: [{ type: "text", text: params.prompt }],
+      },
+    ],
   });
 
   if (!response.ok) {
