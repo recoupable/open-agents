@@ -4,10 +4,7 @@ import {
   ensurePersonalRepo,
   type EnsurePersonalRepoResult,
 } from "@/lib/recoupable/ensure-personal-repo";
-import {
-  fetchAccountOrgs,
-  FetchAccountOrgsError,
-} from "@/lib/recoupable/fetch-account-orgs";
+import { fetchAccountOrgs } from "@/lib/recoupable/fetch-account-orgs";
 import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
 import { getServerSession } from "@/lib/session/get-server-session";
 import type { Session } from "@/lib/session/types";
@@ -67,23 +64,7 @@ export async function prepareCreatePersonalSession(
     return errorResponse(401, "Missing Authorization: Bearer <token> header");
   }
 
-  let orgs: Awaited<ReturnType<typeof fetchAccountOrgs>>;
-  try {
-    orgs = await fetchAccountOrgs(accessToken);
-  } catch (error) {
-    if (error instanceof FetchAccountOrgsError) {
-      console.error(
-        "[prepareCreatePersonalSession] org lookup failed:",
-        error.message,
-      );
-      return errorResponse(
-        502,
-        "Failed to verify organization membership; please try again",
-      );
-    }
-    throw error;
-  }
-
+  const orgs = await fetchAccountOrgs(accessToken);
   if (orgs.length > 0) {
     return errorResponse(
       409,
