@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { Chat, Session } from "@/lib/db/schema";
+import { sendBootstrapMessageViaChatApi } from "@/lib/sessions/send-bootstrap-message-via-chat-api";
 
 type CreatePersonalSessionResponse = {
   session?: Session;
@@ -12,41 +13,6 @@ type CreatePersonalSessionResponse = {
   bootstrapPrompt?: string;
   error?: string;
 };
-
-async function sendBootstrapMessageViaChatApi(params: {
-  sessionId: string;
-  chatId: string;
-  prompt: string;
-  accessToken: string;
-}) {
-  const bootstrapMessageId = crypto.randomUUID();
-  const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      sessionId: params.sessionId,
-      chatId: params.chatId,
-      recoupAccessToken: params.accessToken,
-      messages: [
-        {
-          id: bootstrapMessageId,
-          role: "user",
-          parts: [{ type: "text", text: params.prompt }],
-        },
-      ],
-    }),
-  });
-
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as
-      | { error?: string }
-      | null;
-    throw new Error(body?.error ?? "Failed to bootstrap initial message");
-  }
-
-  // We only need to start the workflow; the chat page will reconnect.
-  void response.body?.cancel();
-}
 
 /**
  * Hook around `POST /api/sessions/personal`. Pulls the Privy access token
