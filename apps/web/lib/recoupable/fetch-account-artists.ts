@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getRecoupApiBaseUrl } from "./get-recoup-api-base-url";
+import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
 const artistSchema = z.object({
   account_id: z.string(),
@@ -33,8 +33,7 @@ export async function fetchAccountArtists(
   }
 
   try {
-    const baseUrl = await getRecoupApiBaseUrl();
-    const response = await fetch(`${baseUrl}/api/artists`, {
+    const response = await fetch(`${RECOUPABLE_API_BASE_URL}/api/artists`, {
       method: "GET",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
