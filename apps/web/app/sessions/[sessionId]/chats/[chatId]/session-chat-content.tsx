@@ -33,7 +33,7 @@ import {
   X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
   useEffect,
@@ -1226,6 +1226,8 @@ export function SessionChatContent({
     modelOptions,
     modelOptionsLoading,
   } = useSessionChatMetadataContext();
+  const searchParams = useSearchParams();
+  const bootstrapPrompt = searchParams.get("bootstrapPrompt");
   const {
     chat,
     contextLimit,
@@ -1907,7 +1909,7 @@ export function SessionChatContent({
   // create-first-artist flow or the recoup-api → artist-workspace sync
   // depending on what `validateCreatePersonalSession` saw.
   usePersonalSessionBootstrap({
-    chatId: chatInfo.id,
+    bootstrapPrompt,
     hasMessages: messages.length > 0,
     ready: status !== undefined,
     sendMessage: sendMessageWithPendingState,

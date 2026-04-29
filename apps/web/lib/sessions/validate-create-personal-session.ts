@@ -5,10 +5,6 @@ import {
   ensurePersonalRepo,
   type EnsurePersonalRepoResult,
 } from "@/lib/recoupable/ensure-personal-repo";
-import {
-  fetchAccountArtists,
-  type RecoupableArtist,
-} from "@/lib/recoupable/fetch-account-artists";
 import { fetchAccountOrgs } from "@/lib/recoupable/fetch-account-orgs";
 import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
 import { getServerSession } from "@/lib/session/get-server-session";
@@ -17,7 +13,6 @@ import type { Session } from "@/lib/session/types";
 export type ValidatedCreatePersonalSession = {
   session: Session;
   repo: EnsurePersonalRepoResult;
-  artists: RecoupableArtist[];
 };
 
 /**
@@ -80,10 +75,5 @@ export async function validateCreatePersonalSession(
     return errorResponse(502, "Failed to provision personal repository");
   }
 
-  // Drives the bootstrap prompt the client auto-submits on first chat
-  // open. Failures fall back to `[]`, matching `fetchAccountOrgs`'s
-  // behavior — the user just gets the create-first-artist branch.
-  const artists = await fetchAccountArtists(accessToken);
-
-  return { session, repo, artists };
+  return { session, repo };
 }

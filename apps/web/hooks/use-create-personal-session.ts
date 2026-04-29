@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { Chat, Session } from "@/lib/db/schema";
-import { setBootstrapPrompt } from "@/lib/sessions/personal-session-bootstrap-storage";
 
 type CreatePersonalSessionResponse = {
   session?: Session;
@@ -49,10 +48,15 @@ export function useCreatePersonalSession() {
         toast.error(message);
         return;
       }
+      const chatPath = `/sessions/${data.session.id}/chats/${data.chat.id}`;
       if (data.bootstrapPrompt) {
-        setBootstrapPrompt(data.chat.id, data.bootstrapPrompt);
+        const params = new URLSearchParams({
+          bootstrapPrompt: data.bootstrapPrompt,
+        });
+        router.push(`${chatPath}?${params.toString()}`);
+        return;
       }
-      router.push(`/sessions/${data.session.id}/chats/${data.chat.id}`);
+      router.push(chatPath);
     } catch (error) {
       console.error("[useCreatePersonalSession] failed:", error);
       toast.error("Failed to start your first session");
