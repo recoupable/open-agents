@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, MessageSquare } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { OrgSelector } from "@/components/org-selector";
 import {
   Empty,
@@ -12,14 +12,38 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { usePersonalSessionFallback } from "@/hooks/use-personal-session";
+import { useOrgs } from "@/hooks/use-orgs";
 import { useSessionsShell } from "./sessions-shell-context";
 
 export function SessionsIndexShell() {
-  const { createBlankSession, isCreatingBlank } = useSessionsShell();
-  const { isProvisioning } = usePersonalSessionFallback({
-    enabled: !isCreatingBlank,
-  });
+  const {
+    createBlankSession,
+    isCreatingBlank,
+    createPersonalSession,
+    isCreatingPersonal,
+  } = useSessionsShell();
+  const { orgs, loading: orgsLoading, error: orgsError } = useOrgs();
+  const personalProvisionTriggeredRef = useRef(false);
+
+  // When the user belongs to zero orgs, fall back to the personal-repo flow
+  // so they're never dead-ended on an empty selector. Fires at most once per
+  // mount; we deliberately don't retry on failure (the toast tells the user
+  // and a manual refresh is cheaper than a runaway provisioning loop).
+  useEffect(() => {
+    if (orgsLoading || orgsError) return;
+    if (orgs.length > 0) return;
+    if (isCreatingBlank || isCreatingPersonal) return;
+    if (personalProvisionTriggeredRef.current) return;
+    personalProvisionTriggeredRef.current = true;
+    void createPersonalSession();
+  }, [
+    createPersonalSession,
+    isCreatingBlank,
+    isCreatingPersonal,
+    orgs.length,
+    orgsError,
+    orgsLoading,
+  ]);
 
   const handleSelectOrg = useCallback(
     (cloneUrl: string) => {
@@ -28,7 +52,10 @@ export function SessionsIndexShell() {
     [createBlankSession],
   );
 
-  const showLoadingState = isCreatingBlank || isProvisioning;
+  const showLoadingState =
+    isCreatingBlank ||
+    isCreatingPersonal ||
+    (!orgsLoading && !orgsError && orgs.length === 0);
 
   return (
     <>

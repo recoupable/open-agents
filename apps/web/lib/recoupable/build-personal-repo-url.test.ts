@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  buildPersonalRepoIdentifier,
-  buildPersonalRepoUrl,
-} from "./build-personal-repo-url";
+import { buildPersonalRepoUrl } from "./build-personal-repo-url";
 
 describe("buildPersonalRepoUrl", () => {
   test("matches the documented format", () => {
@@ -36,19 +33,5 @@ describe("buildPersonalRepoUrl", () => {
     ).toBe(
       "https://github.com/recoupable/user-with-special-chars-00000000-0000-0000-0000-000000000001",
     );
-  });
-});
-
-describe("buildPersonalRepoIdentifier", () => {
-  test("returns owner + repo separately", () => {
-    expect(
-      buildPersonalRepoIdentifier({
-        accountName: "Sweetman",
-        accountId: "fb678396-a68f-4294-ae50-b8cacf9ce77b",
-      }),
-    ).toEqual({
-      owner: "recoupable",
-      repo: "sweetman-fb678396-a68f-4294-ae50-b8cacf9ce77b",
-    });
   });
 });

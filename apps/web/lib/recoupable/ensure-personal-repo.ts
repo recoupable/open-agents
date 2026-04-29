@@ -1,10 +1,8 @@
 import "server-only";
 import { createRepository } from "@/lib/github/client";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
-import {
-  buildPersonalRepoIdentifier,
-  buildPersonalRepoUrl,
-} from "./build-personal-repo-url";
+import { buildPersonalRepoIdentifier } from "./build-personal-repo-identifier";
+import { buildPersonalRepoUrl } from "./build-personal-repo-url";
 
 const PERSONAL_REPO_OWNER = "recoupable";
 
