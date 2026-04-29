@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, MessageSquare } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { OrgSelector } from "@/components/org-selector";
 import {
   Empty,
@@ -12,10 +12,40 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { useOrgs } from "@/hooks/use-orgs";
 import { useSessionsShell } from "./sessions-shell-context";
 
 export function SessionsIndexShell() {
-  const { createBlankSession, isCreatingBlank } = useSessionsShell();
+  const {
+    createBlankSession,
+    isCreatingBlank,
+    createPersonalSession,
+    isCreatingPersonal,
+  } = useSessionsShell();
+  const { orgs, resolved: orgsResolved, error: orgsError } = useOrgs();
+  const personalProvisionTriggeredRef = useRef(false);
+
+  // When the user belongs to zero orgs, fall back to the personal-repo flow
+  // so they're never dead-ended on an empty selector. Gated on
+  // `orgsResolved` to avoid firing on the transient pre-auth empty state
+  // (Privy not ready / SWR has no data yet). Fires at most once per mount;
+  // we deliberately don't retry on failure (a runaway provisioning loop is
+  // worse than a single toast + manual refresh).
+  useEffect(() => {
+    if (!orgsResolved || orgsError) return;
+    if (orgs.length > 0) return;
+    if (isCreatingBlank || isCreatingPersonal) return;
+    if (personalProvisionTriggeredRef.current) return;
+    personalProvisionTriggeredRef.current = true;
+    void createPersonalSession();
+  }, [
+    createPersonalSession,
+    isCreatingBlank,
+    isCreatingPersonal,
+    orgs.length,
+    orgsError,
+    orgsResolved,
+  ]);
 
   const handleSelectOrg = useCallback(
     (cloneUrl: string) => {
@@ -23,6 +53,8 @@ export function SessionsIndexShell() {
     },
     [createBlankSession],
   );
+
+  const showLoadingState = isCreatingBlank || isCreatingPersonal;
 
   return (
     <>
@@ -35,24 +67,24 @@ export function SessionsIndexShell() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              {isCreatingBlank ? (
+              {showLoadingState ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <MessageSquare />
               )}
             </EmptyMedia>
             <EmptyTitle>
-              {isCreatingBlank
+              {showLoadingState
                 ? "Starting a sandbox..."
                 : "Select an Organization"}
             </EmptyTitle>
             <EmptyDescription>
-              {isCreatingBlank
+              {showLoadingState
                 ? "Your new sandbox is being provisioned."
                 : "Choose an organization to start a new session."}
             </EmptyDescription>
           </EmptyHeader>
-          {!isCreatingBlank && (
+          {!showLoadingState && (
             <EmptyContent>
               <OrgSelector
                 onSelectOrg={handleSelectOrg}

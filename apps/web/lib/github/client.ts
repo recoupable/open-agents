@@ -71,7 +71,7 @@ export function getOctokit(token?: string): OctokitResult {
   };
 }
 
-function getGitHubHttpStatus(error: unknown): number | null {
+export function getGitHubHttpStatus(error: unknown): number | null {
   if (!error || typeof error !== "object") {
     return null;
   }
@@ -1440,14 +1440,14 @@ export async function createRepository(params: {
         name,
         description,
         private: isPrivate,
-        auto_init: false,
+        auto_init: true,
       });
     } else {
       response = await result.octokit.rest.repos.createForAuthenticatedUser({
         name,
         description,
         private: isPrivate,
-        auto_init: false,
+        auto_init: true,
       });
     }
 

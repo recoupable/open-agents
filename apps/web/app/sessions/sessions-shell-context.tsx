@@ -6,6 +6,14 @@ import { createContext, useContext } from "react";
 type SessionsShellContextValue = {
   createBlankSession: (cloneUrl: string) => Promise<void>;
   isCreatingBlank: boolean;
+  /**
+   * Onboarding fallback for users with zero orgs. Calls
+   * `POST /api/sessions/personal`, which provisions a personal repo + session
+   * and routes the user into it. Safe to call repeatedly; the underlying
+   * endpoint is idempotent on email + repo creation.
+   */
+  createPersonalSession: () => Promise<void>;
+  isCreatingPersonal: boolean;
 };
 
 const SessionsShellContext = createContext<

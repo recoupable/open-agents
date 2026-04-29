@@ -19,6 +19,7 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { useBackgroundChatNotifications } from "@/hooks/use-background-chat-notifications";
+import { useCreatePersonalSession } from "@/hooks/use-create-personal-session";
 import { useSessions, type SessionWithUnread } from "@/hooks/use-sessions";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { DEFAULT_SANDBOX_TYPE } from "@/components/sandbox-selector-compact";
@@ -107,6 +108,9 @@ export function SessionsRouteShell({
     },
     [createSession, isCreatingBlank, preferences, router],
   );
+
+  const { createPersonalSession, isCreatingPersonal } =
+    useCreatePersonalSession();
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
@@ -214,8 +218,15 @@ export function SessionsRouteShell({
     () => ({
       createBlankSession,
       isCreatingBlank,
+      createPersonalSession,
+      isCreatingPersonal,
     }),
-    [createBlankSession, isCreatingBlank],
+    [
+      createBlankSession,
+      createPersonalSession,
+      isCreatingBlank,
+      isCreatingPersonal,
+    ],
   );
 
   return (
