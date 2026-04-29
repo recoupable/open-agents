@@ -7,22 +7,22 @@ import {
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
 import { getRandomCityName } from "@/lib/random-city";
-import { prepareCreatePersonalSession } from "./prepare-create-personal-session";
+import { validateCreatePersonalSession } from "./validate-create-personal-session";
 
 /**
  * Onboarding fallback for Privy users who belong to zero Recoupable
- * organizations. After `prepareCreatePersonalSession` returns a validated
+ * organizations. After `validateCreatePersonalSession` returns a validated
  * context (auth + email + no-orgs guard + account + GitHub repo all
  * confirmed), this handler does the only thing left: persist the session
  * row + initial chat against the prepared `repo.cloneUrl`.
  */
 export async function createPersonalSessionHandler(req: Request) {
-  const prepared = await prepareCreatePersonalSession(req);
-  if (prepared instanceof Response) {
-    return prepared;
+  const validated = await validateCreatePersonalSession(req);
+  if (validated instanceof Response) {
+    return validated;
   }
 
-  const { session, repo } = prepared;
+  const { session, repo } = validated;
 
   try {
     const [title, rawPreferences] = await Promise.all([

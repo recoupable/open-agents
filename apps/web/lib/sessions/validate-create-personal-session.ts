@@ -1,5 +1,6 @@
 import "server-only";
 import { errorResponse } from "@/lib/networking/error-response";
+import { readBearerToken } from "@/lib/networking/read-bearer-token";
 import {
   ensurePersonalRepo,
   type EnsurePersonalRepoResult,
@@ -9,20 +10,10 @@ import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
 import { getServerSession } from "@/lib/session/get-server-session";
 import type { Session } from "@/lib/session/types";
 
-export type PreparedCreatePersonalSession = {
+export type ValidatedCreatePersonalSession = {
   session: Session;
   repo: EnsurePersonalRepoResult;
 };
-
-const BEARER_PREFIX = "Bearer ";
-
-function readBearerToken(req: Request): string | null {
-  const header = req.headers.get("authorization");
-  if (!header || !header.startsWith(BEARER_PREFIX)) {
-    return null;
-  }
-  return header.slice(BEARER_PREFIX.length).trim() || null;
-}
 
 /**
  * Performs every early-bail check and side-effect required before the
@@ -36,16 +27,15 @@ function readBearerToken(req: Request): string | null {
  *      user's behalf. Avoids reaching into the privy-token cookie.
  *   3. Server-side guard: refuses callers who already belong to one or
  *      more Recoupable organizations (those should use the standard
- *      `/api/sessions` flow). Org-lookup failures bail with 502 rather
- *      than being silently treated as "no orgs".
+ *      `/api/sessions` flow).
  *   4. Idempotently provisions the recoup-api account + GitHub repo.
  *
  * Returns a `Response` for any failure path so callers can short-circuit,
  * or the validated `{ session, repo }` ready for `createSessionWithInitialChat`.
  */
-export async function prepareCreatePersonalSession(
+export async function validateCreatePersonalSession(
   req: Request,
-): Promise<Response | PreparedCreatePersonalSession> {
+): Promise<Response | ValidatedCreatePersonalSession> {
   const session = await getServerSession();
   if (!session?.user) {
     return errorResponse(401, "Not authenticated");
