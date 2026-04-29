@@ -17,7 +17,7 @@ import { prepareCreatePersonalSession } from "./prepare-create-personal-session"
  * row + initial chat against the prepared `repo.cloneUrl`.
  */
 export async function createPersonalSessionHandler(req: Request) {
-  const prepared = await prepareCreatePersonalSession();
+  const prepared = await prepareCreatePersonalSession(req);
   if (prepared instanceof Response) {
     return prepared;
   }

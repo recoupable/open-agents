@@ -1,5 +1,6 @@
 import "server-only";
-import { createRepository, repositoryExists } from "@/lib/github/client";
+import { createRepository } from "@/lib/github/client";
+import { repositoryExists } from "@/lib/github/repository-exists";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { buildPersonalRepoIdentifier } from "./build-personal-repo-identifier";
 import { buildPersonalRepoUrl } from "./build-personal-repo-url";

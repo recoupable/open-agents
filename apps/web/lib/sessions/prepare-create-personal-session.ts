@@ -1,41 +1,54 @@
 import "server-only";
-import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME } from "@/lib/session/constants";
-import { getServerSession } from "@/lib/session/get-server-session";
-import type { Session } from "@/lib/session/types";
-import { fetchAccountOrgs } from "@/lib/recoupable/fetch-account-orgs";
-import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
+import { errorResponse } from "@/lib/networking/error-response";
 import {
   ensurePersonalRepo,
   type EnsurePersonalRepoResult,
 } from "@/lib/recoupable/ensure-personal-repo";
+import {
+  fetchAccountOrgs,
+  FetchAccountOrgsError,
+} from "@/lib/recoupable/fetch-account-orgs";
+import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
+import { getServerSession } from "@/lib/session/get-server-session";
+import type { Session } from "@/lib/session/types";
 
 export type PreparedCreatePersonalSession = {
   session: Session;
   repo: EnsurePersonalRepoResult;
 };
 
-function errorResponse(status: number, message: string): Response {
-  return Response.json({ error: message }, { status });
+const BEARER_PREFIX = "Bearer ";
+
+function readBearerToken(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (!header || !header.startsWith(BEARER_PREFIX)) {
+    return null;
+  }
+  return header.slice(BEARER_PREFIX.length).trim() || null;
 }
 
 /**
  * Performs every early-bail check and side-effect required before the
  * personal-session handler can persist a row:
  *
- *   1. Verifies the caller is authenticated and has an email on the JWT.
- *   2. Server-side guard: refuses callers who already belong to one or
+ *   1. Verifies the caller is authenticated (open-agents session) and
+ *      has an email on the JWT.
+ *   2. Reads the Privy access token from the request's `Authorization`
+ *      header — supplied by the client via Privy SDK's
+ *      `getAccessToken()` — and uses it to call recoup-api on the
+ *      user's behalf. Avoids reaching into the privy-token cookie.
+ *   3. Server-side guard: refuses callers who already belong to one or
  *      more Recoupable organizations (those should use the standard
- *      `/api/sessions` flow). Closes the door against direct curl calls
- *      that bypass the client-side empty-orgs detection.
- *   3. Idempotently provisions the recoup-api account + GitHub repo.
+ *      `/api/sessions` flow). Org-lookup failures bail with 502 rather
+ *      than being silently treated as "no orgs".
+ *   4. Idempotently provisions the recoup-api account + GitHub repo.
  *
  * Returns a `Response` for any failure path so callers can short-circuit,
  * or the validated `{ session, repo }` ready for `createSessionWithInitialChat`.
  */
-export async function prepareCreatePersonalSession(): Promise<
-  Response | PreparedCreatePersonalSession
-> {
+export async function prepareCreatePersonalSession(
+  req: Request,
+): Promise<Response | PreparedCreatePersonalSession> {
   const session = await getServerSession();
   if (!session?.user) {
     return errorResponse(401, "Not authenticated");
@@ -49,13 +62,28 @@ export async function prepareCreatePersonalSession(): Promise<
     );
   }
 
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const accessToken = readBearerToken(req);
   if (!accessToken) {
-    return errorResponse(401, "Not authenticated");
+    return errorResponse(401, "Missing Authorization: Bearer <token> header");
   }
 
-  const orgs = await fetchAccountOrgs(accessToken);
+  let orgs: Awaited<ReturnType<typeof fetchAccountOrgs>>;
+  try {
+    orgs = await fetchAccountOrgs(accessToken);
+  } catch (error) {
+    if (error instanceof FetchAccountOrgsError) {
+      console.error(
+        "[prepareCreatePersonalSession] org lookup failed:",
+        error.message,
+      );
+      return errorResponse(
+        502,
+        "Failed to verify organization membership; please try again",
+      );
+    }
+    throw error;
+  }
+
   if (orgs.length > 0) {
     return errorResponse(
       409,
