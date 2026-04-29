@@ -13,6 +13,41 @@ type CreatePersonalSessionResponse = {
   error?: string;
 };
 
+async function sendBootstrapMessageViaChatApi(params: {
+  sessionId: string;
+  chatId: string;
+  prompt: string;
+  accessToken: string;
+}) {
+  const bootstrapMessageId = crypto.randomUUID();
+  const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      sessionId: params.sessionId,
+      chatId: params.chatId,
+      recoupAccessToken: params.accessToken,
+      messages: [
+        {
+          id: bootstrapMessageId,
+          role: "user",
+          parts: [{ type: "text", text: params.prompt }],
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error ?? "Failed to bootstrap initial message");
+  }
+
+  // We only need to start the workflow; the chat page will reconnect.
+  void response.body?.cancel();
+}
+
 /**
  * Hook around `POST /api/sessions/personal`. Pulls the Privy access token
  * via the SDK and forwards it as `Authorization: Bearer <token>` so the
@@ -48,15 +83,20 @@ export function useCreatePersonalSession() {
         toast.error(message);
         return;
       }
-      const chatPath = `/sessions/${data.session.id}/chats/${data.chat.id}`;
       if (data.bootstrapPrompt) {
-        const params = new URLSearchParams({
-          bootstrapPrompt: data.bootstrapPrompt,
-        });
-        router.push(`${chatPath}?${params.toString()}`);
-        return;
+        try {
+          await sendBootstrapMessageViaChatApi({
+            sessionId: data.session.id,
+            chatId: data.chat.id,
+            prompt: data.bootstrapPrompt,
+            accessToken,
+          });
+        } catch (error) {
+          console.error("[useCreatePersonalSession] bootstrap failed:", error);
+          toast.error("Session created, but failed to send the first message");
+        }
       }
-      router.push(chatPath);
+      router.push(`/sessions/${data.session.id}/chats/${data.chat.id}`);
     } catch (error) {
       console.error("[useCreatePersonalSession] failed:", error);
       toast.error("Failed to start your first session");
