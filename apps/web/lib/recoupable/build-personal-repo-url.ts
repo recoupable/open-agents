@@ -1,4 +1,5 @@
 import { toKebabCase } from "@/lib/string/to-kebab-case";
+import { RECOUPABLE_GITHUB_OWNER } from "./github-owner";
 
 /**
  * Builds the GitHub URL for an account's per-account ("personal") repository,
@@ -15,5 +16,5 @@ export function buildPersonalRepoUrl(params: {
   accountId: string;
 }): string {
   const slug = toKebabCase(params.accountName);
-  return `https://github.com/recoupable/${slug}-${params.accountId}`;
+  return `https://github.com/${RECOUPABLE_GITHUB_OWNER}/${slug}-${params.accountId}`;
 }

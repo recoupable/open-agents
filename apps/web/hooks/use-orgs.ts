@@ -24,7 +24,13 @@ export function useOrgs() {
 
   return {
     orgs: data ?? [],
-    loading: isLoading,
+    /** Privy SDK + SWR are still establishing the auth/orgs state. */
+    loading: !ready || isLoading,
+    /** True only once the SWR fetch has actually resolved with data. Prefer
+     * this over `!loading` when gating destructive auto-actions; `loading`
+     * is briefly false during the pre-`ready` window where `orgs` is the
+     * default `[]` rather than a confirmed-empty result. */
+    resolved: ready && data !== undefined,
     error,
   };
 }

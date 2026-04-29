@@ -22,15 +22,17 @@ export function SessionsIndexShell() {
     createPersonalSession,
     isCreatingPersonal,
   } = useSessionsShell();
-  const { orgs, loading: orgsLoading, error: orgsError } = useOrgs();
+  const { orgs, resolved: orgsResolved, error: orgsError } = useOrgs();
   const personalProvisionTriggeredRef = useRef(false);
 
   // When the user belongs to zero orgs, fall back to the personal-repo flow
-  // so they're never dead-ended on an empty selector. Fires at most once per
-  // mount; we deliberately don't retry on failure (the toast tells the user
-  // and a manual refresh is cheaper than a runaway provisioning loop).
+  // so they're never dead-ended on an empty selector. Gated on
+  // `orgsResolved` to avoid firing on the transient pre-auth empty state
+  // (Privy not ready / SWR has no data yet). Fires at most once per mount;
+  // we deliberately don't retry on failure (a runaway provisioning loop is
+  // worse than a single toast + manual refresh).
   useEffect(() => {
-    if (orgsLoading || orgsError) return;
+    if (!orgsResolved || orgsError) return;
     if (orgs.length > 0) return;
     if (isCreatingBlank || isCreatingPersonal) return;
     if (personalProvisionTriggeredRef.current) return;
@@ -42,7 +44,7 @@ export function SessionsIndexShell() {
     isCreatingPersonal,
     orgs.length,
     orgsError,
-    orgsLoading,
+    orgsResolved,
   ]);
 
   const handleSelectOrg = useCallback(
@@ -52,10 +54,7 @@ export function SessionsIndexShell() {
     [createBlankSession],
   );
 
-  const showLoadingState =
-    isCreatingBlank ||
-    isCreatingPersonal ||
-    (!orgsLoading && !orgsError && orgs.length === 0);
+  const showLoadingState = isCreatingBlank || isCreatingPersonal;
 
   return (
     <>
@@ -76,12 +75,12 @@ export function SessionsIndexShell() {
             </EmptyMedia>
             <EmptyTitle>
               {showLoadingState
-                ? "Setting up your workspace..."
+                ? "Starting a sandbox..."
                 : "Select an Organization"}
             </EmptyTitle>
             <EmptyDescription>
               {showLoadingState
-                ? "Provisioning a sandbox for your first session."
+                ? "Your new sandbox is being provisioned."
                 : "Choose an organization to start a new session."}
             </EmptyDescription>
           </EmptyHeader>

@@ -19,11 +19,10 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { useBackgroundChatNotifications } from "@/hooks/use-background-chat-notifications";
+import { useCreatePersonalSession } from "@/hooks/use-create-personal-session";
 import { useSessions, type SessionWithUnread } from "@/hooks/use-sessions";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { DEFAULT_SANDBOX_TYPE } from "@/components/sandbox-selector-compact";
-import { toast } from "sonner";
-import type { Chat, Session as DbSession } from "@/lib/db/schema";
 import type { Session as AuthSession } from "@/lib/session/types";
 import { SessionsShellProvider } from "./sessions-shell-context";
 
@@ -110,30 +109,8 @@ export function SessionsRouteShell({
     [createSession, isCreatingBlank, preferences, router],
   );
 
-  const [isCreatingPersonal, setIsCreatingPersonal] = useState(false);
-  const createPersonalSession = useCallback(async () => {
-    if (isCreatingPersonal) return;
-    setIsCreatingPersonal(true);
-    try {
-      const res = await fetch("/api/sessions/personal", { method: "POST" });
-      const data = (await res.json()) as {
-        session?: DbSession;
-        chat?: Chat;
-        error?: string;
-      };
-      if (!res.ok || !data.session || !data.chat) {
-        const message = data.error ?? "Failed to start your first session";
-        toast.error(message);
-        return;
-      }
-      router.push(`/sessions/${data.session.id}/chats/${data.chat.id}`);
-    } catch (error) {
-      console.error("Failed to create personal session:", error);
-      toast.error("Failed to start your first session");
-    } finally {
-      setIsCreatingPersonal(false);
-    }
-  }, [isCreatingPersonal, router]);
+  const { createPersonalSession, isCreatingPersonal } =
+    useCreatePersonalSession();
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {

@@ -1,6 +1,5 @@
 import { toKebabCase } from "@/lib/string/to-kebab-case";
-
-const PERSONAL_REPO_OWNER = "recoupable";
+import { RECOUPABLE_GITHUB_OWNER } from "./github-owner";
 
 /**
  * Returns the `<owner, repo>` pair for an account's personal Recoupable
@@ -14,5 +13,8 @@ export function buildPersonalRepoIdentifier(params: {
   accountId: string;
 }): { owner: string; repo: string } {
   const slug = toKebabCase(params.accountName);
-  return { owner: PERSONAL_REPO_OWNER, repo: `${slug}-${params.accountId}` };
+  return {
+    owner: RECOUPABLE_GITHUB_OWNER,
+    repo: `${slug}-${params.accountId}`,
+  };
 }

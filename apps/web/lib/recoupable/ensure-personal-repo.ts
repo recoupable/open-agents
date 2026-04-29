@@ -1,10 +1,9 @@
 import "server-only";
-import { createRepository } from "@/lib/github/client";
+import { createRepository, repositoryExists } from "@/lib/github/client";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { buildPersonalRepoIdentifier } from "./build-personal-repo-identifier";
 import { buildPersonalRepoUrl } from "./build-personal-repo-url";
-
-const PERSONAL_REPO_OWNER = "recoupable";
+import { RECOUPABLE_GITHUB_OWNER } from "./github-owner";
 
 export type EnsurePersonalRepoResult = {
   cloneUrl: string;
@@ -17,12 +16,14 @@ export type EnsurePersonalRepoResult = {
  * Idempotently ensures a personal repo exists for the given account.
  *
  * Naming follows `recoupable/<kebab(name)>-<account_id>` (see
- * `buildPersonalRepoUrl`). On 422 ("Repository name already exists") we
- * treat it as success — the URL is deterministic, so a pre-existing repo
- * is the same repo we'd have created.
+ * `buildPersonalRepoUrl`). We check existence with `GET /repos/...` first
+ * so a pre-existing repo is a clean no-op; only when the repo is genuinely
+ * absent (404) do we attempt creation. Avoids the 422 ambiguity where the
+ * GitHub API returns the same status for "name taken" and "name invalid".
  *
- * Returns `null` when the service token is missing or the GitHub call
- * fails for a non-422 reason; callers should treat that as fatal.
+ * Returns `null` when the service token is missing, the existence check
+ * fails for non-404 reasons, or creation fails — all treated as fatal by
+ * callers.
  */
 export async function ensurePersonalRepo(params: {
   accountName: string;
@@ -41,32 +42,39 @@ export async function ensurePersonalRepo(params: {
     accountId: params.accountId,
   });
 
-  const result = await createRepository({
-    name: repoName,
-    description: `Personal Recoupable workspace for account ${params.accountId}`,
-    isPrivate: true,
+  const existing = await repositoryExists({
+    owner: RECOUPABLE_GITHUB_OWNER,
+    repo: repoName,
     token,
-    owner: PERSONAL_REPO_OWNER,
-    accountType: "Organization",
   });
 
-  // 422 from GitHub means the repo already exists — that's the desired
-  // end-state for an idempotent ensure, so synthesize the success record
-  // from the deterministic URL.
-  if (
-    !result.success &&
-    result.error === "Repository name already exists or is invalid"
-  ) {
+  if (existing === null) {
+    console.error(
+      `[ensurePersonalRepo] failed to check ${RECOUPABLE_GITHUB_OWNER}/${repoName}`,
+    );
+    return null;
+  }
+
+  if (existing) {
     return {
       cloneUrl: buildPersonalRepoUrl({
         accountName: params.accountName,
         accountId: params.accountId,
       }),
-      repoUrl: `https://github.com/${PERSONAL_REPO_OWNER}/${repoName}`,
-      owner: PERSONAL_REPO_OWNER,
+      repoUrl: `https://github.com/${RECOUPABLE_GITHUB_OWNER}/${repoName}`,
+      owner: RECOUPABLE_GITHUB_OWNER,
       repoName,
     };
   }
+
+  const result = await createRepository({
+    name: repoName,
+    description: `Personal Recoupable workspace for account ${params.accountId}`,
+    isPrivate: true,
+    token,
+    owner: RECOUPABLE_GITHUB_OWNER,
+    accountType: "Organization",
+  });
 
   if (!result.success || !result.cloneUrl || !result.repoUrl) {
     console.error(
@@ -78,7 +86,7 @@ export async function ensurePersonalRepo(params: {
   return {
     cloneUrl: result.cloneUrl,
     repoUrl: result.repoUrl,
-    owner: result.owner ?? PERSONAL_REPO_OWNER,
+    owner: result.owner ?? RECOUPABLE_GITHUB_OWNER,
     repoName: result.repoName ?? repoName,
   };
 }
