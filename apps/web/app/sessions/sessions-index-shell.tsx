@@ -12,10 +12,14 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { usePersonalSessionFallback } from "@/hooks/use-personal-session";
 import { useSessionsShell } from "./sessions-shell-context";
 
 export function SessionsIndexShell() {
   const { createBlankSession, isCreatingBlank } = useSessionsShell();
+  const { isProvisioning } = usePersonalSessionFallback({
+    enabled: !isCreatingBlank,
+  });
 
   const handleSelectOrg = useCallback(
     (cloneUrl: string) => {
@@ -23,6 +27,8 @@ export function SessionsIndexShell() {
     },
     [createBlankSession],
   );
+
+  const showLoadingState = isCreatingBlank || isProvisioning;
 
   return (
     <>
@@ -35,24 +41,24 @@ export function SessionsIndexShell() {
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              {isCreatingBlank ? (
+              {showLoadingState ? (
                 <Loader2 className="animate-spin" />
               ) : (
                 <MessageSquare />
               )}
             </EmptyMedia>
             <EmptyTitle>
-              {isCreatingBlank
-                ? "Starting a sandbox..."
+              {showLoadingState
+                ? "Setting up your workspace..."
                 : "Select an Organization"}
             </EmptyTitle>
             <EmptyDescription>
-              {isCreatingBlank
-                ? "Your new sandbox is being provisioned."
+              {showLoadingState
+                ? "Provisioning a sandbox for your first session."
                 : "Choose an organization to start a new session."}
             </EmptyDescription>
           </EmptyHeader>
-          {!isCreatingBlank && (
+          {!showLoadingState && (
             <EmptyContent>
               <OrgSelector
                 onSelectOrg={handleSelectOrg}
