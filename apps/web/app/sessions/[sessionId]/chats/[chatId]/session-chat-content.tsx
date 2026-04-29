@@ -96,6 +96,7 @@ import {
 import { useAudioRecording } from "@/hooks/use-audio-recording";
 import { useFileSuggestions } from "@/hooks/use-file-suggestions";
 import { useImageAttachments } from "@/hooks/use-image-attachments";
+import { usePersonalSessionBootstrap } from "@/hooks/use-personal-session-bootstrap";
 import { useTextAttachments } from "@/hooks/use-text-attachments";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
 import { useSessionChats } from "@/hooks/use-session-chats";
@@ -1899,6 +1900,18 @@ export function SessionChatContent({
     },
     [chatInfo.id, sendMessage, setChatStreaming],
   );
+
+  // Onboarding fallback: when a freshly-created personal session lands
+  // on this chat with zero messages, auto-submit the bootstrap prompt
+  // the server stashed in sessionStorage. Drives either the
+  // create-first-artist flow or the recoup-api → artist-workspace sync
+  // depending on what `validateCreatePersonalSession` saw.
+  usePersonalSessionBootstrap({
+    chatId: chatInfo.id,
+    hasMessages: messages.length > 0,
+    ready: status !== undefined,
+    sendMessage: sendMessageWithPendingState,
+  });
 
   const handleFixChecks = useCallback(
     async (failedRuns: PullRequestCheckRun[]) => {

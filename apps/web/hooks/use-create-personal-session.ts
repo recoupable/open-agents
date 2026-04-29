@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { Chat, Session } from "@/lib/db/schema";
+import { setBootstrapPrompt } from "@/lib/sessions/personal-session-bootstrap-storage";
 
 type CreatePersonalSessionResponse = {
   session?: Session;
   chat?: Chat;
+  bootstrapPrompt?: string;
   error?: string;
 };
 
@@ -46,6 +48,9 @@ export function useCreatePersonalSession() {
         const message = data.error ?? "Failed to start your first session";
         toast.error(message);
         return;
+      }
+      if (data.bootstrapPrompt) {
+        setBootstrapPrompt(data.chat.id, data.bootstrapPrompt);
       }
       router.push(`/sessions/${data.session.id}/chats/${data.chat.id}`);
     } catch (error) {
