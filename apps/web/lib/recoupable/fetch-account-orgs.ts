@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
+import { getRecoupApiBaseUrl } from "./get-recoup-api-base-url";
 
 const orgSchema = z.object({
   id: z.string(),
@@ -31,8 +31,9 @@ export async function fetchAccountOrgs(
   }
 
   try {
+    const baseUrl = await getRecoupApiBaseUrl();
     const response = await fetch(
-      `${RECOUPABLE_API_BASE_URL}/api/organizations`,
+      `${baseUrl}/api/organizations`,
       {
         method: "GET",
         headers: {

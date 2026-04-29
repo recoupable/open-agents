@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
+import { getRecoupApiBaseUrl } from "./get-recoup-api-base-url";
 
 const accountResponseSchema = z.object({
   data: z.object({
@@ -35,7 +35,8 @@ export async function fetchOrCreateAccount(
   }
 
   try {
-    const response = await fetch(`${RECOUPABLE_API_BASE_URL}/api/accounts`, {
+    const baseUrl = await getRecoupApiBaseUrl();
+    const response = await fetch(`${baseUrl}/api/accounts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
@@ -43,7 +44,7 @@ export async function fetchOrCreateAccount(
 
     if (!response.ok) {
       console.error(
-        `[fetchOrCreateAccount] ${RECOUPABLE_API_BASE_URL}/api/accounts returned ${response.status}`,
+        `[fetchOrCreateAccount] ${baseUrl}/api/accounts returned ${response.status}`,
       );
       return null;
     }
