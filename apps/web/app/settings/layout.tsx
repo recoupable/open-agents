@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import {
   ArrowLeft,
   LogOut,
@@ -10,8 +11,8 @@ import {
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import {
   Sheet,
@@ -82,14 +83,6 @@ const sidebarItems = [
   },
 ];
 
-function handleSignOut() {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = "/api/auth/signout";
-  document.body.appendChild(form);
-  form.submit();
-}
-
 function SettingsLayout({
   children,
   pathname,
@@ -97,8 +90,16 @@ function SettingsLayout({
   children: React.ReactNode;
   pathname: string;
 }) {
+  const router = useRouter();
+  const { logout } = usePrivy();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const activeItem = sidebarItems.find((item) => item.href === pathname);
+
+  const handleSignOut = useCallback(async () => {
+    await logout();
+    router.replace("/");
+    router.refresh();
+  }, [logout, router]);
 
   const navItems = (
     <ul className="space-y-1">
