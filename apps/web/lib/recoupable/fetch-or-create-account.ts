@@ -5,8 +5,8 @@ import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 const accountResponseSchema = z.object({
   data: z.object({
     account_id: z.string(),
-    name: z.string().optional(),
-    email: z.string().optional(),
+    name: z.string().nullish(),
+    email: z.string().nullish(),
   }),
 });
 
