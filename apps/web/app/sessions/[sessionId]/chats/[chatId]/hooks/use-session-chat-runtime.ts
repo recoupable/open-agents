@@ -7,6 +7,10 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { WebAgentUIMessage } from "@/app/types";
 import { AbortableChatTransport } from "@/lib/abortable-chat-transport";
 import {
+  buildChatApiCommonBody,
+  CHAT_API_POST_PATH,
+} from "@/lib/chat/chat-api-client";
+import {
   abortChatInstanceTransport,
   getOrCreateChatInstance,
 } from "@/lib/chat-instance-manager";
@@ -94,7 +98,7 @@ export function useSessionChatRuntime({
   const transport = useMemo(
     () =>
       new AbortableChatTransport({
-        api: "/api/chat",
+        api: CHAT_API_POST_PATH,
         body: async () => {
           const requestContextLimit = contextLimitRef.current;
           const recoupAccessToken = await getAccessToken().catch((error) => {
@@ -104,18 +108,12 @@ export function useSessionChatRuntime({
             );
             return null;
           });
-          return {
+          return buildChatApiCommonBody({
             sessionId,
             chatId,
-            ...(recoupAccessToken ? { recoupAccessToken } : {}),
-            ...(requestContextLimit !== null
-              ? {
-                  context: {
-                    contextLimit: requestContextLimit,
-                  },
-                }
-              : {}),
-          };
+            recoupAccessToken,
+            contextLimit: requestContextLimit,
+          });
         },
         prepareReconnectToStreamRequest: ({ id }) => ({
           api: `/api/chat/${id}/stream`,

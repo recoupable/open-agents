@@ -134,6 +134,7 @@ import { useDevServer } from "./hooks/use-dev-server";
 import { useGitPanel } from "./git-panel-context";
 import { useSandboxCreate } from "@/hooks/use-sandbox-create";
 import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
+import { takePendingBootstrapPrompt } from "@/lib/sessions/pending-bootstrap-prompts";
 import { SandboxCreateErrorBanner } from "./sandbox-create-error-banner";
 import { WorkspaceFileViewer } from "./workspace-file-viewer";
 import "streamdown/styles.css";
@@ -1900,6 +1901,8 @@ export function SessionChatContent({
     [chatInfo.id, sendMessage, setChatStreaming],
   );
 
+  const bootstrapAttemptedRef = useRef(false);
+
   const handleFixChecks = useCallback(
     async (failedRuns: PullRequestCheckRun[]) => {
       const names = failedRuns.map((run) => run.name).join(", ");
@@ -2675,6 +2678,28 @@ export function SessionChatContent({
     lifecycleTiming.state === "active" ||
     lifecycleTiming.state === "provisioning";
   const isSandboxActive = isSandboxValid(sandboxInfo) && serverSaysActive;
+
+  // Auto-submit the personal-session bootstrap prompt once the sandbox
+  // is active. The prompt is stashed by `useCreatePersonalSession`
+  // immediately before navigating here; we only fire when the workflow
+  // can actually accept it (avoids the "Sandbox not initialized" race).
+  useEffect(() => {
+    if (bootstrapAttemptedRef.current) return;
+    if (!isSandboxActive) return;
+    if (messages.length > 0) return;
+    const prompt = takePendingBootstrapPrompt(chatInfo.id);
+    if (!prompt) return;
+    bootstrapAttemptedRef.current = true;
+    void sendMessageWithPendingState({ text: prompt }).catch((error) => {
+      bootstrapAttemptedRef.current = false;
+      console.error("[bootstrap] failed to submit prompt:", error);
+    });
+  }, [
+    isSandboxActive,
+    messages.length,
+    chatInfo.id,
+    sendMessageWithPendingState,
+  ]);
 
   const _sandboxUiStatus = useMemo(() => {
     if (isArchived) {

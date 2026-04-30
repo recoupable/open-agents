@@ -6,7 +6,10 @@ import {
 } from "@/lib/db/sessions";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
+import { readBearerToken } from "@/lib/networking/read-bearer-token";
+import { fetchAccountArtists } from "@/lib/recoupable/fetch-account-artists";
 import { getRandomCityName } from "@/lib/random-city";
+import { buildPersonalSessionBootstrapPrompt } from "./build-personal-session-bootstrap-prompt";
 import { validateCreatePersonalSession } from "./validate-create-personal-session";
 
 /**
@@ -61,7 +64,13 @@ export async function createPersonalSessionHandler(req: Request) {
       },
     });
 
-    return Response.json(result);
+    const accessToken = readBearerToken(req) ?? "";
+    const artists = await fetchAccountArtists(accessToken);
+
+    return Response.json({
+      ...result,
+      bootstrapPrompt: buildPersonalSessionBootstrapPrompt(artists),
+    });
   } catch (error) {
     console.error("[createPersonalSessionHandler] failed:", error);
     return Response.json(
