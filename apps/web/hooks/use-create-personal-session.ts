@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { Chat, Session } from "@/lib/db/schema";
-import { sendBootstrapMessageViaChatApi } from "@/lib/sessions/send-bootstrap-message-via-chat-api";
+import { setPendingBootstrapPrompt } from "@/lib/sessions/pending-bootstrap-prompts";
 
 type CreatePersonalSessionResponse = {
   session?: Session;
@@ -49,18 +49,11 @@ export function useCreatePersonalSession() {
         toast.error(message);
         return;
       }
+      // Stash the prompt so the chat page can submit it once the
+      // sandbox lifecycle reports active (avoids racing the
+      // "Sandbox not initialized" 400 from `/api/chat`).
       if (data.bootstrapPrompt) {
-        try {
-          await sendBootstrapMessageViaChatApi({
-            sessionId: data.session.id,
-            chatId: data.chat.id,
-            prompt: data.bootstrapPrompt,
-            accessToken,
-          });
-        } catch (error) {
-          console.error("[useCreatePersonalSession] bootstrap failed:", error);
-          toast.error("Session created, but failed to send the first message");
-        }
+        setPendingBootstrapPrompt(data.chat.id, data.bootstrapPrompt);
       }
       router.push(`/sessions/${data.session.id}/chats/${data.chat.id}`);
     } catch (error) {
