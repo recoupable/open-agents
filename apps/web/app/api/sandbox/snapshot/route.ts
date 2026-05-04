@@ -6,6 +6,11 @@ import {
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
 import {
+  enforceRateLimit,
+  RATE_LIMITS,
+  withRateLimitHeaders,
+} from "@/lib/rate-limit";
+import {
   DEFAULT_SANDBOX_PORTS,
   DEFAULT_SANDBOX_TIMEOUT_MS,
 } from "@/lib/sandbox/config";
@@ -43,17 +48,30 @@ export async function POST(req: Request) {
     return authResult.response;
   }
 
+  const limit = await enforceRateLimit(
+    req,
+    RATE_LIMITS.sandboxSnapshot,
+    authResult.userId,
+  );
+  if (!limit.ok) return limit.response;
+
   let body: CreateSnapshotRequest;
   try {
     body = (await req.json()) as CreateSnapshotRequest;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   const { sessionId } = body;
 
   if (!sessionId) {
-    return Response.json({ error: "Missing sessionId" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Missing sessionId" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   const sessionContext = await requireOwnedSessionWithSandboxGuard({
@@ -63,13 +81,16 @@ export async function POST(req: Request) {
     sandboxErrorMessage: "Sandbox not initialized",
   });
   if (!sessionContext.ok) {
-    return sessionContext.response;
+    return withRateLimitHeaders(sessionContext.response, limit.headers);
   }
 
   const { sessionRecord } = sessionContext;
   const sandboxState = sessionRecord.sandboxState;
   if (!sandboxState) {
-    return Response.json({ error: "Sandbox not initialized" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Sandbox not initialized" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   try {
@@ -85,18 +106,21 @@ export async function POST(req: Request) {
       ...buildHibernatedLifecycleUpdate(),
     });
 
-    return Response.json({
-      snapshotId:
-        getResumableSandboxName(clearedState) ??
-        sessionRecord.snapshotUrl ??
-        null,
-      createdAt: Date.now(),
-    });
+    return withRateLimitHeaders(
+      Response.json({
+        snapshotId:
+          getResumableSandboxName(clearedState) ??
+          sessionRecord.snapshotUrl ??
+          null,
+        createdAt: Date.now(),
+      }),
+      limit.headers,
+    );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json(
-      { error: `Failed to pause sandbox: ${message}` },
-      { status: 500 },
+    console.error("[sandbox/snapshot:POST] failed:", error);
+    return withRateLimitHeaders(
+      Response.json({ error: "Failed to pause sandbox" }, { status: 500 }),
+      limit.headers,
     );
   }
 }
@@ -111,17 +135,30 @@ export async function PUT(req: Request) {
     return authResult.response;
   }
 
+  const limit = await enforceRateLimit(
+    req,
+    RATE_LIMITS.sandboxSnapshot,
+    authResult.userId,
+  );
+  if (!limit.ok) return limit.response;
+
   let body: RestoreSnapshotRequest;
   try {
     body = (await req.json()) as RestoreSnapshotRequest;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   const { sessionId } = body;
 
   if (!sessionId) {
-    return Response.json({ error: "Missing sessionId" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Missing sessionId" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   const sessionContext = await requireOwnedSession({
@@ -129,19 +166,22 @@ export async function PUT(req: Request) {
     sessionId,
   });
   if (!sessionContext.ok) {
-    return sessionContext.response;
+    return withRateLimitHeaders(sessionContext.response, limit.headers);
   }
 
   const { sessionRecord } = sessionContext;
   const sandboxType = sessionRecord.sandboxState?.type ?? "vercel";
 
   if (sandboxType !== "vercel") {
-    return Response.json(
-      {
-        error:
-          "Snapshot restoration is only supported for the current cloud sandbox provider",
-      },
-      { status: 400 },
+    return withRateLimitHeaders(
+      Response.json(
+        {
+          error:
+            "Snapshot restoration is only supported for the current cloud sandbox provider",
+        },
+        { status: 400 },
+      ),
+      limit.headers,
     );
   }
 
@@ -153,11 +193,14 @@ export async function PUT(req: Request) {
     console.log(
       `[Snapshot Restore] session=${sessionId} already_running=true sandboxType=${sandboxType}`,
     );
-    return Response.json({
-      success: true,
-      alreadyRunning: true,
-      restoredFrom,
-    });
+    return withRateLimitHeaders(
+      Response.json({
+        success: true,
+        alreadyRunning: true,
+        restoredFrom,
+      }),
+      limit.headers,
+    );
   }
 
   const persistentSandboxName = getResumableSandboxName(
@@ -169,9 +212,12 @@ export async function PUT(req: Request) {
     console.error(
       `[Snapshot Restore] session=${sessionId} error=no_resume_state sandboxType=${sandboxType}`,
     );
-    return Response.json(
-      { error: "No sandbox available for resume" },
-      { status: 404 },
+    return withRateLimitHeaders(
+      Response.json(
+        { error: "No sandbox available for resume" },
+        { status: 404 },
+      ),
+      limit.headers,
     );
   }
 
@@ -245,11 +291,14 @@ export async function PUT(req: Request) {
       `[Snapshot Restore] session=${sessionId} success=true sandboxType=${sandboxType} sandboxName=${restoredSandboxName} restoredFrom=${restoredFromLabel}`,
     );
 
-    return Response.json({
-      success: true,
-      restoredFrom,
-      sandboxId: "id" in sandbox ? sandbox.id : undefined,
-    });
+    return withRateLimitHeaders(
+      Response.json({
+        success: true,
+        restoredFrom,
+        sandboxId: "id" in sandbox ? sandbox.id : undefined,
+      }),
+      limit.headers,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
 
@@ -265,20 +314,24 @@ export async function PUT(req: Request) {
       console.error(
         `[Snapshot Restore] session=${sessionId} success=false error=${message}`,
       );
-      return Response.json(
-        {
-          error: "Saved sandbox is no longer available. Create a new sandbox.",
-        },
-        { status: 404 },
+      return withRateLimitHeaders(
+        Response.json(
+          {
+            error:
+              "Saved sandbox is no longer available. Create a new sandbox.",
+          },
+          { status: 404 },
+        ),
+        limit.headers,
       );
     }
 
     console.error(
       `[Snapshot Restore] session=${sessionId} success=false error=${message}`,
     );
-    return Response.json(
-      { error: `Failed to restore snapshot: ${message}` },
-      { status: 500 },
+    return withRateLimitHeaders(
+      Response.json({ error: "Failed to restore snapshot" }, { status: 500 }),
+      limit.headers,
     );
   }
 }

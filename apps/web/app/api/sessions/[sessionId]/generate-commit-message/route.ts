@@ -1,13 +1,18 @@
 import { connectSandbox } from "@open-harness/sandbox";
 import { gateway, generateText } from "ai";
 import { getSessionById } from "@/lib/db/sessions";
+import {
+  enforceRateLimit,
+  RATE_LIMITS,
+  withRateLimitHeaders,
+} from "@/lib/rate-limit";
 import { isSandboxActive } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
 
 export const maxDuration = 30;
 
 export async function POST(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   const session = await getServerSession();
@@ -15,14 +20,27 @@ export async function POST(
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const limit = await enforceRateLimit(
+    req,
+    RATE_LIMITS.generateCommitMessage,
+    session.user.id,
+  );
+  if (!limit.ok) return limit.response;
+
   const { sessionId } = await params;
   const dbSession = await getSessionById(sessionId);
   if (!dbSession || dbSession.userId !== session.user.id) {
-    return Response.json({ error: "Session not found" }, { status: 404 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Session not found" }, { status: 404 }),
+      limit.headers,
+    );
   }
 
   if (!isSandboxActive(dbSession.sandboxState)) {
-    return Response.json({ error: "No active sandbox" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "No active sandbox" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
   const sandbox = await connectSandbox(dbSession.sandboxState);
@@ -37,7 +55,10 @@ export async function POST(
 
   const diff = diffResult.stdout;
   if (!diff.trim() || !diff.includes("---DIFF---")) {
-    return Response.json({ message: "chore: update repository changes" });
+    return withRateLimitHeaders(
+      Response.json({ message: "chore: update repository changes" }),
+      limit.headers,
+    );
   }
 
   const result = await generateText({
@@ -58,5 +79,5 @@ Respond with ONLY the commit message, nothing else.`,
       ? generated.slice(0, 72)
       : "chore: update repository changes";
 
-  return Response.json({ message });
+  return withRateLimitHeaders(Response.json({ message }), limit.headers);
 }
