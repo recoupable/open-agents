@@ -1,92 +1,111 @@
-import { connectSandbox, type SandboxState } from "@open-harness/sandbox";
+import { connectSandbox } from "@open-harness/sandbox";
 import {
   requireAuthenticatedUser,
-  requireOwnedSessionWithSandboxGuard,
+  requireOwnedSession,
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
-import { EXTEND_TIMEOUT_DURATION_MS } from "@/lib/sandbox/config";
-import { kickSandboxLifecycleWorkflow } from "@/lib/sandbox/lifecycle-kick";
 import {
-  buildActiveLifecycleUpdate,
-  getNextLifecycleVersion,
-} from "@/lib/sandbox/lifecycle";
-import { isSandboxActive } from "@/lib/sandbox/utils";
+  enforceRateLimit,
+  RATE_LIMITS,
+  withRateLimitHeaders,
+} from "@/lib/rate-limit";
+import { handleCreateSandboxRequest } from "@/lib/sandbox/create-sandbox-handler";
+import {
+  canOperateOnSandbox,
+  clearSandboxState,
+  hasResumableSandboxState,
+} from "@/lib/sandbox/utils";
+import { getServerSession } from "@/lib/session/get-server-session";
 
-interface ExtendRequest {
-  sessionId: string;
+export async function POST(req: Request): Promise<Response> {
+  // Rate-limit by user identity when known; the underlying handler
+  // performs its own auth check, so this is purely additive.
+  const session = await getServerSession();
+  const userId = session?.user?.id ?? null;
+
+  const limit = await enforceRateLimit(req, RATE_LIMITS.sandboxCreate, userId);
+  if (!limit.ok) return limit.response;
+
+  const response = await handleCreateSandboxRequest(req);
+  return withRateLimitHeaders(response, limit.headers);
 }
 
-export async function POST(req: Request) {
+export async function DELETE(req: Request) {
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) {
     return authResult.response;
   }
 
-  let body: ExtendRequest;
+  const limit = await enforceRateLimit(
+    req,
+    RATE_LIMITS.sandboxCreate,
+    authResult.userId,
+  );
+  if (!limit.ok) return limit.response;
+
+  let body: unknown;
   try {
-    body = (await req.json()) as ExtendRequest;
+    body = await req.json();
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    return withRateLimitHeaders(
+      Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
-  const { sessionId } = body;
-
-  if (!sessionId) {
-    return Response.json({ error: "Missing sessionId" }, { status: 400 });
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !("sessionId" in body) ||
+    typeof (body as Record<string, unknown>).sessionId !== "string"
+  ) {
+    return withRateLimitHeaders(
+      Response.json({ error: "Missing sessionId" }, { status: 400 }),
+      limit.headers,
+    );
   }
 
-  const sessionContext = await requireOwnedSessionWithSandboxGuard({
+  const { sessionId } = body as { sessionId: string };
+
+  const sessionContext = await requireOwnedSession({
     userId: authResult.userId,
     sessionId,
-    sandboxGuard: isSandboxActive,
-    sandboxErrorMessage: "Sandbox not initialized",
   });
   if (!sessionContext.ok) {
-    return sessionContext.response;
+    return withRateLimitHeaders(sessionContext.response, limit.headers);
   }
 
   const { sessionRecord } = sessionContext;
-  const sandboxState = sessionRecord.sandboxState;
-  if (!sandboxState) {
-    return Response.json({ error: "Sandbox not initialized" }, { status: 400 });
+
+  // If there's no sandbox to stop, return success (idempotent)
+  if (!canOperateOnSandbox(sessionRecord.sandboxState)) {
+    return withRateLimitHeaders(
+      Response.json({ success: true, alreadyStopped: true }),
+      limit.headers,
+    );
   }
 
-  try {
-    const sandbox = await connectSandbox(sandboxState);
-    if (!sandbox.extendTimeout) {
-      return Response.json(
-        { error: "Extend timeout not supported by this sandbox type" },
-        { status: 400 },
-      );
-    }
-    const result = await sandbox.extendTimeout(EXTEND_TIMEOUT_DURATION_MS);
+  // Connect and stop using unified API
+  const sandbox = await connectSandbox(sessionRecord.sandboxState);
+  await sandbox.stop();
 
-    // Persist updated expiresAt to database
-    if (typeof sandbox.getState === "function") {
-      const newState = sandbox.getState();
-      if (newState) {
-        await updateSession(sessionId, {
-          sandboxState: newState as SandboxState,
-          lifecycleVersion: getNextLifecycleVersion(
-            sessionRecord.lifecycleVersion,
-          ),
-          ...buildActiveLifecycleUpdate(newState as SandboxState),
-        });
-      }
-    }
+  const clearedState = clearSandboxState(sessionRecord.sandboxState);
+  await updateSession(sessionId, {
+    sandboxState: clearedState,
+    snapshotUrl: null,
+    snapshotCreatedAt: null,
+    lifecycleState:
+      hasResumableSandboxState(clearedState) || !!sessionRecord.snapshotUrl
+        ? "hibernated"
+        : "provisioning",
+    sandboxExpiresAt: null,
+    hibernateAfter: null,
+    lifecycleRunId: null,
+    lifecycleError: null,
+  });
 
-    kickSandboxLifecycleWorkflow({
-      sessionId,
-      reason: "timeout-extended",
-    });
-
-    return Response.json({
-      success: true,
-      expiresAt: result.expiresAt,
-      extendedBy: EXTEND_TIMEOUT_DURATION_MS,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return Response.json({ error: message }, { status: 500 });
-  }
+  return withRateLimitHeaders(
+    Response.json({ success: true }),
+    limit.headers,
+  );
 }
