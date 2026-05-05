@@ -616,7 +616,6 @@ export function SessionChatProvider({
     [],
   );
 
-
   const updateSessionSnapshot = useCallback(
     (snapshotUrl: string, snapshotCreatedAt: Date) => {
       setHasSnapshotState(true);

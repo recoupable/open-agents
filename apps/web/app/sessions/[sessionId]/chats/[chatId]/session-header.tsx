@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ExternalLink,
-  FolderGit2,
-  GitMerge,
-  GitPullRequest,
-  GitPullRequestClosed,
-  Link2,
-  PanelLeft,
-} from "lucide-react";
+import { ExternalLink, FolderGit2, Link2, PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {

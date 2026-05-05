@@ -1,6 +1,5 @@
 "use client";
 
-import { GitMerge } from "lucide-react";
 import type { SessionWithUnread } from "@/hooks/use-sessions";
 
 interface SessionListProps {

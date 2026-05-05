@@ -21,7 +21,10 @@ export async function resolveAccountIdFromPrivyToken(
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { accountId?: string; account_id?: string };
+    const data = (await res.json()) as {
+      accountId?: string;
+      account_id?: string;
+    };
     return data.accountId ?? data.account_id ?? null;
   } catch {
     return null;

@@ -5,15 +5,12 @@ import {
   ChevronDown,
   FolderGit2,
   GitBranch,
-  GitMerge,
-  GitPullRequest,
   Loader2,
   Monitor,
   Pencil,
   Plus,
   Settings,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { CSSProperties } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -77,12 +74,6 @@ const sessionRowPerformanceStyle: CSSProperties = {
   contentVisibility: "auto",
   containIntrinsicSize: "2.25rem",
 };
-
-function formatDomainOrg(domain: string): string {
-  const dotIndex = domain.indexOf(".");
-  const name = dotIndex > 0 ? domain.slice(0, dotIndex) : domain;
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
 
 function getAvatarFallback(username: string): string {
   const normalized = username.trim();
