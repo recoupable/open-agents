@@ -39,32 +39,12 @@ export function SessionHeader() {
   } = useGitPanel();
   const { session } = useSessionLayout();
 
-  // Determine the icon and color based on PR state
-  const prState = useMemo(() => {
-    if (!session.prNumber) return null;
-    const status = session.prStatus;
-    if (status === "merged")
-      return { icon: GitMerge, color: "text-purple-500" } as const;
-    if (status === "closed")
-      return { icon: GitPullRequestClosed, color: "text-red-500" } as const;
-    return { icon: GitPullRequest, color: "text-green-500" } as const;
-  }, [session.prNumber, session.prStatus]);
-
-  const GitIcon = prState?.icon ?? FolderGit2;
-  const iconColor = prState?.color ?? undefined;
+  const GitIcon = FolderGit2;
+  const iconColor: string | undefined = undefined;
 
   // Build contextual tooltip
   const tooltipText = useMemo(() => {
     const parts: string[] = [];
-    if (session.prNumber) {
-      const statusLabel =
-        session.prStatus === "merged"
-          ? "Merged"
-          : session.prStatus === "closed"
-            ? "Closed"
-            : "Open";
-      parts.push(`PR #${session.prNumber} (${statusLabel})`);
-    }
     if (changesCount > 0) {
       parts.push(
         `${changesCount} file${changesCount !== 1 ? "s" : ""} changed`,
@@ -74,19 +54,17 @@ export function SessionHeader() {
       parts.push("Uncommitted changes");
     }
     return parts.length > 0 ? parts.join(" · ") : "Git panel";
-  }, [session.prNumber, session.prStatus, changesCount, hasActionNeeded]);
+  }, [changesCount, hasActionNeeded]);
 
   const openGitPanel = useCallback(() => {
-    const defaultTab = session.prNumber
-      ? "pr"
-      : hasActionNeeded || hasCommittedChanges || changesCount > 0
+    const defaultTab =
+      hasActionNeeded || hasCommittedChanges || changesCount > 0
         ? "diff"
         : "files";
 
     setGitPanelTab(defaultTab);
     setGitPanelOpen(true);
   }, [
-    session.prNumber,
     hasActionNeeded,
     hasCommittedChanges,
     changesCount,

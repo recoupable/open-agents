@@ -16,6 +16,8 @@ export interface GitHubAccount {
   externalUserId: string;
   accessToken: string | null;
   scope: string | null;
+  username: string | null;
+  email: string | null;
 }
 
 /**

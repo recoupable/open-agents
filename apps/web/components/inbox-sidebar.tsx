@@ -123,21 +123,6 @@ function getSessionStatusIcon(session: SessionWithUnread) {
     );
   }
 
-  // PR merged → purple merge icon
-  if (session.prNumber && session.prStatus === "merged") {
-    return <GitMerge className="h-3.5 w-3.5 shrink-0 text-purple-500" />;
-  }
-
-  // PR open → yellow-orange PR icon (awaiting review)
-  if (session.prNumber && session.prStatus === "open") {
-    return <GitPullRequest className="h-3.5 w-3.5 shrink-0 text-green-500" />;
-  }
-
-  // PR closed (not merged)
-  if (session.prNumber && session.prStatus === "closed") {
-    return <GitPullRequest className="h-3.5 w-3.5 shrink-0 text-red-500" />;
-  }
-
   // Has a branch with code changes → needs human follow-up
   const hasDiff = session.linesAdded || session.linesRemoved;
   if (session.branch && hasDiff) {
@@ -162,47 +147,21 @@ function getSessionStatusIcon(session: SessionWithUnread) {
   return <Monitor className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />;
 }
 
-function getSessionStatusLabel(session: SessionWithUnread): {
-  text: string;
-  prNumber: number | null;
-} {
-  if (session.hasStreaming) return { text: "Working", prNumber: null };
-  if (session.prNumber && session.prStatus === "merged")
-    return { text: `PR #${session.prNumber}`, prNumber: session.prNumber };
-  if (session.prNumber && session.prStatus === "open")
-    return { text: `PR #${session.prNumber}`, prNumber: session.prNumber };
-  if (session.prNumber && session.prStatus === "closed")
-    return { text: `PR #${session.prNumber}`, prNumber: session.prNumber };
+function getSessionStatusLabel(session: SessionWithUnread): { text: string } {
+  if (session.hasStreaming) return { text: "Working" };
   const hasDiff = session.linesAdded || session.linesRemoved;
-  if (session.branch && hasDiff)
-    return { text: "Needs attention", prNumber: null };
-  if (session.branch) return { text: "New session", prNumber: null };
-  if (session.status === "running")
-    return { text: "Setting up", prNumber: null };
-  if (session.status === "completed")
-    return { text: "Completed", prNumber: null };
-  if (session.status === "failed") return { text: "Failed", prNumber: null };
-  if (session.status === "archived")
-    return { text: "Archived", prNumber: null };
-  return { text: "Idle", prNumber: null };
+  if (session.branch && hasDiff) return { text: "Needs attention" };
+  if (session.branch) return { text: "New session" };
+  if (session.status === "running") return { text: "Setting up" };
+  if (session.status === "completed") return { text: "Completed" };
+  if (session.status === "failed") return { text: "Failed" };
+  if (session.status === "archived") return { text: "Archived" };
+  return { text: "Idle" };
 }
 
 function getSessionBranchUrl(session: SessionWithUnread): string | null {
-  // Only link if the branch is known to exist on GitHub (has a PR).
-  // Local-only branches that haven't been pushed would 404.
-  if (
-    !session.branch ||
-    !session.repoOwner ||
-    !session.repoName ||
-    !session.prNumber
-  )
-    return null;
+  if (!session.branch || !session.repoOwner || !session.repoName) return null;
   return `https://github.com/${session.repoOwner}/${session.repoName}/tree/${session.branch}`;
-}
-
-function getSessionPrUrl(session: SessionWithUnread): string | null {
-  if (!session.prNumber || !session.repoOwner || !session.repoName) return null;
-  return `https://github.com/${session.repoOwner}/${session.repoName}/pull/${session.prNumber}`;
 }
 
 function SessionPopoverContent({ session }: { session: SessionWithUnread }) {
@@ -210,7 +169,6 @@ function SessionPopoverContent({ session }: { session: SessionWithUnread }) {
     session.lastActivityAt ?? session.createdAt,
   );
   const branchUrl = getSessionBranchUrl(session);
-  const prUrl = getSessionPrUrl(session);
   const hasDiff = session.linesAdded !== null || session.linesRemoved !== null;
   const statusLabel = getSessionStatusLabel(session);
 
@@ -224,18 +182,7 @@ function SessionPopoverContent({ session }: { session: SessionWithUnread }) {
       {/* Status + branch */}
       <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap text-xs text-muted-foreground">
         <span className="shrink-0">{getSessionStatusIcon(session)}</span>
-        {prUrl && statusLabel.prNumber ? (
-          <a
-            href={prUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 hover:text-foreground transition-colors"
-          >
-            {statusLabel.text}
-          </a>
-        ) : (
-          <span className="shrink-0">{statusLabel.text}</span>
-        )}
+        <span className="shrink-0">{statusLabel.text}</span>
         {session.branch ? (
           <span className="flex min-w-0 items-center gap-1 ml-1">
             <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
@@ -620,8 +567,6 @@ function areSessionRowsEqual(
     prev.session.repoOwner === next.session.repoOwner &&
     prev.session.repoName === next.session.repoName &&
     prev.session.branch === next.session.branch &&
-    prev.session.prNumber === next.session.prNumber &&
-    prev.session.prStatus === next.session.prStatus &&
     prev.session.linesAdded === next.session.linesAdded &&
     prev.session.linesRemoved === next.session.linesRemoved &&
     String(prev.session.lastActivityAt) === String(next.session.lastActivityAt)

@@ -186,13 +186,6 @@ type SessionChatContextValue = {
     repoName: string;
     branch: string;
   }) => void;
-  /** Update local PR metadata after creating/discovering a PR */
-  updateSessionPullRequest: (info: {
-    prNumber: number;
-    prStatus: "open" | "merged" | "closed";
-  }) => void;
-  /** Check sandbox branch and look for existing PRs, persisting to DB */
-  checkBranchAndPr: () => Promise<void>;
   /** Available model options (base models + variants) */
   modelOptions: ModelOption[];
   /** Whether model options are still loading */
@@ -255,8 +248,6 @@ type SessionChatMetadataContextValue = Pick<
   | "syncSandboxStatus"
   | "attemptReconnection"
   | "updateSessionRepo"
-  | "updateSessionPullRequest"
-  | "checkBranchAndPr"
   | "modelOptions"
   | "modelOptionsLoading"
 >;
@@ -625,114 +616,6 @@ export function SessionChatProvider({
     [],
   );
 
-  const updateSessionPullRequest = useCallback(
-    (info: { prNumber: number; prStatus: "open" | "merged" | "closed" }) => {
-      setSessionRecord((prev) => ({
-        ...prev,
-        prNumber: info.prNumber,
-        prStatus: info.prStatus,
-      }));
-
-      void mutate<SessionsResponse>(
-        "/api/sessions",
-        (current) =>
-          current
-            ? {
-                ...current,
-                sessions: current.sessions.map((s) =>
-                  s.id === sessionId
-                    ? {
-                        ...s,
-                        prNumber: info.prNumber,
-                        prStatus: info.prStatus,
-                      }
-                    : s,
-                ),
-              }
-            : current,
-        { revalidate: false },
-      );
-    },
-    [mutate, sessionId],
-  );
-
-  const checkBranchAndPr = useCallback(async () => {
-    // Only check if the session has repo info. The API will return a 400
-    // if the sandbox is not active, which we silently ignore.
-    if (!sessionRecord.repoOwner || !sessionRecord.repoName) return;
-
-    try {
-      const res = await fetch("/api/check-pr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sessionRecord.id }),
-      });
-      if (!res.ok) return;
-
-      const data = (await res.json()) as {
-        branch: string | null;
-        prNumber: number | null;
-        prStatus: "open" | "merged" | "closed" | null;
-      };
-      const nextPrFields =
-        data.prNumber && data.prStatus
-          ? { prNumber: data.prNumber, prStatus: data.prStatus }
-          : { prNumber: null, prStatus: null };
-
-      // Update local session state with branch and PR info
-      setSessionRecord((prev) => ({
-        ...prev,
-        ...(data.branch ? { branch: data.branch } : {}),
-        ...nextPrFields,
-      }));
-
-      // Optimistically update the sessions list cache so sidebar reflects changes
-      void mutate<SessionsResponse>(
-        "/api/sessions",
-        (current) =>
-          current
-            ? {
-                ...current,
-                sessions: current.sessions.map((s) =>
-                  s.id === sessionId
-                    ? {
-                        ...s,
-                        ...(data.branch ? { branch: data.branch } : {}),
-                        ...nextPrFields,
-                      }
-                    : s,
-                ),
-              }
-            : current,
-        { revalidate: false },
-      );
-    } catch (error) {
-      console.error("Failed to check branch/PR:", error);
-    }
-  }, [
-    sessionRecord.id,
-    sessionRecord.repoOwner,
-    sessionRecord.repoName,
-    mutate,
-    sessionId,
-  ]);
-
-  // When entering a session on a branch that already has a PR, hydrate PR
-  // metadata as soon as we know the sandbox is connected so the header action
-  // reflects existing PR state immediately.
-  useEffect(() => {
-    if (sessionRecord.prNumber != null) return;
-    if (!sessionRecord.repoOwner || !sessionRecord.repoName) return;
-    if (reconnectionStatus !== "connected") return;
-
-    void checkBranchAndPr();
-  }, [
-    sessionRecord.prNumber,
-    sessionRecord.repoOwner,
-    sessionRecord.repoName,
-    reconnectionStatus,
-    checkBranchAndPr,
-  ]);
 
   const updateSessionSnapshot = useCallback(
     (snapshotUrl: string, snapshotCreatedAt: Date) => {
@@ -1099,8 +982,6 @@ export function SessionChatProvider({
       syncSandboxStatus,
       attemptReconnection,
       updateSessionRepo,
-      updateSessionPullRequest,
-      checkBranchAndPr,
       modelOptions,
       modelOptionsLoading,
     }),
@@ -1125,8 +1006,6 @@ export function SessionChatProvider({
       syncSandboxStatus,
       attemptReconnection,
       updateSessionRepo,
-      updateSessionPullRequest,
-      checkBranchAndPr,
       modelOptions,
       modelOptionsLoading,
     ],
