@@ -12,6 +12,8 @@ import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
  * @param accessToken - The Privy access token to authenticate with.
  * @returns The recoupable `account_id` (UUID), or `null` on any failure.
  */
+const RESOLVE_ACCOUNT_ID_TIMEOUT_MS = 5000;
+
 export async function resolveAccountIdFromPrivyToken(
   accessToken: string,
 ): Promise<string | null> {
@@ -19,14 +21,24 @@ export async function resolveAccountIdFromPrivyToken(
     const res = await fetch(`${RECOUPABLE_API_BASE_URL}/api/accounts/id`, {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(RESOLVE_ACCOUNT_ID_TIMEOUT_MS),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(
+        `[resolveAccountIdFromPrivyToken] Recoupable /api/accounts/id returned ${res.status}`,
+      );
+      return null;
+    }
     const data = (await res.json()) as {
       accountId?: string;
       account_id?: string;
     };
     return data.accountId ?? data.account_id ?? null;
-  } catch {
+  } catch (error) {
+    console.error(
+      "[resolveAccountIdFromPrivyToken] Failed to resolve account id:",
+      error,
+    );
     return null;
   }
 }

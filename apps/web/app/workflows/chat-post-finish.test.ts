@@ -386,7 +386,6 @@ describe("hasAutoCommitChangesStep", () => {
 describe("runAutoCommitStep", () => {
   test("connects sandbox and performs auto-commit", async () => {
     await runAutoCommitStep({
-      userId: "user-1",
       sessionId: "session-1",
       sessionTitle: "My session",
       repoOwner: "acme",
@@ -398,7 +397,6 @@ describe("runAutoCommitStep", () => {
     expect(spies.performAutoCommit).toHaveBeenCalledTimes(1);
     expect(spies.performAutoCommit).toHaveBeenCalledWith(
       expect.objectContaining({
-        userId: "user-1",
         sessionId: "session-1",
         sessionTitle: "My session",
         repoOwner: "acme",
@@ -413,7 +411,6 @@ describe("runAutoCommitStep", () => {
     );
 
     await runAutoCommitStep({
-      userId: "user-1",
       sessionId: "session-1",
       sessionTitle: "My session",
       repoOwner: "acme",

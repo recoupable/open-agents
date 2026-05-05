@@ -383,7 +383,6 @@ export async function hasAutoCommitChangesStep(params: {
 }
 
 export async function runAutoCommitStep(params: {
-  userId: string;
   sessionId: string;
   sessionTitle: string;
   repoOwner: string;
@@ -397,7 +396,6 @@ export async function runAutoCommitStep(params: {
     const sandbox = await connectSandbox(params.sandboxState);
     return await performAutoCommit({
       sandbox,
-      userId: params.userId,
       sessionId: params.sessionId,
       sessionTitle: params.sessionTitle,
       repoOwner: params.repoOwner,

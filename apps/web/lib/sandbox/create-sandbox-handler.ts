@@ -3,7 +3,6 @@ import {
   requireOwnedSession,
   type SessionRecord,
 } from "@/app/api/sessions/_lib/session-context";
-import { getGitHubAccount } from "@/lib/db/accounts";
 import { updateSession } from "@/lib/db/sessions";
 import { parseGitHubUrl } from "@/lib/github/client";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
@@ -80,18 +79,11 @@ export async function handleCreateSandboxRequest(
   }
 
   const sandboxName = sessionId ? getSessionSandboxName(sessionId) : undefined;
-  const githubAccount = await getGitHubAccount(session.user.id);
-  const githubNoreplyEmail =
-    githubAccount?.externalUserId && githubAccount.username
-      ? `${githubAccount.externalUserId}+${githubAccount.username}@users.noreply.github.com`
-      : undefined;
 
   const gitUser = {
-    name: session.user.name ?? githubAccount?.username ?? session.user.username,
+    name: session.user.name ?? session.user.username,
     email:
-      githubNoreplyEmail ??
-      session.user.email ??
-      `${session.user.username}@users.noreply.github.com`,
+      session.user.email ?? `${session.user.username}@users.noreply.github.com`,
   };
 
   const startTime = Date.now();
