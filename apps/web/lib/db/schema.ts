@@ -1,8 +1,6 @@
 import type { SandboxState } from "@open-harness/sandbox";
-import type { ModelVariant } from "@/lib/model-variants";
 import type { GlobalSkillRef } from "@/lib/skills/global-skill-refs";
 import {
-  boolean,
   index,
   integer,
   jsonb,
@@ -11,125 +9,44 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  boolean,
 } from "drizzle-orm/pg-core";
 
-export const users = pgTable(
-  "users",
-  {
-    id: text("id").primaryKey(),
-    provider: text("provider", {
-      enum: ["privy"],
-    }).notNull(),
-    externalId: text("external_id").notNull(),
-    username: text("username").notNull(),
-    email: text("email"),
-    name: text("name"),
-    avatarUrl: text("avatar_url"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-    lastLoginAt: timestamp("last_login_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("users_provider_external_id_idx").on(
-      table.provider,
-      table.externalId,
-    ),
-  ],
-);
-
-export const accounts = pgTable(
-  "accounts",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", {
-      enum: ["github"],
-    })
-      .notNull()
-      .default("github"),
-    externalUserId: text("external_user_id").notNull(),
-    accessToken: text("access_token").notNull(),
-    refreshToken: text("refresh_token"),
-    expiresAt: timestamp("expires_at"),
-    scope: text("scope"),
-    username: text("username").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("accounts_user_id_provider_idx").on(
-      table.userId,
-      table.provider,
-    ),
-  ],
-);
-
-export const githubInstallations = pgTable(
-  "github_installations",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    installationId: integer("installation_id").notNull(),
-    accountLogin: text("account_login").notNull(),
-    accountType: text("account_type", {
-      enum: ["User", "Organization"],
-    }).notNull(),
-    repositorySelection: text("repository_selection", {
-      enum: ["all", "selected"],
-    }).notNull(),
-    installationUrl: text("installation_url"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("github_installations_user_installation_idx").on(
-      table.userId,
-      table.installationId,
-    ),
-    uniqueIndex("github_installations_user_account_idx").on(
-      table.userId,
-      table.accountLogin,
-    ),
-  ],
-);
+// Open-agents schema, slimmed for the database-unification work.
+//
+// Removed (now owned by recoupable Supabase or dropped entirely):
+//   users, accounts (open-agents OAuth-linkage), linked_accounts,
+//   user_preferences, shares, github_installations
+//
+// FK columns previously declared `.references(() => users.id)` are
+// kept as plain `text("user_id")` columns: at runtime they hold the
+// recoupable `account_id` (UUID string) instead of an open-agents
+// nanoid, but TEXT accepts both. The FK relationship lives in
+// recoupable Supabase under the `account_id UUID` column type;
+// Drizzle's view of the column is intentionally informal until
+// Phase 3 of the unification points the connection at Supabase.
 
 export const sessions = pgTable(
   "sessions",
   {
     id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
     title: text("title").notNull(),
     status: text("status", {
       enum: ["running", "completed", "failed", "archived"],
     })
       .notNull()
       .default("running"),
-    // Repository info
     repoOwner: text("repo_owner"),
     repoName: text("repo_name"),
     branch: text("branch"),
     cloneUrl: text("clone_url"),
-    // Whether this session uses a new auto-generated branch
     isNewBranch: boolean("is_new_branch").default(false).notNull(),
-    // Optional per-session override for auto commit + push behavior.
-    // null means "use the user's default preference".
-    autoCommitPushOverride: boolean("auto_commit_push_override"),
-    // Optional per-session override for auto PR creation after auto-commit.
-    // null means "use the user's default preference".
-    autoCreatePrOverride: boolean("auto_create_pr_override"),
     globalSkillRefs: jsonb("global_skill_refs")
       .$type<GlobalSkillRef[]>()
       .notNull()
       .default([]),
-    // Unified sandbox state
     sandboxState: jsonb("sandbox_state").$type<SandboxState>(),
-    // Lifecycle orchestration state for sandbox management
     lifecycleState: text("lifecycle_state", {
       enum: [
         "provisioning",
@@ -147,22 +64,13 @@ export const sessions = pgTable(
     hibernateAfter: timestamp("hibernate_after"),
     lifecycleRunId: text("lifecycle_run_id"),
     lifecycleError: text("lifecycle_error"),
-    // Git stats (for display in session list)
     linesAdded: integer("lines_added").default(0),
     linesRemoved: integer("lines_removed").default(0),
-    // PR info if created
-    prNumber: integer("pr_number"),
-    prStatus: text("pr_status", {
-      enum: ["open", "merged", "closed"],
-    }),
-    // Snapshot info (for cached snapshots feature)
     snapshotUrl: text("snapshot_url"),
     snapshotCreatedAt: timestamp("snapshot_created_at"),
     snapshotSizeBytes: integer("snapshot_size_bytes"),
-    // Cached diff for offline viewing
     cachedDiff: jsonb("cached_diff"),
     cachedDiffUpdatedAt: timestamp("cached_diff_updated_at"),
-    // Timestamps
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -186,19 +94,6 @@ export const chats = pgTable(
   (table) => [index("chats_session_id_idx").on(table.sessionId)],
 );
 
-export const shares = pgTable(
-  "shares",
-  {
-    id: text("id").primaryKey(),
-    chatId: text("chat_id")
-      .notNull()
-      .references(() => chats.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [uniqueIndex("shares_chat_id_idx").on(table.chatId)],
-);
-
 export const chatMessages = pgTable("chat_messages", {
   id: text("id").primaryKey(),
   chatId: text("chat_id")
@@ -207,7 +102,6 @@ export const chatMessages = pgTable("chat_messages", {
   role: text("role", {
     enum: ["user", "assistant"],
   }).notNull(),
-  // Store the full message parts as JSON for flexibility
   parts: jsonb("parts").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -215,9 +109,7 @@ export const chatMessages = pgTable("chat_messages", {
 export const chatReads = pgTable(
   "chat_reads",
   {
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
     chatId: text("chat_id")
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -241,9 +133,7 @@ export const workflowRuns = pgTable(
     sessionId: text("session_id")
       .notNull()
       .references(() => sessions.id, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull(),
     modelId: text("model_id"),
     status: text("status", {
       enum: ["completed", "aborted", "failed"],
@@ -284,99 +174,9 @@ export const workflowRunSteps = pgTable(
   ],
 );
 
-export type Session = typeof sessions.$inferSelect;
-export type NewSession = typeof sessions.$inferInsert;
-export type Chat = typeof chats.$inferSelect;
-export type NewChat = typeof chats.$inferInsert;
-export type Share = typeof shares.$inferSelect;
-export type NewShare = typeof shares.$inferInsert;
-export type ChatMessage = typeof chatMessages.$inferSelect;
-export type NewChatMessage = typeof chatMessages.$inferInsert;
-export type ChatRead = typeof chatReads.$inferSelect;
-export type NewChatRead = typeof chatReads.$inferInsert;
-export type WorkflowRun = typeof workflowRuns.$inferSelect;
-export type NewWorkflowRun = typeof workflowRuns.$inferInsert;
-export type WorkflowRunStep = typeof workflowRunSteps.$inferSelect;
-export type NewWorkflowRunStep = typeof workflowRunSteps.$inferInsert;
-export type GitHubInstallation = typeof githubInstallations.$inferSelect;
-export type NewGitHubInstallation = typeof githubInstallations.$inferInsert;
-
-// Linked accounts for external platforms (Slack, Discord, etc.)
-export const linkedAccounts = pgTable(
-  "linked_accounts",
-  {
-    id: text("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    provider: text("provider", {
-      enum: ["slack", "discord", "whatsapp", "telegram"],
-    }).notNull(),
-    externalId: text("external_id").notNull(),
-    workspaceId: text("workspace_id"), // For Slack workspaces, Discord servers
-    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    uniqueIndex("linked_accounts_provider_external_workspace_idx").on(
-      table.provider,
-      table.externalId,
-      table.workspaceId,
-    ),
-  ],
-);
-
-export type LinkedAccount = typeof linkedAccounts.$inferSelect;
-export type NewLinkedAccount = typeof linkedAccounts.$inferInsert;
-
-// User preferences for settings
-export const userPreferences = pgTable("user_preferences", {
-  id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .unique()
-    .references(() => users.id, { onDelete: "cascade" }),
-  defaultModelId: text("default_model_id").default(
-    "anthropic/claude-haiku-4.5",
-  ),
-  defaultSubagentModelId: text("default_subagent_model_id"),
-  defaultSandboxType: text("default_sandbox_type", {
-    enum: ["vercel"],
-  }).default("vercel"),
-  defaultDiffMode: text("default_diff_mode", {
-    enum: ["unified", "split"],
-  }).default("unified"),
-  autoCommitPush: boolean("auto_commit_push").notNull().default(false),
-  autoCreatePr: boolean("auto_create_pr").notNull().default(false),
-  alertsEnabled: boolean("alerts_enabled").notNull().default(true),
-  alertSoundEnabled: boolean("alert_sound_enabled").notNull().default(true),
-  publicUsageEnabled: boolean("public_usage_enabled").notNull().default(false),
-  globalSkillRefs: jsonb("global_skill_refs")
-    .$type<GlobalSkillRef[]>()
-    .notNull()
-    .default([]),
-  modelVariants: jsonb("model_variants")
-    .$type<ModelVariant[]>()
-    .notNull()
-    .default([]),
-  enabledModelIds: jsonb("enabled_model_ids")
-    .$type<string[]>()
-    .notNull()
-    .default([]),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export type UserPreferences = typeof userPreferences.$inferSelect;
-export type NewUserPreferences = typeof userPreferences.$inferInsert;
-
-// Usage tracking — one row per assistant turn (append-only)
 export const usageEvents = pgTable("usage_events", {
   id: text("id").primaryKey(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull(),
   source: text("source", { enum: ["web"] })
     .notNull()
     .default("web"),
@@ -392,5 +192,17 @@ export const usageEvents = pgTable("usage_events", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
+export type Chat = typeof chats.$inferSelect;
+export type NewChat = typeof chats.$inferInsert;
+export type ChatMessage = typeof chatMessages.$inferSelect;
+export type NewChatMessage = typeof chatMessages.$inferInsert;
+export type ChatRead = typeof chatReads.$inferSelect;
+export type NewChatRead = typeof chatReads.$inferInsert;
+export type WorkflowRun = typeof workflowRuns.$inferSelect;
+export type NewWorkflowRun = typeof workflowRuns.$inferInsert;
+export type WorkflowRunStep = typeof workflowRunSteps.$inferSelect;
+export type NewWorkflowRunStep = typeof workflowRunSteps.$inferInsert;
 export type UsageEvent = typeof usageEvents.$inferSelect;
 export type NewUsageEvent = typeof usageEvents.$inferInsert;
