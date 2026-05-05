@@ -10,10 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
 import { estimateModelUsageCost, type AvailableModel } from "@/lib/models";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { fetcher } from "@/lib/swr";
 import { formatDateOnly } from "@/lib/usage/date-range";
 import type { UsageInsights, UsageRepositoryInsight } from "@/lib/usage/types";
 import { UsageInsightsSection } from "../usage/usage-insights-section";
+
+const MODELS_URL = `${RECOUPABLE_API_BASE_URL}/api/ai/models`;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -442,7 +445,7 @@ export default function ProfilePage() {
     isLoading: isFilteredDataLoading,
     error: filteredDataError,
   } = useSWR<UsageResponse>(filteredUsagePath, fetcher);
-  const { data: modelsData } = useSWR<ModelsResponse>("/api/models", fetcher);
+  const { data: modelsData } = useSWR<ModelsResponse>(MODELS_URL, fetcher);
 
   const data = filteredUsagePath ? filteredData : fullData;
   const isLoading =

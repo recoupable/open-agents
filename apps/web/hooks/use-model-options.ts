@@ -5,7 +5,10 @@ import useSWR from "swr";
 import { buildModelOptions, type ModelOption } from "@/lib/model-options";
 import type { AvailableModel } from "@/lib/models";
 import type { ModelVariant } from "@/lib/model-variants";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { fetcher } from "@/lib/swr";
+
+const MODELS_URL = `${RECOUPABLE_API_BASE_URL}/api/ai/models`;
 
 interface ModelsResponse {
   models: AvailableModel[];
@@ -28,7 +31,7 @@ export function useModelOptions(config: UseModelOptionsConfig = {}) {
     data: modelsData,
     error: modelsError,
     isLoading: modelsLoading,
-  } = useSWR<ModelsResponse>("/api/models", fetcher);
+  } = useSWR<ModelsResponse>(MODELS_URL, fetcher);
 
   const {
     data: variantsData,

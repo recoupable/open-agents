@@ -15,10 +15,13 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estimateModelUsageCost, type AvailableModel } from "@/lib/models";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { fetcher } from "@/lib/swr";
 import { formatDateOnly } from "@/lib/usage/date-range";
 import type { UsageDomainLeaderboard, UsageInsights } from "@/lib/usage/types";
 import { UsageInsightsSection } from "./usage/usage-insights-section";
+
+const MODELS_URL = `${RECOUPABLE_API_BASE_URL}/api/ai/models`;
 
 interface DailyUsageRow {
   date: string;
@@ -554,7 +557,7 @@ export function UsageSection() {
     error: filteredDataError,
   } = useSWR<UsageResponse>(filteredUsagePath, fetcher);
   const { data: modelsData, isLoading: isModelsLoading } =
-    useSWR<ModelsResponse>("/api/models", fetcher);
+    useSWR<ModelsResponse>(MODELS_URL, fetcher);
 
   const data = filteredUsagePath ? filteredData : fullData;
   const isLoading =

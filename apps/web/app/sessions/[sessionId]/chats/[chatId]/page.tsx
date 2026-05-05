@@ -25,7 +25,8 @@ import {
   MANAGED_TEMPLATE_TRIAL_CODE_EDITOR_ERROR,
 } from "@/lib/managed-template-trial";
 import { getAllVariants } from "@/lib/model-variants";
-import { fetchAvailableLanguageModelsWithContext } from "@/lib/models-with-context";
+import type { AvailableModel } from "@/lib/models";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { getServerSession } from "@/lib/session/get-server-session";
 import { getInitialIsOnlyChatInSession } from "./only-chat-in-session";
 import { SessionChatContent } from "./session-chat-content";
@@ -48,9 +49,14 @@ function isOptimisticChatId(chatId: string): boolean {
 const OPTIMISTIC_CHAT_RETRY_DELAY_MS = 100;
 const OPTIMISTIC_CHAT_RETRY_ATTEMPTS = 50;
 
-async function getInitialModels() {
+async function getInitialModels(): Promise<AvailableModel[]> {
   try {
-    return await fetchAvailableLanguageModelsWithContext();
+    const res = await fetch(`${RECOUPABLE_API_BASE_URL}/api/ai/models`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { models?: AvailableModel[] };
+    return data.models ?? [];
   } catch {
     return [];
   }
