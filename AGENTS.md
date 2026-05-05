@@ -12,21 +12,11 @@ This file provides guidance for AI coding agents working in this repository.
 
 ## Database & Migrations
 
-Schema lives in `apps/web/lib/db/schema.ts`. Migrations are managed by Drizzle Kit.
+Schema lives in `apps/web/lib/db/schema.ts` as a types-only Drizzle declaration. The actual schema is owned by recoupable Supabase: see `recoupable/database/supabase/migrations/2026050100*_open_agents_*.sql`.
 
-**After modifying `schema.ts`, always generate a migration:**
+**Schema changes require coordinating a Supabase migration in `recoupable/database`** — do not edit `schema.ts` without a paired migration in that codebase.
 
-```bash
-bun run --cwd apps/web db:generate   # Creates a new .sql migration file
-```
-
-Commit the generated `.sql` file alongside the schema change. **Do not use `db:push`** except for local throwaway databases.
-
-Migrations run automatically during `bun run build` (via `lib/db/migrate.ts`), so every Vercel deploy — both preview and production — applies pending migrations to its own database.
-
-### Environment isolation
-
-Neon database branching is enabled in the Vercel project settings. Every preview deployment automatically gets its own isolated database branch forked from production. This means preview deployments never read or write production data. Production deployments use the main Neon database.
+`POSTGRES_URL` should point at recoupable's Supabase Postgres (transaction pooler). Open-agents no longer runs Drizzle migrations on build.
 
 ## Commands
 

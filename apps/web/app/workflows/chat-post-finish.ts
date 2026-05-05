@@ -255,8 +255,6 @@ export async function recordWorkflowUsage(
         await recordWorkflowRun({
           id: workflowRun.workflowRunId,
           chatId: workflowRun.chatId,
-          sessionId: workflowRun.sessionId,
-          userId,
           modelId,
           status: workflowRun.status,
           startedAt: workflowRun.startedAt,

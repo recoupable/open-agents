@@ -12,25 +12,21 @@ import {
   boolean,
 } from "drizzle-orm/pg-core";
 
-// Open-agents schema, slimmed for the database-unification work.
+// Open-agents schema, types-only, pointed at recoupable Supabase.
 //
-// Removed (now owned by recoupable Supabase or dropped entirely):
-//   users, accounts (open-agents OAuth-linkage), linked_accounts,
-//   user_preferences, shares, github_installations
+// Schema ownership moved to the database codebase; tables here mirror
+// the Supabase migrations under
+// recoupable/database/supabase/migrations/2026050100*_open_agents_*.sql.
 //
-// FK columns previously declared `.references(() => users.id)` are
-// kept as plain `text("user_id")` columns: at runtime they hold the
-// recoupable `account_id` (UUID string) instead of an open-agents
-// nanoid, but TEXT accepts both. The FK relationship lives in
-// recoupable Supabase under the `account_id UUID` column type;
-// Drizzle's view of the column is intentionally informal until
-// Phase 3 of the unification points the connection at Supabase.
+// TS-side properties keep the legacy `userId` name; the underlying
+// column is `account_id` (UUID FK to accounts.id) on Supabase. No
+// drizzle-kit migrations are generated from this file anymore.
 
 export const sessions = pgTable(
   "sessions",
   {
     id: text("id").primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: text("account_id").notNull(),
     title: text("title").notNull(),
     status: text("status", {
       enum: ["running", "completed", "failed", "archived"],
@@ -74,7 +70,7 @@ export const sessions = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("sessions_user_id_idx").on(table.userId)],
+  (table) => [index("sessions_account_id_idx").on(table.userId)],
 );
 
 export const chats = pgTable(
@@ -109,7 +105,7 @@ export const chatMessages = pgTable("chat_messages", {
 export const chatReads = pgTable(
   "chat_reads",
   {
-    userId: text("user_id").notNull(),
+    userId: text("account_id").notNull(),
     chatId: text("chat_id")
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
@@ -130,10 +126,6 @@ export const workflowRuns = pgTable(
     chatId: text("chat_id")
       .notNull()
       .references(() => chats.id, { onDelete: "cascade" }),
-    sessionId: text("session_id")
-      .notNull()
-      .references(() => sessions.id, { onDelete: "cascade" }),
-    userId: text("user_id").notNull(),
     modelId: text("model_id"),
     status: text("status", {
       enum: ["completed", "aborted", "failed"],
@@ -143,11 +135,7 @@ export const workflowRuns = pgTable(
     totalDurationMs: integer("total_duration_ms").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [
-    index("workflow_runs_chat_id_idx").on(table.chatId),
-    index("workflow_runs_session_id_idx").on(table.sessionId),
-    index("workflow_runs_user_id_idx").on(table.userId),
-  ],
+  (table) => [index("workflow_runs_chat_id_idx").on(table.chatId)],
 );
 
 export const workflowRunSteps = pgTable(
@@ -176,7 +164,7 @@ export const workflowRunSteps = pgTable(
 
 export const usageEvents = pgTable("usage_events", {
   id: text("id").primaryKey(),
-  userId: text("user_id").notNull(),
+  userId: text("account_id").notNull(),
   source: text("source", { enum: ["web"] })
     .notNull()
     .default("web"),

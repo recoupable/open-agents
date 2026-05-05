@@ -6,7 +6,7 @@ The following environment variables are required:
 
 | Variable | Description |
 |----------|-------------|
-| `POSTGRES_URL` | PostgreSQL connection string. Required for builds — migrations run automatically during `next build` via `lib/db/migrate.ts`. Preview deployments use a Neon branch database; production uses the main database. |
+| `POSTGRES_URL` | PostgreSQL connection string for recoupable's Supabase database (transaction pooler). Schema is owned by `recoupable/database` migrations. |
 
 ## Getting Started
 
