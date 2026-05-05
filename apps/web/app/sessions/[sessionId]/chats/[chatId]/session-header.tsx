@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, FolderGit2, Link2, PanelLeft } from "lucide-react";
+import { ExternalLink, FolderGit2, PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +26,6 @@ export function SessionHeader() {
     hasActionNeeded,
     changesCount,
     hasCommittedChanges,
-    setShareRequested,
     headerActionsRef,
   } = useGitPanel();
   const { session } = useSessionLayout();
@@ -145,20 +144,6 @@ export function SessionHeader() {
             <span className="truncate font-medium text-foreground sm:font-normal sm:text-muted-foreground">
               {session.title}
             </span>
-
-            {/* Share link icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setShareRequested(true)}
-                  className="ml-1 rounded p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Share chat</TooltipContent>
-            </Tooltip>
           </div>
         </div>
 
