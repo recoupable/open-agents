@@ -68,10 +68,6 @@ type GitPanelContextValue = {
   /** Open a file in the main content area (non-diff view) */
   openFileTab: (filePath: string) => void;
 
-  /** Share dialog trigger (set by per-chat page, called by header) */
-  shareRequested: boolean;
-  setShareRequested: (requested: boolean) => void;
-
   /** Ref to the DOM node where the git panel should be portaled into */
   panelPortalRef: RefObject<HTMLDivElement | null>;
 
@@ -97,7 +93,6 @@ export function GitPanelProvider({ children }: { children: ReactNode }) {
   const [hasCommittedChanges, setHasCommittedChanges] = useState(false);
   const [focusedFilePath, setFocusedFilePath] = useState<string | null>(null);
   const [fileTabDismissed, setFileTabDismissed] = useState(false);
-  const [shareRequested, setShareRequested] = useState(false);
   const panelPortalRef = useRef<HTMLDivElement | null>(null);
   const headerActionsRef = useRef<HTMLDivElement | null>(null);
 
@@ -149,8 +144,6 @@ export function GitPanelProvider({ children }: { children: ReactNode }) {
       fileTabDismissed,
       setFileTabDismissed,
       openFileTab,
-      shareRequested,
-      setShareRequested,
       panelPortalRef,
       headerActionsRef,
     }),
@@ -169,7 +162,6 @@ export function GitPanelProvider({ children }: { children: ReactNode }) {
       hasActionNeeded,
       changesCount,
       hasCommittedChanges,
-      shareRequested,
     ],
   );
 

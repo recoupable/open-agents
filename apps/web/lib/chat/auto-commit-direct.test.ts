@@ -10,10 +10,6 @@ type ExecResult = {
 
 let execResults: Map<string, ExecResult>;
 let repoTokenResult: { token: string | null } = { token: "ghp_test123" };
-let githubAccountResult: {
-  externalUserId: string;
-  username: string;
-} | null = { externalUserId: "12345", username: "octocat" };
 let generateTextResult = { text: "feat: implement new feature" };
 
 const execSpy = mock(async (command: string): Promise<ExecResult> => {
@@ -41,12 +37,8 @@ mock.module("@open-harness/agent", () => ({
   gateway: () => "mock-model",
 }));
 
-mock.module("@/lib/db/accounts", () => ({
-  getGitHubAccount: async () => githubAccountResult,
-}));
-
-mock.module("@/lib/github/user-token", () => ({
-  getUserGitHubToken: async () => repoTokenResult.token,
+mock.module("@/lib/github/service-token", () => ({
+  getServiceGitHubToken: () => repoTokenResult.token,
 }));
 
 const { performAutoCommit } = await import("./auto-commit-direct");
@@ -77,7 +69,6 @@ function defaultExecResults(): Map<string, ExecResult> {
 function makeParams() {
   return {
     sandbox: sandbox as never,
-    userId: "user-1",
     sessionId: "session-1",
     sessionTitle: "Fix bug",
     repoOwner: "acme",
@@ -91,7 +82,6 @@ beforeEach(() => {
   execSpy.mockClear();
   execResults = defaultExecResults();
   repoTokenResult = { token: "ghp_test123" };
-  githubAccountResult = { externalUserId: "12345", username: "octocat" };
   generateTextResult = { text: "feat: implement new feature" };
 });
 
@@ -194,34 +184,9 @@ describe("performAutoCommit", () => {
     expect(result.error).toBeUndefined();
   });
 
-  test("sets git author identity when github account available", async () => {
-    await performAutoCommit(makeParams());
-
-    const nameCall = execSpy.mock.calls.find((c) =>
-      (c[0] as string).includes("git config user.name"),
-    );
-    const emailCall = execSpy.mock.calls.find((c) =>
-      (c[0] as string).includes("git config user.email"),
-    );
-
-    expect(nameCall).toBeDefined();
-    expect(nameCall![0] as string).toContain("octocat");
-    expect(emailCall).toBeDefined();
-    expect(emailCall![0] as string).toContain(
-      "12345+octocat@users.noreply.github.com",
-    );
-  });
-
-  test("skips git identity when no github account", async () => {
-    githubAccountResult = null;
-
-    await performAutoCommit(makeParams());
-
-    const nameCall = execSpy.mock.calls.find((c) =>
-      (c[0] as string).includes("git config user.name"),
-    );
-    expect(nameCall).toBeUndefined();
-  });
+  // Git identity is configured once at sandbox provision time
+  // (lib/sandbox/create-sandbox-handler.ts), not in performAutoCommit, so
+  // there are no identity-related assertions here.
 
   test("uses fallback commit message when diff is empty", async () => {
     execResults.set("git diff --cached", { success: true, stdout: "" });

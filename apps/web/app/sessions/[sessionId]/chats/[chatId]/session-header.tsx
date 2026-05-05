@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  ExternalLink,
-  FolderGit2,
-  GitMerge,
-  GitPullRequest,
-  GitPullRequestClosed,
-  Link2,
-  PanelLeft,
-} from "lucide-react";
+import { ExternalLink, FolderGit2, PanelLeft } from "lucide-react";
 import { useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,37 +26,16 @@ export function SessionHeader() {
     hasActionNeeded,
     changesCount,
     hasCommittedChanges,
-    setShareRequested,
     headerActionsRef,
   } = useGitPanel();
   const { session } = useSessionLayout();
 
-  // Determine the icon and color based on PR state
-  const prState = useMemo(() => {
-    if (!session.prNumber) return null;
-    const status = session.prStatus;
-    if (status === "merged")
-      return { icon: GitMerge, color: "text-purple-500" } as const;
-    if (status === "closed")
-      return { icon: GitPullRequestClosed, color: "text-red-500" } as const;
-    return { icon: GitPullRequest, color: "text-green-500" } as const;
-  }, [session.prNumber, session.prStatus]);
-
-  const GitIcon = prState?.icon ?? FolderGit2;
-  const iconColor = prState?.color ?? undefined;
+  const GitIcon = FolderGit2;
+  const iconColor: string | undefined = undefined;
 
   // Build contextual tooltip
   const tooltipText = useMemo(() => {
     const parts: string[] = [];
-    if (session.prNumber) {
-      const statusLabel =
-        session.prStatus === "merged"
-          ? "Merged"
-          : session.prStatus === "closed"
-            ? "Closed"
-            : "Open";
-      parts.push(`PR #${session.prNumber} (${statusLabel})`);
-    }
     if (changesCount > 0) {
       parts.push(
         `${changesCount} file${changesCount !== 1 ? "s" : ""} changed`,
@@ -74,19 +45,17 @@ export function SessionHeader() {
       parts.push("Uncommitted changes");
     }
     return parts.length > 0 ? parts.join(" · ") : "Git panel";
-  }, [session.prNumber, session.prStatus, changesCount, hasActionNeeded]);
+  }, [changesCount, hasActionNeeded]);
 
   const openGitPanel = useCallback(() => {
-    const defaultTab = session.prNumber
-      ? "pr"
-      : hasActionNeeded || hasCommittedChanges || changesCount > 0
+    const defaultTab =
+      hasActionNeeded || hasCommittedChanges || changesCount > 0
         ? "diff"
         : "files";
 
     setGitPanelTab(defaultTab);
     setGitPanelOpen(true);
   }, [
-    session.prNumber,
     hasActionNeeded,
     hasCommittedChanges,
     changesCount,
@@ -175,20 +144,6 @@ export function SessionHeader() {
             <span className="truncate font-medium text-foreground sm:font-normal sm:text-muted-foreground">
               {session.title}
             </span>
-
-            {/* Share link icon */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setShareRequested(true)}
-                  className="ml-1 rounded p-1 text-muted-foreground/60 transition-colors hover:text-foreground"
-                >
-                  <Link2 className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">Share chat</TooltipContent>
-            </Tooltip>
           </div>
         </div>
 

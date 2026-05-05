@@ -20,14 +20,12 @@ import {
   GitCommitHorizontal,
   GitPullRequest,
   Globe,
-  Link2,
   Loader2,
   Mic,
   Paperclip,
   Play,
   RefreshCw,
   RotateCcw,
-  Share2,
   Square,
   Trash2,
   X,
@@ -45,9 +43,7 @@ import {
 import { createPortal } from "react-dom";
 import useSWR from "swr";
 import type { ChatRefreshResponse } from "@/app/api/sessions/[sessionId]/chats/[chatId]/route";
-import type { MergePullRequestResponse } from "@/app/api/sessions/[sessionId]/merge/route";
 import type { PrDeploymentResponse } from "@/lib/pr-deployment-polling";
-import type { PullRequestCheckRun } from "@/lib/github/client";
 import type {
   WebAgentCommitDataPart,
   WebAgentPrDataPart,
@@ -85,7 +81,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 import {
@@ -144,15 +139,6 @@ const ACTIVITY_PING_THROTTLE_MS = 5 * 60 * 1000;
 
 const DiffViewer = dynamic(
   () => import("./diff-viewer").then((m) => m.DiffViewer),
-  { ssr: false },
-);
-
-const MergePrDialog = dynamic(
-  () => import("@/components/merge-pr-dialog").then((m) => m.MergePrDialog),
-  { ssr: false },
-);
-const ClosePrDialog = dynamic(
-  () => import("@/components/close-pr-dialog").then((m) => m.ClosePrDialog),
   { ssr: false },
 );
 
@@ -827,213 +813,6 @@ function SandboxInputOverlay({
   );
 }
 
-function ShareDialog({
-  sessionId,
-  chatId,
-  initialShareId,
-  externalOpen,
-  onExternalOpenChange,
-}: {
-  sessionId: string;
-  chatId: string;
-  initialShareId: string | null;
-  externalOpen?: boolean;
-  onExternalOpenChange?: (open: boolean) => void;
-}) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const open = externalOpen ?? internalOpen;
-  const setOpen = onExternalOpenChange ?? setInternalOpen;
-  const [shareId, setShareId] = useState(initialShareId);
-  const [isLoading, setIsLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [baseUrl, setBaseUrl] = useState<string | null>(
-    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}`
-      : null,
-  );
-
-  useEffect(() => {
-    if (!baseUrl) {
-      setBaseUrl(window.location.origin);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount
-  }, []);
-
-  const shareUrl = shareId && baseUrl ? `${baseUrl}/shared/${shareId}` : null;
-
-  useEffect(() => {
-    let active = true;
-    setShareId(initialShareId);
-    setCopied(false);
-    setError(null);
-
-    const loadShareId = async () => {
-      try {
-        const res = await fetch(
-          `/api/sessions/${sessionId}/chats/${chatId}/share`,
-        );
-        if (!res.ok) {
-          return;
-        }
-        const data = (await res.json()) as { shareId: string | null };
-        if (!active) {
-          return;
-        }
-        setShareId(data.shareId);
-      } catch {
-        // Ignore silent refresh errors in dialog state; user action still works.
-      }
-    };
-
-    void loadShareId();
-
-    return () => {
-      active = false;
-    };
-  }, [sessionId, chatId, initialShareId]);
-
-  async function enableSharing() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/sessions/${sessionId}/chats/${chatId}/share`,
-        {
-          method: "POST",
-        },
-      );
-      if (!res.ok) {
-        setError("Failed to enable sharing");
-        return;
-      }
-      const data = (await res.json()) as { shareId: string };
-      setShareId(data.shareId);
-    } catch {
-      setError("Failed to enable sharing");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function disableSharing() {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `/api/sessions/${sessionId}/chats/${chatId}/share`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (!res.ok) {
-        setError("Failed to disable sharing");
-        return;
-      }
-      setShareId(null);
-      setCopied(false);
-    } catch {
-      setError("Failed to disable sharing");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function copyLink() {
-    if (!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }
-
-  const isExternallyControlled = externalOpen !== undefined;
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      {!isExternallyControlled && (
-        <DialogTrigger asChild>
-          <Button variant="ghost" size="sm">
-            <Share2 className="h-4 w-4 mr-2" />
-            Share
-          </Button>
-        </DialogTrigger>
-      )}
-      <DialogContent showCloseButton={false}>
-        <DialogHeader>
-          <DialogTitle>Share chat</DialogTitle>
-          <DialogDescription>
-            Anyone with the link can view this chat in read-only mode.
-          </DialogDescription>
-        </DialogHeader>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        {shareId ? (
-          <>
-            <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-              <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden rounded-md border bg-muted px-3 py-2 text-sm">
-                <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">{shareUrl}</span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={copyLink}
-                className="w-full sm:w-auto sm:shrink-0"
-              >
-                {copied ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy link
-                  </>
-                )}
-              </Button>
-            </div>
-            <DialogFooter className="sm:justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => void disableSharing()}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
-                Revoke link
-              </Button>
-              <DialogClose asChild>
-                <Button variant="outline" size="sm">
-                  Close
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </>
-        ) : (
-          <DialogFooter>
-            <Button
-              onClick={() => void enableSharing()}
-              disabled={isLoading}
-              className="w-full"
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Link2 className="mr-2 h-4 w-4" />
-              )}
-              Create share link
-            </Button>
-          </DialogFooter>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 export function SessionChatContent({
   initialIsOnlyChatInSession,
   messageDurationMap,
@@ -1054,14 +833,11 @@ export function SessionChatContent({
   const [input, setInput] = useState("");
   const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
   const [_isUnarchiving, _setIsUnarchiving] = useState(false);
-  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [showDiffPanel, setShowDiffPanel] = useState(false);
   const [selectedWorkspaceFile, setSelectedWorkspaceFile] = useState<
     string | null
   >(null);
   const [mobileArchiveDialogOpen, setMobileArchiveDialogOpen] = useState(false);
-  const [mobileShareOpen, setMobileShareOpen] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [copiedAssistantMessageId, setCopiedAssistantMessageId] = useState<
@@ -1076,8 +852,6 @@ export function SessionChatContent({
   const {
     activeView,
     gitPanelOpen,
-    shareRequested,
-    setShareRequested,
     setHasActionNeeded,
     setChangesCount,
     setHasCommittedChanges,
@@ -1212,7 +986,6 @@ export function SessionChatContent({
     updateChatModel,
     updateSessionTitle,
     preferredSandboxType,
-    supportsDiff,
     supportsRepoCreation,
     hasRuntimeSandboxState,
     hasSnapshot,
@@ -1221,8 +994,6 @@ export function SessionChatContent({
     lifecycleTiming,
     syncSandboxStatus,
     attemptReconnection,
-    updateSessionPullRequest,
-    checkBranchAndPr,
     modelOptions,
     modelOptionsLoading,
   } = useSessionChatMetadataContext();
@@ -1272,7 +1043,7 @@ export function SessionChatContent({
     session.cloneUrl &&
     session.repoOwner &&
     session.repoName &&
-    (session.autoCommitPushOverride ?? preferences?.autoCommitPush ?? false),
+    (preferences?.autoCommitPush ?? false),
   );
   const { isAutoCommitting, markAutoCommitStarted } = useAutoCommitStatus(
     autoCommitEnabled,
@@ -1281,7 +1052,6 @@ export function SessionChatContent({
       void refreshGitStatus().catch(() => undefined);
       void refreshDiff().catch(() => undefined);
       void refreshFiles().catch(() => undefined);
-      void checkBranchAndPr().catch(() => undefined);
     },
   );
   const {
@@ -1326,52 +1096,6 @@ export function SessionChatContent({
       }
     },
     [chatInfo.id, forkChat, forkingAssistantMessageId, router, session.id],
-  );
-  const upsertSyntheticAssistantGitMessage = useCallback(
-    async (message: WebAgentUIMessage) => {
-      setMessages((currentMessages) => {
-        const existingIndex = currentMessages.findIndex(
-          (currentMessage) => currentMessage.id === message.id,
-        );
-
-        if (existingIndex < 0) {
-          return [...currentMessages, message];
-        }
-
-        const nextMessages = [...currentMessages];
-        nextMessages[existingIndex] = message;
-        return nextMessages;
-      });
-
-      try {
-        const response = await fetch(
-          `/api/sessions/${session.id}/chats/${chatInfo.id}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message }),
-          },
-        );
-
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(
-            body?.error ?? "Failed to persist synthetic assistant message",
-          );
-        }
-
-        await refreshChats().catch(() => undefined);
-        await markChatRead(chatInfo.id).catch(() => undefined);
-      } catch (error) {
-        console.error(
-          "Failed to persist synthetic assistant git message:",
-          error,
-        );
-      }
-    },
-    [chatInfo.id, markChatRead, refreshChats, session.id, setMessages],
   );
   const renderMessages = useMemo(
     () => (hasMounted ? messages : initialMessages),
@@ -1691,14 +1415,12 @@ export function SessionChatContent({
         refreshDiff(),
         refreshFiles(),
         refreshSkills(),
-        checkBranchAndPr(),
       ]);
     } finally {
       tabResumeRefreshRef.current.lastAt = Date.now();
       tabResumeRefreshRef.current.inFlight = false;
     }
   }, [
-    checkBranchAndPr,
     refreshChats,
     refreshCurrentChatSnapshot,
     refreshDiff,
@@ -1903,69 +1625,6 @@ export function SessionChatContent({
 
   const bootstrapAttemptedRef = useRef(false);
 
-  const handleFixChecks = useCallback(
-    async (failedRuns: PullRequestCheckRun[]) => {
-      const names = failedRuns.map((run) => run.name).join(", ");
-      const fallbackPrompt = `# Fix Failing Checks\n\nThe following checks are failing: ${names}. Please investigate and push a fix.`;
-      let messagePayload: Parameters<typeof sendMessageWithPendingState>[0] = {
-        text: fallbackPrompt,
-      };
-
-      try {
-        const res = await fetch(`/api/sessions/${session.id}/checks/fix`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ checkRuns: failedRuns }),
-        });
-        if (res.ok) {
-          const data = (await res.json()) as {
-            prompt?: string;
-            snippets?: Array<{ filename: string; content: string }>;
-            message?: string;
-          };
-          const prompt = data.prompt?.trim() || data.message?.trim();
-          const snippets = Array.isArray(data.snippets) ? data.snippets : [];
-
-          if (prompt && snippets.length > 0) {
-            messagePayload = {
-              parts: [
-                {
-                  type: "text" as const,
-                  text: prompt,
-                },
-                ...snippets.map((snippet, index) => ({
-                  type: "data-snippet" as const,
-                  id: `fix-check-${index}`,
-                  data: snippet,
-                })),
-              ],
-            };
-          } else if (prompt) {
-            messagePayload = { text: prompt };
-          }
-        }
-      } catch {
-        // Fall through to fallback
-      }
-
-      await sendMessageWithPendingState(messagePayload);
-    },
-    [sendMessageWithPendingState, session.id],
-  );
-
-  const handleFixConflicts = useCallback(
-    async (baseBranchRef: string, closeMergeDialog = false) => {
-      if (closeMergeDialog) {
-        setMergeDialogOpen(false);
-      }
-
-      await sendMessageWithPendingState({
-        text: `# Resolve Merge Conflicts\n\nThere is a merge conflict with ${baseBranchRef}. Fetch and then fix the conflicts. Do not rebase.`,
-      });
-    },
-    [sendMessageWithPendingState],
-  );
-
   const handleDeleteUserMessage = useCallback(
     async (messageId: string) => {
       if (hasMessageActionInFlight) {
@@ -2164,15 +1823,8 @@ export function SessionChatContent({
       refreshGitStatus().catch(() => undefined),
       refreshDiff().catch(() => undefined),
       refreshFiles().catch(() => undefined),
-      checkBranchAndPr().catch(() => undefined),
     ]);
-  }, [
-    requestStatusSync,
-    refreshGitStatus,
-    refreshDiff,
-    refreshFiles,
-    checkBranchAndPr,
-  ]);
+  }, [requestStatusSync, refreshGitStatus, refreshDiff, refreshFiles]);
 
   const handleRestoreSnapshot = useCallback(async () => {
     setIsRestoringSnapshot(true);
@@ -2329,7 +1981,6 @@ export function SessionChatContent({
         await refreshGitStatus().catch(() => undefined);
         await refreshDiff().catch(() => undefined);
         await refreshFiles().catch(() => undefined);
-        await checkBranchAndPr().catch(() => undefined);
       };
 
       void refreshCompletedTurnState();
@@ -2357,7 +2008,6 @@ export function SessionChatContent({
     refreshGitStatus,
     refreshDiff,
     refreshFiles,
-    checkBranchAndPr,
     requestMarkChatRead,
     refreshChats,
     session.cloneUrl,
@@ -2780,7 +2430,7 @@ export function SessionChatContent({
     codeEditor.state.status === "stopping";
 
   const hasRepo = Boolean(session.cloneUrl);
-  const hasExistingPr = session.prNumber != null;
+  const hasExistingPr = false;
   const previewLookupBranch =
     gitStatus?.branch && gitStatus.branch !== "HEAD"
       ? gitStatus.branch
@@ -2789,19 +2439,12 @@ export function SessionChatContent({
   // when user-scoped Vercel OAuth went away. Keep the variable for the SWR
   // key shape below; follow-up PR can rip the remaining PR-deployment code.
   const hasBranchPreviewLookup = false;
-  const existingPrUrl =
-    hasExistingPr && session.repoOwner && session.repoName
-      ? `https://github.com/${session.repoOwner}/${session.repoName}/pull/${session.prNumber}`
-      : null;
   const prDeploymentQuery = new URLSearchParams(
-    Object.entries({
-      ...(hasExistingPr ? { prNumber: String(session.prNumber) } : {}),
-      ...(previewLookupBranch ? { branch: previewLookupBranch } : {}),
-    }),
+    Object.entries(previewLookupBranch ? { branch: previewLookupBranch } : {}),
   ).toString();
   const { data: prDeploymentData, mutate: refreshPrDeployment } =
     useSWR<PrDeploymentResponse>(
-      hasExistingPr || hasBranchPreviewLookup
+      hasBranchPreviewLookup
         ? `/api/sessions/${session.id}/pr-deployment${
             prDeploymentQuery ? `?${prDeploymentQuery}` : ""
           }`
@@ -2919,10 +2562,8 @@ export function SessionChatContent({
     hasUncommittedGitChanges,
     setHasCommittedChanges,
   ]);
-  const hasOpenPr = hasExistingPr && session.prStatus === "open";
-  const canCloseAndArchive = hasOpenPr && !isArchived;
   const handleCommitted = useCallback(async () => {
-    if (hasExistingPr || hasBranchPreviewLookup) {
+    if (hasBranchPreviewLookup) {
       setBranchPreviewUrlChangeBaseline(prDeploymentUrl);
     }
 
@@ -2930,88 +2571,25 @@ export function SessionChatContent({
       refreshGitStatus().catch(() => undefined),
       refreshDiff().catch(() => undefined),
       refreshFiles().catch(() => undefined),
-      checkBranchAndPr().catch(() => undefined),
     ]);
 
-    if (hasExistingPr || hasBranchPreviewLookup) {
+    if (hasBranchPreviewLookup) {
       await refreshPrDeployment().catch(() => undefined);
     }
   }, [
-    hasExistingPr,
     hasBranchPreviewLookup,
     prDeploymentUrl,
     refreshGitStatus,
     refreshDiff,
     refreshFiles,
-    checkBranchAndPr,
     refreshPrDeployment,
   ]);
-
-  const handleMerged = useCallback(
-    async (mergeResult: MergePullRequestResponse) => {
-      updateSessionPullRequest({
-        prNumber: mergeResult.prNumber,
-        prStatus: "merged",
-      });
-
-      if (mergeResult.branchDeleteError) {
-        console.warn(
-          "PR merged but source branch was not deleted:",
-          mergeResult.branchDeleteError,
-        );
-      }
-
-      try {
-        await archiveSession();
-        router.push("/sessions");
-      } catch (archiveError) {
-        const archiveMessage =
-          archiveError instanceof Error
-            ? archiveError.message
-            : "Failed to archive session";
-        throw new Error(
-          `Pull request merged, but archiving the session failed: ${archiveMessage}`,
-          {
-            cause: archiveError,
-          },
-        );
-      }
-    },
-    [archiveSession, router, updateSessionPullRequest],
-  );
-
-  const handleClosed = useCallback(
-    async (closeResult: { closed: boolean; prNumber: number }) => {
-      updateSessionPullRequest({
-        prNumber: closeResult.prNumber,
-        prStatus: "closed",
-      });
-
-      try {
-        await archiveSession();
-        router.push("/sessions");
-      } catch (archiveError) {
-        const archiveMessage =
-          archiveError instanceof Error
-            ? archiveError.message
-            : "Failed to archive session";
-        throw new Error(
-          `Pull request closed, but archiving the session failed: ${archiveMessage}`,
-          {
-            cause: archiveError,
-          },
-        );
-      }
-    },
-    [archiveSession, router, updateSessionPullRequest],
-  );
 
   const gitPanelElement = gitPanelOpen ? (
     <GitPanel
       session={session}
       hasRepo={hasRepo}
       hasExistingPr={hasExistingPr}
-      existingPrUrl={existingPrUrl}
       prDeploymentUrl={prDeploymentUrl}
       buildingDeploymentUrl={buildingDeploymentUrl}
       failedDeploymentUrl={failedDeploymentUrl}
@@ -3020,26 +2598,16 @@ export function SessionChatContent({
       hasUncommittedGitChanges={hasUncommittedGitChanges}
       supportsRepoCreation={supportsRepoCreation}
       hasDiff={Boolean(diff || session.cachedDiff)}
-      canCloseAndArchive={canCloseAndArchive}
       diffFiles={diff?.files ?? null}
       diffSummary={diff?.summary ?? null}
       diffRefreshing={diffRefreshing}
       refreshDiff={refreshDiff}
-      onMerged={handleMerged}
-      onCloseAndArchiveClick={() => setCloseDialogOpen(true)}
-      onFixChecks={handleFixChecks}
-      onFixConflicts={(baseBranchRef) => handleFixConflicts(baseBranchRef)}
       hasSandbox={sandboxInfo !== null}
       gitStatus={gitStatus}
       gitStatusLoading={gitStatusLoading}
       refreshGitStatus={refreshGitStatus}
       onCommitted={handleCommitted}
       isAgentWorking={hasPendingResponse || isChatInFlight}
-      onPrDetected={(pr) => {
-        updateSessionPullRequest(pr);
-        void refreshGitStatus().catch(() => {});
-      }}
-      onGitMessage={upsertSyntheticAssistantGitMessage}
     />
   ) : null;
 
@@ -3200,18 +2768,6 @@ export function SessionChatContent({
           headerActionsRef.current,
         )}
       <div className="flex h-full flex-col overflow-hidden">
-        {/* Share dialog (triggered from header) */}
-        <ShareDialog
-          sessionId={session.id}
-          chatId={chatInfo.id}
-          initialShareId={null}
-          externalOpen={mobileShareOpen || shareRequested}
-          onExternalOpenChange={(open) => {
-            setMobileShareOpen(open);
-            if (!open) setShareRequested(false);
-          }}
-        />
-
         {/* Archive confirmation dialog */}
         <Dialog
           open={mobileArchiveDialogOpen}
@@ -4340,36 +3896,6 @@ export function SessionChatContent({
           )}
         </div>
       </div>
-
-      {/* Merge PR Dialog */}
-      {session && (
-        <MergePrDialog
-          open={mergeDialogOpen}
-          onOpenChange={setMergeDialogOpen}
-          session={session}
-          onMerged={handleMerged}
-          onViewDiff={() => setShowDiffPanel(true)}
-          canViewDiff={supportsDiff && Boolean(diff || session.cachedDiff)}
-          isAgentWorking={hasPendingResponse || isChatInFlight}
-          onFixChecks={async (failedRuns) => {
-            setMergeDialogOpen(false);
-            await handleFixChecks(failedRuns);
-          }}
-          onFixConflicts={(baseBranchRef) =>
-            handleFixConflicts(baseBranchRef, true)
-          }
-        />
-      )}
-
-      {/* Close PR Dialog */}
-      {session && (
-        <ClosePrDialog
-          open={closeDialogOpen}
-          onOpenChange={setCloseDialogOpen}
-          session={session}
-          onClosed={handleClosed}
-        />
-      )}
 
       {/* Diff Viewer Modal */}
       <DiffViewer open={showDiffPanel} onOpenChange={setShowDiffPanel} />

@@ -579,7 +579,6 @@ export async function runAgentWorkflow(options: Options) {
 
       autoCommitResult = hasAutoCommitChanges
         ? await runAutoCommitStep({
-            userId: options.userId,
             sessionId: options.sessionId,
             sessionTitle: options.sessionTitle ?? "",
             repoOwner,

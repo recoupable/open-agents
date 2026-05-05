@@ -1,14 +1,12 @@
 import type { Sandbox } from "@open-harness/sandbox";
 import { generateText } from "ai";
 import { gateway } from "@open-harness/agent";
-import { getGitHubAccount } from "@/lib/db/accounts";
 import { getAppCoAuthorTrailer } from "@/lib/github/app-auth";
 import { buildGitHubAuthRemoteUrl } from "@/lib/github/repo-identifiers";
 import { getServiceGitHubToken } from "@/lib/github/service-token";
 
 export interface AutoCommitParams {
   sandbox: Sandbox;
-  userId: string;
   sessionId: string;
   sessionTitle: string;
   repoOwner: string;
@@ -30,7 +28,7 @@ export interface AutoCommitResult {
 export async function performAutoCommit(
   params: AutoCommitParams,
 ): Promise<AutoCommitResult> {
-  const { sandbox, userId, sessionTitle, repoOwner, repoName } = params;
+  const { sandbox, sessionTitle, repoOwner, repoName } = params;
   const cwd = sandbox.workingDirectory;
 
   // 1. Check for uncommitted changes
@@ -68,19 +66,11 @@ export async function performAutoCommit(
   // 4. Generate commit message
   const commitMessage = await generateCommitMessage(sandbox, cwd, sessionTitle);
 
-  // 5. Set git author identity
-  const githubAccount = await getGitHubAccount(userId);
-  if (githubAccount?.externalUserId && githubAccount.username) {
-    const userEmail = `${githubAccount.externalUserId}+${githubAccount.username}@users.noreply.github.com`;
-    await sandbox.exec(
-      `git config user.name '${githubAccount.username.replace(/'/g, "'\\''")}'`,
-      cwd,
-      5000,
-    );
-    await sandbox.exec(`git config user.email '${userEmail}'`, cwd, 5000);
-  }
+  // Git author identity is configured once at sandbox provision time
+  // (see lib/sandbox/create-sandbox-handler.ts) using the Privy session
+  // identity. Auto-commit reuses that.
 
-  // 6. Commit with Co-Authored-By trailer for the agent app
+  // 5. Commit with Co-Authored-By trailer for the agent app
   const escapedMessage = commitMessage.replace(/'/g, "'\\''");
   const coAuthorTrailer = await getAppCoAuthorTrailer();
   const trailerArg = coAuthorTrailer

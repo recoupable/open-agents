@@ -1,62 +1,18 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
-import { nanoid } from "nanoid";
 import type { NextRequest } from "next/server";
-import { db } from "@/lib/db/client";
-import { users } from "@/lib/db/schema";
 import { fetchPrivyUserProfile } from "@/lib/privy/fetch-user-profile";
 import { verifyPrivyAccessToken } from "@/lib/privy/verify-access-token";
+import { resolveAccountIdFromPrivyToken } from "@/lib/recoupable/resolve-account-id";
 import { SESSION_COOKIE_NAME } from "./constants";
 import type { Session } from "./types";
 
-async function findOrCreatePrivyUser(privyUserId: string): Promise<{
-  id: string;
-  username: string;
-  email: string | null;
-  name: string | null;
-  avatarUrl: string | null;
-}> {
-  const existing = await db
-    .select({
-      id: users.id,
-      username: users.username,
-      email: users.email,
-      name: users.name,
-      avatarUrl: users.avatarUrl,
-    })
-    .from(users)
-    .where(and(eq(users.provider, "privy"), eq(users.externalId, privyUserId)))
-    .limit(1);
-
-  if (existing[0]) return existing[0];
-
-  const profile = await fetchPrivyUserProfile(privyUserId);
-  const username = profile?.email ?? privyUserId;
-  const id = nanoid();
-  const now = new Date();
-
-  await db.insert(users).values({
-    id,
-    provider: "privy",
-    externalId: privyUserId,
-    username,
-    email: profile?.email,
-    name: profile?.name,
-    avatarUrl: profile?.avatarUrl,
-    createdAt: now,
-    updatedAt: now,
-    lastLoginAt: now,
-  });
-
-  return {
-    id,
-    username,
-    email: profile?.email ?? null,
-    name: profile?.name ?? null,
-    avatarUrl: profile?.avatarUrl ?? null,
-  };
-}
-
+/**
+ * Resolves a Privy access token to a session shaped against the
+ * recoupable identity model. Open-agents no longer maintains its
+ * own users table — `session.user.id` is now the recoupable
+ * `account_id` (UUID), resolved via api's `GET /api/accounts/id`.
+ * Profile fields (email, name, avatar) come from Privy directly.
+ */
 export async function getSessionFromCookie(
   cookieValue?: string,
 ): Promise<Session | undefined> {
@@ -65,17 +21,20 @@ export async function getSessionFromCookie(
   const verified = await verifyPrivyAccessToken(cookieValue);
   if (!verified) return undefined;
 
-  const user = await findOrCreatePrivyUser(verified.userId);
+  const accountId = await resolveAccountIdFromPrivyToken(cookieValue);
+  if (!accountId) return undefined;
+
+  const profile = await fetchPrivyUserProfile(verified.userId);
 
   return {
     created: verified.expiration * 1000,
     authProvider: "privy",
     user: {
-      id: user.id,
-      username: user.username,
-      email: user.email ?? undefined,
-      avatar: user.avatarUrl ?? "",
-      name: user.name ?? undefined,
+      id: accountId,
+      username: profile?.email ?? verified.userId,
+      email: profile?.email ?? undefined,
+      avatar: profile?.avatarUrl ?? "",
+      name: profile?.name ?? undefined,
     },
   };
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import { GitMerge } from "lucide-react";
 import type { SessionWithUnread } from "@/hooks/use-sessions";
 
 interface SessionListProps {
@@ -68,21 +67,6 @@ function DiffStats({
   );
 }
 
-function PrStatus({ status }: { status: "open" | "merged" | "closed" | null }) {
-  if (!status || status === "open") return null;
-
-  if (status === "merged") {
-    return (
-      <div className="flex items-center gap-1 rounded-md bg-purple-500/20 px-2 py-0.5 text-xs text-purple-400">
-        <GitMerge className="h-3 w-3" />
-        <span>Merged</span>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 export function SessionList({
   sessions,
   onSessionClick,
@@ -148,7 +132,6 @@ export function SessionList({
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
-                    <PrStatus status={session.prStatus} />
                     <DiffStats
                       added={session.linesAdded}
                       removed={session.linesRemoved}

@@ -227,8 +227,6 @@ export async function POST(req: Request) {
     cloneUrl,
     isNewBranch,
     sandboxType = "vercel",
-    autoCommitPush,
-    autoCreatePr,
   } = body;
 
   let finalBranch = branch;
@@ -246,9 +244,6 @@ export async function POST(req: Request) {
       session,
       req.url,
     );
-    const effectiveAutoCommitPush =
-      autoCommitPush ?? preferences.autoCommitPush;
-    const effectiveAutoCreatePr = autoCreatePr ?? preferences.autoCreatePr;
     const result = await createSessionWithInitialChat({
       session: {
         id: nanoid(),
@@ -260,10 +255,6 @@ export async function POST(req: Request) {
         branch: finalBranch,
         cloneUrl,
         isNewBranch: isNewBranch ?? false,
-        autoCommitPushOverride: effectiveAutoCommitPush,
-        autoCreatePrOverride: effectiveAutoCommitPush
-          ? effectiveAutoCreatePr
-          : false,
         globalSkillRefs: preferences.globalSkillRefs,
         sandboxState: { type: sandboxType },
         lifecycleState: "provisioning",

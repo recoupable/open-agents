@@ -108,8 +108,6 @@ export async function getUsageInsights(
       .select({
         repoOwner: sessions.repoOwner,
         repoName: sessions.repoName,
-        prNumber: sessions.prNumber,
-        prStatus: sessions.prStatus,
         linesAdded: sessions.linesAdded,
         linesRemoved: sessions.linesRemoved,
         updatedAt: sessions.updatedAt,
