@@ -37,7 +37,10 @@ import {
   type JsonValue,
   type ModelVariant,
 } from "@/lib/model-variants";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { fetcher } from "@/lib/swr";
+
+const MODELS_URL = `${RECOUPABLE_API_BASE_URL}/api/ai/models`;
 
 interface ModelsResponse {
   models: AvailableModel[];
@@ -398,7 +401,7 @@ function VariantCard({
 
 export function ModelVariantsSection() {
   const { data: modelsData, isLoading: modelsLoading } = useSWR<ModelsResponse>(
-    "/api/models",
+    MODELS_URL,
     fetcher,
   );
   const {

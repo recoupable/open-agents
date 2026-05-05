@@ -25,7 +25,7 @@ import {
   MANAGED_TEMPLATE_TRIAL_CODE_EDITOR_ERROR,
 } from "@/lib/managed-template-trial";
 import { getAllVariants } from "@/lib/model-variants";
-import { fetchAvailableLanguageModelsWithContext } from "@/lib/models-with-context";
+import { getInitialModels } from "@/lib/recoupable/get-initial-models";
 import { getServerSession } from "@/lib/session/get-server-session";
 import { getInitialIsOnlyChatInSession } from "./only-chat-in-session";
 import { SessionChatContent } from "./session-chat-content";
@@ -47,14 +47,6 @@ function isOptimisticChatId(chatId: string): boolean {
 
 const OPTIMISTIC_CHAT_RETRY_DELAY_MS = 100;
 const OPTIMISTIC_CHAT_RETRY_ATTEMPTS = 50;
-
-async function getInitialModels() {
-  try {
-    return await fetchAvailableLanguageModelsWithContext();
-  } catch {
-    return [];
-  }
-}
 
 async function getChatByIdWithRetry(
   chatId: string,
