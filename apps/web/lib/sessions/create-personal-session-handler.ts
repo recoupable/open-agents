@@ -48,10 +48,6 @@ export async function createPersonalSessionHandler(req: Request) {
         repoOwner: repo.owner,
         repoName: repo.repoName,
         isNewBranch: false,
-        autoCommitPushOverride: preferences.autoCommitPush,
-        autoCreatePrOverride: preferences.autoCommitPush
-          ? preferences.autoCreatePr
-          : false,
         globalSkillRefs: preferences.globalSkillRefs,
         sandboxState: { type: "vercel" },
         lifecycleState: "provisioning",

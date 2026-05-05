@@ -13,7 +13,7 @@ import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
 type SessionFields = Pick<
   Session,
-  "id" | "cloneUrl" | "branch" | "isNewBranch" | "prNumber"
+  "id" | "cloneUrl" | "branch" | "isNewBranch"
 >;
 
 type CreatedSandbox = SandboxInfo & { type: string };
@@ -47,8 +47,7 @@ export function useSandboxCreate({
     if (!session.cloneUrl) {
       throw new Error("Session is missing a clone URL");
     }
-    const branchExistsOnOrigin = session.prNumber != null;
-    const shouldCreateNewBranch = session.isNewBranch && !branchExistsOnOrigin;
+    const shouldCreateNewBranch = session.isNewBranch;
     const newSandbox = await createSandbox(
       session.cloneUrl,
       session.branch ?? undefined,
@@ -61,7 +60,6 @@ export function useSandboxCreate({
     requestStatusSync("force").catch(() => undefined);
     return newSandbox;
   }, [
-    session.prNumber,
     session.isNewBranch,
     session.cloneUrl,
     session.branch,

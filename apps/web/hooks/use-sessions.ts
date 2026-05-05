@@ -16,8 +16,6 @@ export type SessionWithUnread = Pick<
   | "branch"
   | "linesAdded"
   | "linesRemoved"
-  | "prNumber"
-  | "prStatus"
   | "createdAt"
 > & {
   hasUnread: boolean;
@@ -74,8 +72,6 @@ function mergeSessionWithSummary(
     branch: updatedSession.branch,
     linesAdded: updatedSession.linesAdded,
     linesRemoved: updatedSession.linesRemoved,
-    prNumber: updatedSession.prNumber,
-    prStatus: updatedSession.prStatus,
     createdAt: updatedSession.createdAt,
     hasUnread: session.hasUnread,
     hasStreaming: session.hasStreaming,

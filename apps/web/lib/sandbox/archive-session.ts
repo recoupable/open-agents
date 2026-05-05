@@ -2,11 +2,6 @@ import "server-only";
 
 import { connectSandbox } from "@open-harness/sandbox";
 import { getSessionById, updateSession } from "@/lib/db/sessions";
-import {
-  findPullRequestByBranch,
-  getPullRequestStatus,
-} from "@/lib/github/client";
-import { getServiceGitHubToken } from "@/lib/github/service-token";
 import { canOperateOnSandbox, clearSandboxState } from "./utils";
 
 type SessionRecord = NonNullable<Awaited<ReturnType<typeof getSessionById>>>;
@@ -24,28 +19,11 @@ interface ArchiveSessionResult {
   archiveTriggered: boolean;
 }
 
-function getSessionRepoUrl(session: SessionRecord): string | null {
-  const cloneUrl = session.cloneUrl?.trim();
-  if (cloneUrl) {
-    return cloneUrl;
-  }
-
-  if (!session.repoOwner || !session.repoName) {
-    return null;
-  }
-
-  return `https://github.com/${session.repoOwner}/${session.repoName}`;
-}
-
 async function refreshArchiveGitState(
   currentSession: SessionRecord,
   logPrefix: string,
 ): Promise<SessionUpdateInput> {
   if (!canOperateOnSandbox(currentSession.sandboxState)) {
-    return {};
-  }
-
-  if (!currentSession.repoOwner || !currentSession.repoName) {
     return {};
   }
 
@@ -59,79 +37,14 @@ async function refreshArchiveGitState(
     );
 
     const branch = branchResult.success ? branchResult.stdout.trim() : "";
-    if (!branch) {
+    if (!branch || branch === currentSession.branch) {
       return {};
     }
 
-    const updates: SessionUpdateInput = {};
-    const branchChanged = branch !== currentSession.branch;
-
-    if (branchChanged) {
-      updates.branch = branch;
-    }
-
-    const token = getServiceGitHubToken() ?? undefined;
-
-    if (!branchChanged && currentSession.prNumber != null) {
-      const repoUrl = getSessionRepoUrl(currentSession);
-      if (repoUrl) {
-        const prStatusResult = await getPullRequestStatus({
-          repoUrl,
-          prNumber: currentSession.prNumber,
-          token,
-        });
-
-        if (prStatusResult.success && prStatusResult.status) {
-          if (prStatusResult.status !== currentSession.prStatus) {
-            updates.prStatus = prStatusResult.status;
-          }
-
-          return updates;
-        }
-      }
-    }
-
-    if (!token) {
-      return updates;
-    }
-
-    const prResult = await findPullRequestByBranch({
-      owner: currentSession.repoOwner,
-      repo: currentSession.repoName,
-      branchName: branch,
-      token,
-    });
-
-    if (prResult.error) {
-      return updates;
-    }
-
-    if (prResult.found && prResult.prNumber && prResult.prStatus) {
-      if (prResult.prNumber !== currentSession.prNumber) {
-        updates.prNumber = prResult.prNumber;
-      }
-
-      if (prResult.prStatus !== currentSession.prStatus) {
-        updates.prStatus = prResult.prStatus;
-      }
-
-      return updates;
-    }
-
-    if (
-      currentSession.prNumber !== null ||
-      currentSession.prStatus !== null ||
-      updates.prNumber !== undefined ||
-      updates.prStatus !== undefined
-    ) {
-      updates.prNumber = null;
-      updates.prStatus = null;
-    }
-
-    return updates;
+    return { branch };
   } catch (error) {
     console.warn(
-      `${logPrefix} Failed to refresh git/PR state before archiving session ${currentSession.id}:`,
+      `${logPrefix} Failed to refresh git state before archiving session ${currentSession.id}:`,
       error,
     );
     return {};

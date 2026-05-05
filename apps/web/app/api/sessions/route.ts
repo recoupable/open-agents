@@ -260,10 +260,6 @@ export async function POST(req: Request) {
         branch: finalBranch,
         cloneUrl,
         isNewBranch: isNewBranch ?? false,
-        autoCommitPushOverride: effectiveAutoCommitPush,
-        autoCreatePrOverride: effectiveAutoCommitPush
-          ? effectiveAutoCreatePr
-          : false,
         globalSkillRefs: preferences.globalSkillRefs,
         sandboxState: { type: sandboxType },
         lifecycleState: "provisioning",
