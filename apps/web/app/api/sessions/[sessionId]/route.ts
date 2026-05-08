@@ -4,7 +4,6 @@ import {
   getSessionById,
   updateSession,
 } from "@/lib/db/sessions";
-import { forwardToApi } from "@/lib/recoupable/forward-to-api";
 import { archiveSession } from "@/lib/sandbox/archive-session";
 import { hasRuntimeSandboxState } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
@@ -19,22 +18,12 @@ interface UpdateSessionRequest {
 }
 
 /**
- * `GET /api/sessions/[sessionId]` — read a single session by id.
- * Cut over to recoupable api: this proxies to the api endpoint of
- * the same path. The api owns auth (via Privy bearer), ownership
- * check, and response shape.
- *
- * `PATCH` and `DELETE` continue to be served locally because the
- * corresponding api endpoints have not been ported yet.
+ * `PATCH /api/sessions/[sessionId]` and `DELETE /api/sessions/[sessionId]`
+ * remain server-routed: the corresponding api endpoints have not been
+ * ported yet. `GET` was removed when the read endpoint was cut over
+ * to recoupable api — server components consume `getSessionByIdCached`
+ * directly, and there are no remaining client GET callers on this path.
  */
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ sessionId: string }> },
-): Promise<Response> {
-  const { sessionId } = await params;
-  return forwardToApi(req, `/api/sessions/${sessionId}`);
-}
-
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ sessionId: string }> },

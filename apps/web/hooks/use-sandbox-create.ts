@@ -11,10 +11,7 @@ import {
 } from "@/lib/sandbox/get-sandbox-create-error-details";
 import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
-type SessionFields = Pick<
-  Session,
-  "id" | "cloneUrl" | "branch" | "isNewBranch"
->;
+type SessionFields = Pick<Session, "id" | "cloneUrl">;
 
 type CreatedSandbox = SandboxInfo & { type: string };
 
@@ -35,7 +32,7 @@ export function useSandboxCreate({
   setSandboxTypeFromUnknown,
   requestStatusSync,
 }: UseSandboxCreateParams) {
-  const { ready } = usePrivy();
+  const { ready, getAccessToken } = usePrivy();
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [sandboxCreateError, setSandboxCreateError] =
     useState<SandboxCreateErrorDetails | null>(null);
@@ -47,11 +44,13 @@ export function useSandboxCreate({
     if (!session.cloneUrl) {
       throw new Error("Session is missing a clone URL");
     }
-    const shouldCreateNewBranch = session.isNewBranch;
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
+    }
     const newSandbox = await createSandbox(
+      accessToken,
       session.cloneUrl,
-      session.branch ?? undefined,
-      shouldCreateNewBranch,
       session.id,
       preferredSandboxType,
     );
@@ -60,9 +59,8 @@ export function useSandboxCreate({
     requestStatusSync("force").catch(() => undefined);
     return newSandbox;
   }, [
-    session.isNewBranch,
+    getAccessToken,
     session.cloneUrl,
-    session.branch,
     session.id,
     preferredSandboxType,
     setSandboxInfo,

@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { SandboxState } from "@open-harness/sandbox";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   createContext,
   type ReactNode,
@@ -13,8 +14,11 @@ import {
   useState,
 } from "react";
 import { useSWRConfig } from "swr";
-import type { ReconnectResponse } from "@/app/api/sandbox/reconnect/route";
-import type { SandboxStatusResponse } from "@/app/api/sandbox/status/route";
+import { fetchRecoup } from "@/lib/recoupable/fetch-recoup";
+import type {
+  ReconnectResponse,
+  SandboxStatusResponse,
+} from "@/lib/recoupable/sandbox-api-types";
 import type { DiffResponse } from "@/app/api/sessions/[sessionId]/diff/route";
 import type { FileSuggestion } from "@/app/api/sessions/[sessionId]/files/route";
 import type { SkillSuggestion } from "@/app/api/sessions/[sessionId]/skills/route";
@@ -288,6 +292,7 @@ export function SessionChatProvider({
   children,
 }: SessionChatProviderProps) {
   const { mutate } = useSWRConfig();
+  const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
   const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
@@ -430,7 +435,13 @@ export function SessionChatProvider({
       setReconnectionStatus("checking");
 
       try {
-        const response = await fetch(
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          setReconnectionStatus("failed");
+          return "failed";
+        }
+        const response = await fetchRecoup(
+          accessToken,
           `/api/sandbox/reconnect?sessionId=${sessionRecord.id}`,
         );
 
@@ -493,7 +504,7 @@ export function SessionChatProvider({
         setReconnectionStatus("failed");
         return "failed";
       }
-    }, [sessionRecord.id, sessionId, applyLifecycleTiming]);
+    }, [sessionRecord.id, sessionId, applyLifecycleTiming, getAccessToken]);
 
   const syncSandboxStatus =
     useCallback(async (): Promise<SandboxStatusSyncResult> => {
@@ -509,7 +520,12 @@ export function SessionChatProvider({
 
       const run = (async (): Promise<SandboxStatusSyncResult> => {
         try {
-          const response = await fetch(
+          const accessToken = await getAccessToken();
+          if (!accessToken) {
+            return "unknown";
+          }
+          const response = await fetchRecoup(
+            accessToken,
             `/api/sandbox/status?sessionId=${sessionRecord.id}`,
           );
           if (!response.ok) {
@@ -596,7 +612,7 @@ export function SessionChatProvider({
       } finally {
         statusSyncRef.current.inFlight = null;
       }
-    }, [sessionRecord.id, sessionId, applyLifecycleTiming]);
+    }, [sessionRecord.id, sessionId, applyLifecycleTiming, getAccessToken]);
 
   const updateSessionRepo = useCallback(
     (info: {

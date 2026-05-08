@@ -4,7 +4,6 @@ import {
   requireOwnedSession,
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
-import { forwardToApi } from "@/lib/recoupable/forward-to-api";
 import {
   canOperateOnSandbox,
   clearSandboxState,
@@ -12,18 +11,12 @@ import {
 } from "@/lib/sandbox/utils";
 
 /**
- * `POST /api/sandbox` — provision a sandbox bound to a session.
- * Cut over to recoupable api: this proxies to the api endpoint of
- * the same path. The api owns gitUser resolution, org-snapshot
- * lookup, lifecycle workflow registration, and skill installation.
- *
- * `DELETE` is still served locally because the corresponding api
- * endpoint has not been ported yet.
+ * `DELETE /api/sandbox` — stop the sandbox bound to a session and
+ * clear runtime metadata. The provision endpoint (POST) was cut
+ * over to recoupable api and is no longer served here; clients
+ * call the api directly via `fetchRecoup`. This DELETE handler
+ * stays local until the api ports the equivalent.
  */
-export function POST(req: Request): Promise<Response> {
-  return forwardToApi(req, "/api/sandbox");
-}
-
 export async function DELETE(req: Request) {
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) {

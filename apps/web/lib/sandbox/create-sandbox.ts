@@ -1,4 +1,5 @@
 import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
+import { fetchRecoup } from "@/lib/recoupable/fetch-recoup";
 import { SandboxCreateRequestError } from "./sandbox-create-request-error";
 
 type CreateSandboxResponse = SandboxInfo & {
@@ -47,20 +48,27 @@ function getFallbackSandboxCreateErrorMessage(status: number): string {
   return "Failed to create sandbox. Please try again.";
 }
 
+/**
+ * Calls recoupable api's `POST /api/sandbox` directly from the
+ * browser. The caller resolves a Privy access token via
+ * `usePrivy().getAccessToken()` and passes it in — that token is
+ * the bearer credential api validates.
+ *
+ * Branch routing (`branch` / `isNewBranch`) is intentionally not
+ * forwarded: api ignores those fields and always provisions on the
+ * repo's default branch.
+ */
 export async function createSandbox(
+  accessToken: string,
   cloneUrl: string,
-  branch: string | undefined,
-  isNewBranch: boolean,
   sessionId: string,
   sandboxType: string | undefined,
 ): Promise<CreateSandboxResponse> {
-  const response = await fetch("/api/sandbox", {
+  const response = await fetchRecoup(accessToken, "/api/sandbox", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       repoUrl: cloneUrl,
-      branch: branch ?? "main",
-      isNewBranch,
       sessionId,
       sandboxType: sandboxType ?? "vercel",
     }),
