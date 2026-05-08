@@ -19,6 +19,32 @@ const MAX_PROACTIVE_TIMEOUT_MS = MAX_SDK_TIMEOUT_MS - TIMEOUT_BUFFER_MS;
 const DEFAULT_RECONNECT_TIMEOUT_MS = 300_000; // 5 minutes default timeout for reconnected sandboxes
 const DETACHED_QUICK_FAILURE_WINDOW_MS = 2_000;
 
+/**
+ * When all three of `VERCEL_TEAM_ID` / `VERCEL_PROJECT_ID` / `VERCEL_TOKEN`
+ * are set in the environment, return them as a credentials object suitable
+ * for passing to `Sandbox.create` / `Sandbox.get`. The SDK prefers
+ * `VERCEL_OIDC_TOKEN` (auto-injected by Vercel deploys, scoped to the
+ * deploying project) over env-var auto-detection — so without explicit
+ * pass-through, sandboxes provisioned via this wrapper always live in
+ * the deploying project's namespace.
+ *
+ * Returning `{ teamId, projectId, token }` from this helper and spreading
+ * it into the SDK call lets the caller force the SDK to target a
+ * different project's namespace — e.g. allowing recoup/open-agents to
+ * read and manipulate sandboxes that recoup/api created.
+ */
+function getExplicitVercelCredentials():
+  | { teamId: string; projectId: string; token: string }
+  | Record<string, never> {
+  const teamId = process.env.VERCEL_TEAM_ID;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const token = process.env.VERCEL_TOKEN;
+  if (teamId && projectId && token) {
+    return { teamId, projectId, token };
+  }
+  return {};
+}
+
 interface SandboxRouteLike {
   port: number;
 }
@@ -531,6 +557,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     const sdkTimeout = effectiveTimeout + TIMEOUT_BUFFER_MS;
 
     const createBaseConfig = {
+      ...getExplicitVercelCredentials(),
       ...(name ? { name } : {}),
       resources: { vcpus },
       timeout: sdkTimeout,
@@ -755,6 +782,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     } = {},
   ): Promise<VercelSandbox> {
     const sdk = await VercelSandboxSDK.get({
+      ...getExplicitVercelCredentials(),
       name: sandboxName,
       resume: options.resume ?? false,
     });
