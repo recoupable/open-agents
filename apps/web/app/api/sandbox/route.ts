@@ -4,15 +4,24 @@ import {
   requireOwnedSession,
 } from "@/app/api/sessions/_lib/session-context";
 import { updateSession } from "@/lib/db/sessions";
-import { handleCreateSandboxRequest } from "@/lib/sandbox/create-sandbox-handler";
+import { forwardToApi } from "@/lib/recoupable/forward-to-api";
 import {
   canOperateOnSandbox,
   clearSandboxState,
   hasResumableSandboxState,
 } from "@/lib/sandbox/utils";
 
-export async function POST(req: Request): Promise<Response> {
-  return handleCreateSandboxRequest(req);
+/**
+ * `POST /api/sandbox` — provision a sandbox bound to a session.
+ * Cut over to recoupable api: this proxies to the api endpoint of
+ * the same path. The api owns gitUser resolution, org-snapshot
+ * lookup, lifecycle workflow registration, and skill installation.
+ *
+ * `DELETE` is still served locally because the corresponding api
+ * endpoint has not been ported yet.
+ */
+export function POST(req: Request): Promise<Response> {
+  return forwardToApi(req, "/api/sandbox");
 }
 
 export async function DELETE(req: Request) {

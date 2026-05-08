@@ -185,8 +185,8 @@ describe("performAutoCommit", () => {
   });
 
   // Git identity is configured once at sandbox provision time
-  // (lib/sandbox/create-sandbox-handler.ts), not in performAutoCommit, so
-  // there are no identity-related assertions here.
+  // (recoupable api's `POST /api/sandbox`), not in performAutoCommit,
+  // so there are no identity-related assertions here.
 
   test("uses fallback commit message when diff is empty", async () => {
     execResults.set("git diff --cached", { success: true, stdout: "" });

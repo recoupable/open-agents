@@ -4,6 +4,7 @@ import {
   getSessionById,
   updateSession,
 } from "@/lib/db/sessions";
+import { forwardToApi } from "@/lib/recoupable/forward-to-api";
 import { archiveSession } from "@/lib/sandbox/archive-session";
 import { hasRuntimeSandboxState } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
@@ -17,27 +18,21 @@ interface UpdateSessionRequest {
   prStatus?: "open" | "merged" | "closed";
 }
 
+/**
+ * `GET /api/sessions/[sessionId]` — read a single session by id.
+ * Cut over to recoupable api: this proxies to the api endpoint of
+ * the same path. The api owns auth (via Privy bearer), ownership
+ * check, and response shape.
+ *
+ * `PATCH` and `DELETE` continue to be served locally because the
+ * corresponding api endpoints have not been ported yet.
+ */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ sessionId: string }> },
-) {
-  const session = await getServerSession();
-  if (!session?.user) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
+): Promise<Response> {
   const { sessionId } = await params;
-  const existingSession = await getSessionById(sessionId);
-
-  if (!existingSession) {
-    return Response.json({ error: "Session not found" }, { status: 404 });
-  }
-
-  if (existingSession.userId !== session.user.id) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return Response.json({ session: existingSession });
+  return forwardToApi(req, `/api/sessions/${sessionId}`);
 }
 
 export async function PATCH(

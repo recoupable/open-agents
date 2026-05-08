@@ -67,8 +67,8 @@ export async function performAutoCommit(
   const commitMessage = await generateCommitMessage(sandbox, cwd, sessionTitle);
 
   // Git author identity is configured once at sandbox provision time
-  // (see lib/sandbox/create-sandbox-handler.ts) using the Privy session
-  // identity. Auto-commit reuses that.
+  // by the recoupable api's `POST /api/sandbox` (resolveGitUser
+  // pulls name + email from the account row). Auto-commit reuses that.
 
   // 5. Commit with Co-Authored-By trailer for the agent app
   const escapedMessage = commitMessage.replace(/'/g, "'\\''");
