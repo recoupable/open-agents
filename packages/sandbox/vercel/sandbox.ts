@@ -39,6 +39,20 @@ function getExplicitVercelCredentials():
   const teamId = process.env.VERCEL_TEAM_ID;
   const projectId = process.env.VERCEL_PROJECT_ID;
   const token = process.env.VERCEL_TOKEN;
+  // Diagnostic: capture which credential source the wrapper is feeding
+  // the Vercel Sandbox SDK on each call. Reveals (a) whether all three
+  // env vars are reaching this code path at runtime, and (b) which
+  // project namespace SDK calls are landing in. Token is never logged.
+  console.log("[VercelSandbox] credentials check", {
+    has_team_id: typeof teamId === "string" && teamId.length > 0,
+    has_project_id: typeof projectId === "string" && projectId.length > 0,
+    has_token: typeof token === "string" && token.length > 0,
+    project_id_resolved: projectId ?? null,
+    has_oidc_token:
+      typeof process.env.VERCEL_OIDC_TOKEN === "string" &&
+      process.env.VERCEL_OIDC_TOKEN.length > 0,
+    using_explicit_credentials: !!(teamId && projectId && token),
+  });
   if (teamId && projectId && token) {
     return { teamId, projectId, token };
   }
