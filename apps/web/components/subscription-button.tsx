@@ -1,6 +1,6 @@
 "use client";
 
-import { CreditCard, Sparkles } from "lucide-react";
+import { ArrowRight, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSubscribeClick } from "@/hooks/use-subscribe-click";
@@ -15,9 +15,8 @@ export function SubscriptionButton() {
   if (isPro) {
     return (
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-          <Sparkles className="size-3" />
-          Pro
+        <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-foreground">
+          Recoupable Pro
         </span>
         <Button
           variant="outline"
@@ -26,7 +25,7 @@ export function SubscriptionButton() {
           className="gap-1.5"
         >
           <CreditCard className="size-3.5" />
-          Manage billing
+          Billing
         </Button>
       </div>
     );
@@ -34,8 +33,8 @@ export function SubscriptionButton() {
 
   return (
     <Button size="sm" onClick={handleClick} className="gap-1.5">
-      <Sparkles className="size-3.5" />
-      Subscribe
+      Start Free Trial
+      <ArrowRight className="size-3.5" />
     </Button>
   );
 }
