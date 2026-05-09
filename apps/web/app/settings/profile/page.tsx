@@ -6,6 +6,7 @@ import Image from "next/image";
 import useSWR from "swr";
 import type { DateRange } from "react-day-picker";
 import { ContributionChart } from "@/components/contribution-chart";
+import { SubscriptionButton } from "@/components/subscription-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/hooks/use-session";
@@ -393,6 +394,14 @@ function ProfileSidebar({
             {session.user.email}
           </p>
         )}
+      </div>
+
+      {/* Subscription */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Subscription
+        </h3>
+        <SubscriptionButton />
       </div>
 
       {/* Stats */}
