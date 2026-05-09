@@ -2,6 +2,7 @@ import "server-only";
 import type { NextRequest } from "next/server";
 import { fetchPrivyUserProfile } from "@/lib/privy/fetch-user-profile";
 import { verifyPrivyAccessToken } from "@/lib/privy/verify-access-token";
+import { fetchOrCreateAccount } from "@/lib/recoupable/fetch-or-create-account";
 import { resolveAccountIdFromPrivyToken } from "@/lib/recoupable/resolve-account-id";
 import { SESSION_COOKIE_NAME } from "./constants";
 import type { Session } from "./types";
@@ -12,6 +13,11 @@ import type { Session } from "./types";
  * own users table — `session.user.id` is now the recoupable
  * `account_id` (UUID), resolved via api's `GET /api/accounts/id`.
  * Profile fields (email, name, avatar) come from Privy directly.
+ *
+ * For brand-new Privy users, `GET /api/accounts/id` 401s with
+ * "No account found for this email". We fall back to the idempotent
+ * `POST /api/accounts` to provision a row so first sign-in resolves
+ * to a session and the landing redirect can fire.
  */
 export async function getSessionFromCookie(
   cookieValue?: string,
@@ -21,10 +27,14 @@ export async function getSessionFromCookie(
   const verified = await verifyPrivyAccessToken(cookieValue);
   if (!verified) return undefined;
 
-  const accountId = await resolveAccountIdFromPrivyToken(cookieValue);
-  if (!accountId) return undefined;
-
   const profile = await fetchPrivyUserProfile(verified.userId);
+
+  let accountId = await resolveAccountIdFromPrivyToken(cookieValue);
+  if (!accountId && profile?.email) {
+    const provisioned = await fetchOrCreateAccount(profile.email);
+    accountId = provisioned?.accountId ?? null;
+  }
+  if (!accountId) return undefined;
 
   return {
     created: verified.expiration * 1000,
