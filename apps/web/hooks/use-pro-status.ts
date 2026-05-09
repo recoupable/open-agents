@@ -8,7 +8,7 @@ import { fetchAccountSubscription } from "@/lib/recoupable/fetch-account-subscri
 export function useProStatus() {
   const { authenticated, getAccessToken, user } = usePrivy();
 
-  const { data, isLoading, mutate } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     authenticated && user?.id ? ["pro-status", user.id] : null,
     async () => {
       const token = await getAccessToken();
@@ -23,8 +23,9 @@ export function useProStatus() {
   );
 
   return {
-    isPro: data ?? false,
+    isPro: data,
     isLoading,
+    error,
     refresh: mutate,
   };
 }

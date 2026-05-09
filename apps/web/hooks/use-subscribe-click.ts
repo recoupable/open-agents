@@ -8,7 +8,7 @@ import { useProStatus } from "./use-pro-status";
 
 export function useSubscribeClick() {
   const { authenticated, getAccessToken, login } = usePrivy();
-  const { isPro, isLoading } = useProStatus();
+  const { isPro, isLoading, error } = useProStatus();
 
   const handleClick = useCallback(async () => {
     if (!authenticated) {
@@ -27,5 +27,5 @@ export function useSubscribeClick() {
     await createClientCheckoutSession(accessToken);
   }, [authenticated, login, getAccessToken, isPro]);
 
-  return { handleClick, isPro, isLoading };
+  return { handleClick, isPro, isLoading, error };
 }

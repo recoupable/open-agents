@@ -1,6 +1,8 @@
 import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 
-export async function createClientCheckoutSession(accessToken: string) {
+export async function createClientCheckoutSession(
+  accessToken: string,
+): Promise<{ error: unknown } | undefined> {
   try {
     const response = await fetch(
       `${RECOUPABLE_API_BASE_URL}/api/subscriptions/sessions`,

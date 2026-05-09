@@ -6,10 +6,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSubscribeClick } from "@/hooks/use-subscribe-click";
 
 export function SubscriptionButton() {
-  const { handleClick, isPro, isLoading } = useSubscribeClick();
+  const { handleClick, isPro, isLoading, error } = useSubscribeClick();
 
   if (isLoading) {
     return <Skeleton className="h-8 w-28 rounded-md" />;
+  }
+
+  if (error) {
+    return null;
   }
 
   if (isPro) {
