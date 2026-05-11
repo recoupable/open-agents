@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { SandboxState } from "@open-harness/sandbox";
 import {
@@ -30,6 +31,7 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
+import { patchRecoupSession } from "@/lib/recoupable/patch-recoup-session";
 import {
   clearSandboxResumeState,
   clearSandboxState,
@@ -288,6 +290,7 @@ export function SessionChatProvider({
   children,
 }: SessionChatProviderProps) {
   const { mutate } = useSWRConfig();
+  const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
   const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
@@ -753,11 +756,32 @@ export function SessionChatProvider({
       { revalidate: false },
     );
 
-    const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "archived" }),
-    });
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      setSessionRecord(previousSession);
+      await mutate<SessionsResponse>(
+        "/api/sessions",
+        (current) =>
+          current
+            ? {
+                ...current,
+                sessions: current.sessions.map((s) =>
+                  s.id === sessionRecord.id
+                    ? { ...previousSession, hasUnread: s.hasUnread }
+                    : s,
+                ),
+              }
+            : current,
+        { revalidate: false },
+      );
+      throw new Error("Not authenticated");
+    }
+
+    const res = await patchRecoupSession(
+      sessionRecord.id,
+      { status: "archived" },
+      accessToken,
+    );
 
     const data = (await res.json()) as { session?: Session; error?: string };
 
@@ -798,17 +822,22 @@ export function SessionChatProvider({
           : current,
       { revalidate: true },
     );
-  }, [sessionRecord, mutate]);
+  }, [getAccessToken, sessionRecord, mutate]);
 
   const unarchiveSession = useCallback(async () => {
     // Wait for server confirmation before updating local state so that
     // sandbox-related effects (reconnect probe, auto-restore, auto-create)
     // don't fire until the server has actually reset the session.
-    const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "running" }),
-    });
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    const res = await patchRecoupSession(
+      sessionRecord.id,
+      { status: "running" },
+      accessToken,
+    );
 
     const data = (await res.json()) as { session?: Session; error?: string };
 
@@ -837,15 +866,20 @@ export function SessionChatProvider({
           : current,
       { revalidate: true },
     );
-  }, [sessionRecord, mutate]);
+  }, [getAccessToken, sessionRecord, mutate]);
 
   const updateSessionTitle = useCallback(
     async (title: string) => {
-      const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+
+      const res = await patchRecoupSession(
+        sessionRecord.id,
+        { title },
+        accessToken,
+      );
 
       const data = (await res.json()) as { session?: Session; error?: string };
 
@@ -869,7 +903,7 @@ export function SessionChatProvider({
         { revalidate: false },
       );
     },
-    [sessionRecord, mutate],
+    [getAccessToken, sessionRecord, mutate],
   );
 
   const updateChatModel = useCallback(

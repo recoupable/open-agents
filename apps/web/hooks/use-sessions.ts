@@ -1,9 +1,11 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
+import { patchRecoupSession } from "@/lib/recoupable/patch-recoup-session";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -92,6 +94,7 @@ export function useSessions(options?: {
     : "/api/sessions?status=active";
 
   const initialData = options?.initialData;
+  const { getAccessToken } = usePrivy();
 
   const { data, error, isLoading, mutate } = useSWR<SessionsResponse>(
     enabled ? "/api/sessions" : null,
@@ -215,11 +218,12 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const res = await patchRecoupSession(sessionId, { title }, accessToken);
 
         const responseData = (await res.json()) as {
           session?: Session;
@@ -261,7 +265,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, mutate],
+    [data, getAccessToken, mutate],
   );
 
   const archiveSession = useCallback(
@@ -309,11 +313,16 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "archived" }),
-        });
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const res = await patchRecoupSession(
+          sessionId,
+          { status: "archived" },
+          accessToken,
+        );
 
         const responseData = (await res.json()) as {
           session?: Session;
@@ -361,7 +370,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, includeArchived, mutate],
+    [data, getAccessToken, includeArchived, mutate],
   );
 
   const unarchiveSession = useCallback(
@@ -395,11 +404,16 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "running" }),
-        });
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const res = await patchRecoupSession(
+          sessionId,
+          { status: "running" },
+          accessToken,
+        );
 
         const responseData = (await res.json()) as {
           session?: Session;
@@ -445,7 +459,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, includeArchived, mutate],
+    [data, getAccessToken, includeArchived, mutate],
   );
 
   return {
