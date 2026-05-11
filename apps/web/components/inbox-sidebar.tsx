@@ -38,7 +38,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
 import type { SessionWithUnread } from "@/hooks/use-sessions";
 import type { Session as AuthSession } from "@/lib/session/types";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -579,7 +579,7 @@ export function InboxSidebar({
   initialUser,
 }: InboxSidebarProps) {
   const router = useRouter();
-  const { session } = useSession();
+  const { user: privyUser } = usePrivy();
   const { isMobile, setOpenMobile } = useSidebar();
   const [showArchived, setShowArchived] = useState(false);
   const [archivedSessions, setArchivedSessions] = useState<SessionWithUnread[]>(
@@ -671,7 +671,15 @@ export function InboxSidebar({
   const showLoadingSkeleton =
     (!showArchived && sessionsLoading && sessions.length === 0) ||
     (showArchived && archivedSessionsLoading && archivedSessions.length === 0);
-  const sidebarUser = session?.user ?? initialUser;
+  const privyEmail = privyUser?.email?.address;
+  const sidebarUser: AuthSession["user"] | undefined = privyUser
+    ? {
+        id: privyUser.id,
+        username: privyEmail ?? privyUser.id,
+        email: privyEmail,
+        avatar: "",
+      }
+    : initialUser;
   const groupedSessions = useMemo(
     () => groupSessionsByRepo(displayedSessions),
     [displayedSessions],

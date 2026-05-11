@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
 import { SignInButton } from "./sign-in-button";
 
 export function AuthGuard({
@@ -12,13 +12,13 @@ export function AuthGuard({
   loadingFallback?: React.ReactNode;
   unauthenticatedFallback?: React.ReactNode;
 }) {
-  const { loading, isAuthenticated } = useSession();
+  const { ready, authenticated } = usePrivy();
 
-  if (loading) {
+  if (!ready) {
     return <>{loadingFallback ?? <div>Loading...</div>}</>;
   }
 
-  if (!isAuthenticated) {
+  if (!authenticated) {
     return (
       <>
         {unauthenticatedFallback ?? (

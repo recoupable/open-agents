@@ -2,13 +2,13 @@
 
 import { formatTokens } from "@open-harness/shared";
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import useSWR from "swr";
 import type { DateRange } from "react-day-picker";
 import { ContributionChart } from "@/components/contribution-chart";
+import { SubscriptionButton } from "@/components/subscription-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
 import { estimateModelUsageCost, type AvailableModel } from "@/lib/models";
 import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { fetcher } from "@/lib/swr";
@@ -337,7 +337,10 @@ function ProfileSidebar({
   topRepos: UsageRepositoryInsight[] | null;
   estimatedCostValue: string;
 }) {
-  const { session, loading } = useSession();
+  const { ready, user } = usePrivy();
+  const loading = !ready;
+  const email = user?.email?.address;
+  const username = email ?? user?.id ?? "user";
 
   if (loading) {
     return (
@@ -358,7 +361,7 @@ function ProfileSidebar({
     );
   }
 
-  if (!session?.user) return null;
+  if (!user) return null;
 
   const totalTokens = totals ? totals.inputTokens + totals.outputTokens : 0;
 
@@ -366,33 +369,28 @@ function ProfileSidebar({
     <div className="space-y-5">
       {/* Avatar + name — left-aligned */}
       <div className="flex items-center gap-3">
-        {session.user.avatar && (
-          <Image
-            src={session.user.avatar}
-            alt={session.user.username}
-            width={56}
-            height={56}
-            className="shrink-0 rounded-full"
-          />
-        )}
         <div className="min-w-0">
           <p className="truncate text-base font-semibold leading-tight">
-            {session.user.name ?? session.user.username}
+            {username}
           </p>
-          <p className="truncate text-sm text-muted-foreground">
-            @{session.user.username}
-          </p>
+          <p className="truncate text-sm text-muted-foreground">@{username}</p>
         </div>
       </div>
 
       {/* Rank + Email */}
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">#1 in Vercel</p>
-        {session.user.email && (
-          <p className="truncate text-sm text-muted-foreground">
-            {session.user.email}
-          </p>
+        {email && (
+          <p className="truncate text-sm text-muted-foreground">{email}</p>
         )}
+      </div>
+
+      {/* Subscription */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Subscription
+        </h3>
+        <SubscriptionButton />
       </div>
 
       {/* Stats */}
