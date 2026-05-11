@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   Card,
   CardContent,
@@ -10,7 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
 
 export function ProfileSectionSkeleton() {
   return (
@@ -50,68 +49,45 @@ export function ProfileSectionSkeleton() {
 }
 
 export function ProfileSection() {
-  const { session, loading } = useSession();
+  const { ready, user } = usePrivy();
 
-  if (loading) {
+  if (!ready) {
     return <ProfileSectionSkeleton />;
   }
 
-  if (!session?.user) {
+  if (!user) {
     return null;
   }
+
+  const email = user.email?.address;
+  const username = email ?? user.id;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Profile</CardTitle>
         <CardDescription>
-          Your profile information is synced from Vercel.
+          Your profile information is synced from Privy.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center gap-4">
-          {session.user.avatar && (
-            <Image
-              src={session.user.avatar}
-              alt={session.user.username}
-              width={64}
-              height={64}
-              className="rounded-full"
-            />
-          )}
           <div>
-            <p className="font-medium">
-              {session.user.name ?? session.user.username}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              @{session.user.username}
-            </p>
+            <p className="font-medium">{username}</p>
+            <p className="text-sm text-muted-foreground">@{username}</p>
           </div>
         </div>
 
         <div className="grid gap-4 pt-4">
           <div className="grid gap-2">
             <Label>Username</Label>
-            <p className="text-sm text-muted-foreground">
-              {session.user.username}
-            </p>
+            <p className="text-sm text-muted-foreground">{username}</p>
           </div>
 
-          {session.user.email && (
+          {email && (
             <div className="grid gap-2">
               <Label>Email</Label>
-              <p className="text-sm text-muted-foreground">
-                {session.user.email}
-              </p>
-            </div>
-          )}
-
-          {session.user.name && (
-            <div className="grid gap-2">
-              <Label>Name</Label>
-              <p className="text-sm text-muted-foreground">
-                {session.user.name}
-              </p>
+              <p className="text-sm text-muted-foreground">{email}</p>
             </div>
           )}
         </div>
