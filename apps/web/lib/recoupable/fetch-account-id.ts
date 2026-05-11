@@ -1,9 +1,10 @@
+import { z } from "zod";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
-type AccountIdResponse = {
-  status: "success" | "error";
-  accountId?: string;
-};
+const accountIdResponseSchema = z.object({
+  status: z.union([z.literal("success"), z.literal("error")]),
+  accountId: z.string().optional(),
+});
 
 export async function fetchAccountId(accessToken: string): Promise<string> {
   const res = await fetch(`${RECOUPABLE_API_BASE_URL}/api/accounts/id`, {
@@ -12,9 +13,12 @@ export async function fetchAccountId(accessToken: string): Promise<string> {
   if (!res.ok) {
     throw new Error(`accounts/id ${res.status}`);
   }
-  const data: AccountIdResponse = await res.json();
-  if (!data.accountId) {
+  const parsed = accountIdResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new Error("accounts/id returned an invalid response shape");
+  }
+  if (!parsed.data.accountId) {
     throw new Error("accounts/id missing accountId");
   }
-  return data.accountId;
+  return parsed.data.accountId;
 }

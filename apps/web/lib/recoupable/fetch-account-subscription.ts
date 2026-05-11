@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
-type SubscriptionResponse = {
-  isPro?: boolean;
-};
+const subscriptionResponseSchema = z.object({
+  isPro: z.boolean().optional(),
+});
 
 export async function fetchAccountSubscription(
   accessToken: string,
@@ -15,6 +16,9 @@ export async function fetchAccountSubscription(
   if (!res.ok) {
     throw new Error(`subscription ${res.status}`);
   }
-  const data: SubscriptionResponse = await res.json();
-  return { isPro: data.isPro ?? false };
+  const parsed = subscriptionResponseSchema.safeParse(await res.json());
+  if (!parsed.success) {
+    throw new Error("subscription returned an invalid response shape");
+  }
+  return { isPro: parsed.data.isPro ?? false };
 }
