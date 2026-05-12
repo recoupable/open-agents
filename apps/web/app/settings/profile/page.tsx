@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import useSWR from "swr";
 import type { DateRange } from "react-day-picker";
 import { ContributionChart } from "@/components/contribution-chart";
-import { CreditsMeter } from "@/components/credits-meter";
+import { CreditsMeterButton } from "@/components/credits-meter-button";
 import { SubscriptionButton } from "@/components/subscription-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -392,7 +392,7 @@ function ProfileSidebar({
           Subscription
         </h3>
         <SubscriptionButton />
-        <CreditsMeter />
+        <CreditsMeterButton />
       </div>
 
       {/* Stats */}
