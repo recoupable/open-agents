@@ -1,10 +1,8 @@
 "use client";
 
 import { Info } from "lucide-react";
-import {
-  type TopupCharge,
-  formatCents,
-} from "@/lib/credits/compute-topup-charge";
+import type { TopupCharge } from "@/lib/credits/compute-topup-charge";
+import { formatCents } from "@/lib/credits/format-cents";
 import { TOPUP_CUSTOM_MIN_DOLLARS } from "@/lib/credits/topup-presets";
 
 type CreditsTopupFeeDisclosureProps = {

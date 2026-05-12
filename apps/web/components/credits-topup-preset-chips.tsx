@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { formatCents } from "@/lib/credits/compute-topup-charge";
+import { formatDollarsCompact } from "@/lib/credits/format-dollars-compact";
 import { TOPUP_PRESET_CREDITS } from "@/lib/credits/topup-presets";
 import type { TopupSelection } from "@/hooks/use-credits-topup-dialog";
 
@@ -15,7 +15,7 @@ export function CreditsTopupPresetChips({
   onSelect,
 }: CreditsTopupPresetChipsProps) {
   return (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="flex justify-center gap-2">
       {TOPUP_PRESET_CREDITS.map((preset) => {
         const isActive =
           selection.kind === "preset" && selection.credits === preset;
@@ -27,7 +27,7 @@ export function CreditsTopupPresetChips({
             size="sm"
             onClick={() => onSelect({ kind: "preset", credits: preset })}
           >
-            {formatCents(preset)}
+            {formatDollarsCompact(preset)}
           </Button>
         );
       })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { formatCents } from "@/lib/credits/compute-topup-charge";
+import { formatCents } from "@/lib/credits/format-cents";
 import type { TopupSelection } from "@/hooks/use-credits-topup-dialog";
 
 type CreditsTopupAmountDisplayProps = {

@@ -28,10 +28,3 @@ export function computeTopupCharge(credits: number): TopupCharge {
   );
   return { credits, feeCents: totalCents - credits, totalCents };
 }
-
-export function formatCents(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}

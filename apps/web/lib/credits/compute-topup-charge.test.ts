@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { computeTopupCharge, formatCents } from "./compute-topup-charge";
+import { computeTopupCharge } from "./compute-topup-charge";
 
 describe("computeTopupCharge", () => {
   it("grosses up to net credits after the 2.9% + 30¢ Stripe fee", () => {
@@ -39,13 +39,5 @@ describe("computeTopupCharge", () => {
       feeCents: 0,
       totalCents: 0,
     });
-  });
-});
-
-describe("formatCents", () => {
-  it("renders USD with two decimals", () => {
-    expect(formatCents(10_000)).toBe("$100.00");
-    expect(formatCents(2_091)).toBe("$20.91");
-    expect(formatCents(0)).toBe("$0.00");
   });
 });
