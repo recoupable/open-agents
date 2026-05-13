@@ -545,18 +545,13 @@ export function useSessionChats(
         throw new Error("Not authenticated");
       }
 
-      const res = await createRecoupSessionChat(
+      const result = await createRecoupSessionChat(
         sessionId,
         { id: optimisticChat.id },
         accessToken,
       );
 
-      const responseData = (await res.json()) as {
-        chat?: Chat;
-        error?: string;
-      };
-
-      if (!res.ok || !responseData.chat) {
+      if (!result.ok) {
         await mutate(
           (current) =>
             toChatsResponse(
@@ -567,10 +562,10 @@ export function useSessionChats(
             ),
           { revalidate: false },
         );
-        throw new Error(responseData.error ?? "Failed to create chat");
+        throw new Error(result.error);
       }
 
-      const createdChat = responseData.chat;
+      const createdChat = result.chat;
 
       // Replace the optimistic entry in-place with the server version
       await mutate(

@@ -1,3 +1,4 @@
+import type { Chat } from "@/lib/db/schema";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
 export type CreateRecoupSessionChatBody = {
@@ -9,29 +10,22 @@ export type CreateRecoupSessionChatBody = {
   id?: string;
 };
 
-export type CreatedRecoupSessionChat = {
-  id: string;
-  sessionId: string;
-  title: string;
-  modelId: string | null;
-  activeStreamId: string | null;
-  lastAssistantMessageAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
+export type CreateRecoupSessionChatResult =
+  | { ok: true; chat: Chat }
+  | { ok: false; status: number; error: string };
 
 /**
  * POST `recoup-api/api/sessions/{sessionId}/chats` with Privy Bearer
- * auth. Returns the raw `Response` so callers can branch on status —
- * 200 returns `{ chat }`, 400 returns `{ error: "Invalid chat id" }`,
- * 409 returns `{ error: "Chat ID conflict" }`.
+ * auth. Returns a discriminated union so callers pattern-match on
+ * success vs. the documented failure statuses (400 invalid id, 404
+ * missing session, 409 id conflict, etc.).
  */
-export function createRecoupSessionChat(
+export async function createRecoupSessionChat(
   sessionId: string,
   body: CreateRecoupSessionChatBody,
   accessToken: string,
-): Promise<Response> {
-  return fetch(
+): Promise<CreateRecoupSessionChatResult> {
+  const res = await fetch(
     `${RECOUPABLE_API_BASE_URL}/api/sessions/${encodeURIComponent(sessionId)}/chats`,
     {
       method: "POST",
@@ -42,4 +36,19 @@ export function createRecoupSessionChat(
       body: JSON.stringify(body),
     },
   );
+
+  const payload = (await res.json().catch(() => ({}))) as {
+    chat?: Chat;
+    error?: string;
+  };
+
+  if (res.ok && payload.chat) {
+    return { ok: true, chat: payload.chat };
+  }
+
+  return {
+    ok: false,
+    status: res.status,
+    error: payload.error ?? `createRecoupSessionChat: ${res.status}`,
+  };
 }
