@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
@@ -26,12 +27,6 @@ interface SessionsResponse {
 
 interface UseSessionChatsOptions {
   initialData?: ChatsResponse;
-  /**
-   * Resolves a Privy access token for `Authorization: Bearer` calls to
-   * the recoupable API. Kept as an injected getter so this module stays
-   * free of `@privy-io/react-auth` and remains trivially testable.
-   */
-  getAccessToken: () => Promise<string | null>;
 }
 
 type CreateChatResult = {
@@ -202,9 +197,9 @@ export function applySessionSummaryFromChats(
 
 export function useSessionChats(
   sessionId: string | null,
-  options: UseSessionChatsOptions,
+  options?: UseSessionChatsOptions,
 ) {
-  const { getAccessToken } = options;
+  const { getAccessToken } = usePrivy();
   const [_overlayVersion, setOverlayVersion] = useState(0);
   const lastNonEmptyChatsRef = useRef<{
     sessionId: string | null;
@@ -218,7 +213,7 @@ export function useSessionChats(
     [sessionId],
   );
   const fallbackData = useMemo(() => {
-    if (!sessionId || !options.initialData) {
+    if (!sessionId || !options?.initialData) {
       return undefined;
     }
 
@@ -227,7 +222,7 @@ export function useSessionChats(
     );
 
     return belongsToSession ? options.initialData : undefined;
-  }, [sessionId, options.initialData]);
+  }, [sessionId, options?.initialData]);
 
   useEffect(() => {
     if (!sessionId) {

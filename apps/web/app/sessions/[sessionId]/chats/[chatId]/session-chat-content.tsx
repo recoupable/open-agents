@@ -93,7 +93,6 @@ import { useFileSuggestions } from "@/hooks/use-file-suggestions";
 import { useImageAttachments } from "@/hooks/use-image-attachments";
 import { useTextAttachments } from "@/hooks/use-text-attachments";
 import { useScrollToBottom } from "@/hooks/use-scroll-to-bottom";
-import { usePrivy } from "@privy-io/react-auth";
 import { useSessionChats } from "@/hooks/use-session-chats";
 import { useSlashCommands } from "@/hooks/use-slash-commands";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
@@ -1065,7 +1064,6 @@ export function SessionChatContent({
     addToolApprovalResponse,
     addToolOutput,
   } = chat;
-  const { getAccessToken } = usePrivy();
   const {
     markChatRead,
     setChatStreaming,
@@ -1073,7 +1071,7 @@ export function SessionChatContent({
     clearChatTitle,
     refreshChats,
     forkChat,
-  } = useSessionChats(session.id, { getAccessToken });
+  } = useSessionChats(session.id);
   const handleForkAssistantMessage = useCallback(
     async (messageId: string) => {
       if (forkingAssistantMessageId !== null) {

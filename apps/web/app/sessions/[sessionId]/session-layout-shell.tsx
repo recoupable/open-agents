@@ -1,6 +1,5 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
 import { useParams, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -93,7 +92,6 @@ export function SessionLayoutShell({
   const prefetchedChatHrefsRef = useRef(new Set<string>());
 
   const sessionId = initialSession.id;
-  const { getAccessToken } = usePrivy();
 
   const {
     chats,
@@ -101,10 +99,7 @@ export function SessionLayoutShell({
     createChat,
     deleteChat,
     renameChat,
-  } = useSessionChats(sessionId, {
-    initialData: initialChatsData,
-    getAccessToken,
-  });
+  } = useSessionChats(sessionId, { initialData: initialChatsData });
 
   const getChatHref = useCallback(
     (chatId: string) => `/sessions/${sessionId}/chats/${chatId}`,
