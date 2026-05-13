@@ -1,27 +1,35 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
-import { fetcherNoStore } from "@/lib/swr";
+import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
+import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
+import {
+  applySessionSummary,
+  applySessionSummaryFromChats,
+  deriveSessionSummaryFromChats,
+  didSessionSummaryChange,
+  type SessionChatListItem,
+  type SessionsResponse,
+  type SessionSummary,
+} from "./session-chats-summary";
 
-export type SessionChatListItem = Chat & {
-  hasUnread: boolean;
-  isStreaming: boolean;
-};
+export type {
+  SessionChatListItem,
+  SessionSummary,
+} from "./session-chats-summary";
+export {
+  applySessionSummary,
+  applySessionSummaryFromChats,
+  deriveSessionSummaryFromChats,
+  didSessionSummaryChange,
+} from "./session-chats-summary";
 
 interface ChatsResponse {
   defaultModelId: string | null;
   chats: SessionChatListItem[];
-}
-
-interface SessionsResponse {
-  sessions: Array<{
-    id: string;
-    hasUnread: boolean;
-    hasStreaming: boolean;
-    latestChatId: string | null;
-  }>;
 }
 
 interface UseSessionChatsOptions {
@@ -109,91 +117,6 @@ function overlaysEqual(
   );
 }
 
-export type SessionSummary = {
-  hasUnread: boolean;
-  hasStreaming: boolean;
-  latestChatId: string | null;
-};
-
-function areSessionSummariesEqual(
-  left: SessionSummary,
-  right: SessionSummary,
-): boolean {
-  return (
-    left.hasUnread === right.hasUnread &&
-    left.hasStreaming === right.hasStreaming &&
-    left.latestChatId === right.latestChatId
-  );
-}
-
-export function didSessionSummaryChange(
-  previous: SessionSummary | null,
-  next: SessionSummary,
-): boolean {
-  if (!previous) {
-    return true;
-  }
-
-  return !areSessionSummariesEqual(previous, next);
-}
-
-export function deriveSessionSummaryFromChats(
-  nextChats: SessionChatListItem[],
-): SessionSummary {
-  const latestChat = nextChats.length > 0 ? nextChats[0] : null;
-
-  return {
-    hasUnread: nextChats.some((chat) => chat.hasUnread),
-    hasStreaming: nextChats.some((chat) => chat.isStreaming),
-    latestChatId: latestChat ? latestChat.id : null,
-  };
-}
-
-export function applySessionSummary(
-  current: SessionsResponse | undefined,
-  sessionId: string,
-  summary: SessionSummary,
-): SessionsResponse | undefined {
-  if (!current) {
-    return current;
-  }
-
-  let changed = false;
-  const sessions = current.sessions.map((session) => {
-    if (session.id !== sessionId) {
-      return session;
-    }
-
-    if (
-      session.hasUnread === summary.hasUnread &&
-      session.hasStreaming === summary.hasStreaming &&
-      session.latestChatId === summary.latestChatId
-    ) {
-      return session;
-    }
-
-    changed = true;
-    return {
-      ...session,
-      ...summary,
-    };
-  });
-
-  return changed ? { ...current, sessions } : current;
-}
-
-export function applySessionSummaryFromChats(
-  current: SessionsResponse | undefined,
-  sessionId: string,
-  nextChats: SessionChatListItem[],
-): SessionsResponse | undefined {
-  return applySessionSummary(
-    current,
-    sessionId,
-    deriveSessionSummaryFromChats(nextChats),
-  );
-}
-
 export function useSessionChats(
   sessionId: string | null,
   options?: UseSessionChatsOptions,
@@ -233,9 +156,20 @@ export function useSessionChats(
     };
   }, [sessionId]);
 
+  const { getAccessToken } = usePrivy();
+
   const { data, error, isLoading, mutate } = useSWR<ChatsResponse>(
-    sessionId ? `/api/sessions/${sessionId}/chats` : null,
-    fetcherNoStore,
+    sessionId ? `recoup-session-chats:${sessionId}` : null,
+    async () => {
+      if (!sessionId) {
+        throw new Error("Missing sessionId");
+      }
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      return listRecoupSessionChats(sessionId, accessToken);
+    },
     {
       fallbackData,
       // We already render server-prefetched chats in the layout; avoid an
@@ -519,11 +453,26 @@ export function useSessionChats(
     );
 
     const persisted = (async () => {
-      const res = await fetch(`/api/sessions/${sessionId}/chats`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: optimisticChat.id }),
-      });
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        await mutate(
+          (current) =>
+            toChatsResponse(
+              current,
+              (current?.chats ?? []).filter(
+                (chat) => chat.id !== optimisticChat.id,
+              ),
+            ),
+          { revalidate: false },
+        );
+        throw new Error("Not authenticated");
+      }
+
+      const res = await createRecoupSessionChat(
+        sessionId,
+        { id: optimisticChat.id },
+        accessToken,
+      );
 
       const responseData = (await res.json()) as {
         chat?: Chat;

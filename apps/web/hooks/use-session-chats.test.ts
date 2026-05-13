@@ -5,7 +5,7 @@ import {
   deriveSessionSummaryFromChats,
   didSessionSummaryChange,
   type SessionChatListItem,
-} from "./use-session-chats";
+} from "./session-chats-summary";
 
 function createChat(
   id: string,
