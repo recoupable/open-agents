@@ -1,9 +1,20 @@
 {
   "version": "1.0.0",
   "steps": {
-    "node_modules/workflow/dist/stdlib.js": {
-      "fetch": {
-        "stepId": "step//workflow@4.2.0-beta.74//fetch"
+    "app/workflows/build-org-snapshot.ts": {
+      "buildSnapshotStep": {
+        "stepId": "step//./app/workflows/build-org-snapshot//buildSnapshotStep"
+      }
+    },
+    "app/workflows/sandbox-lifecycle.ts": {
+      "clearLifecycleRunIdIfOwned": {
+        "stepId": "step//./app/workflows/sandbox-lifecycle//clearLifecycleRunIdIfOwned"
+      },
+      "computeLifecycleWakeDecision": {
+        "stepId": "step//./app/workflows/sandbox-lifecycle//computeLifecycleWakeDecision"
+      },
+      "runLifecycleEvaluation": {
+        "stepId": "step//./app/workflows/sandbox-lifecycle//runLifecycleEvaluation"
       }
     },
     "node_modules/workflow/dist/internal/builtins.js": {
@@ -17,15 +28,9 @@
         "stepId": "__builtin_response_text"
       }
     },
-    "app/workflows/sandbox-lifecycle.ts": {
-      "clearLifecycleRunIdIfOwned": {
-        "stepId": "step//./app/workflows/sandbox-lifecycle//clearLifecycleRunIdIfOwned"
-      },
-      "computeLifecycleWakeDecision": {
-        "stepId": "step//./app/workflows/sandbox-lifecycle//computeLifecycleWakeDecision"
-      },
-      "runLifecycleEvaluation": {
-        "stepId": "step//./app/workflows/sandbox-lifecycle//runLifecycleEvaluation"
+    "node_modules/workflow/dist/stdlib.js": {
+      "fetch": {
+        "stepId": "step//workflow@4.2.0-beta.74//fetch"
       }
     },
     "app/workflows/chat-post-finish.ts": {
@@ -55,9 +60,6 @@
       },
       "runAutoCommitStep": {
         "stepId": "step//./app/workflows/chat-post-finish//runAutoCommitStep"
-      },
-      "runAutoCreatePrStep": {
-        "stepId": "step//./app/workflows/chat-post-finish//runAutoCreatePrStep"
       }
     },
     "app/workflows/chat.ts": {
@@ -85,6 +87,39 @@
     }
   },
   "workflows": {
+    "app/workflows/build-org-snapshot.ts": {
+      "buildOrgSnapshotWorkflow": {
+        "workflowId": "workflow//./app/workflows/build-org-snapshot//buildOrgSnapshotWorkflow",
+        "graph": {
+          "nodes": [
+            {
+              "id": "start",
+              "type": "workflowStart",
+              "data": {
+                "label": "Start: buildOrgSnapshotWorkflow",
+                "nodeKind": "workflow_start"
+              }
+            },
+            {
+              "id": "end",
+              "type": "workflowEnd",
+              "data": {
+                "label": "Return",
+                "nodeKind": "workflow_end"
+              }
+            }
+          ],
+          "edges": [
+            {
+              "id": "e_start_end",
+              "source": "start",
+              "target": "end",
+              "type": "default"
+            }
+          ]
+        }
+      }
+    },
     "app/workflows/sandbox-lifecycle.ts": {
       "sandboxLifecycleWorkflow": {
         "workflowId": "workflow//./app/workflows/sandbox-lifecycle//sandboxLifecycleWorkflow",

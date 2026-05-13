@@ -65,6 +65,7 @@ import { SlashCommandDropdown } from "@/components/slash-command-dropdown";
 import { SnippetChip } from "@/components/snippet-chip";
 import { AssistantMessageGroups } from "@/components/assistant-message-groups";
 import { MessageModelPill } from "@/components/message-model-pill";
+import { ArtistWorkflowStatusPanel } from "@/components/artist-workflow-status-panel";
 import {
   PinnedTodoPanel,
   getLatestTodos,
@@ -1132,11 +1133,28 @@ export function SessionChatContent({
    *  summary bar can show an accurate live timer from the actual send time. */
   const lastSendTimestampRef = useRef<number | null>(null);
 
+  /** After a chat turn completes, poll artist RECOUP.md checklists a bit faster. */
+  const [workflowPollBoost, setWorkflowPollBoost] = useState(false);
+  const prevIsChatInFlightForWorkflowRef = useRef(false);
+
   // Ensure a stop action from one chat does not suppress the in-flight state
   // after switching to a different chat.
   useEffect(() => {
     setUserStopped(false);
+    setWorkflowPollBoost(false);
+    prevIsChatInFlightForWorkflowRef.current = false;
   }, [chatInfo.id]);
+
+  useEffect(() => {
+    const wasInFlight = prevIsChatInFlightForWorkflowRef.current;
+    prevIsChatInFlightForWorkflowRef.current = isChatInFlight;
+    if (wasInFlight && !isChatInFlight) {
+      setWorkflowPollBoost(true);
+      const tid = window.setTimeout(() => setWorkflowPollBoost(false), 15_000);
+      return () => window.clearTimeout(tid);
+    }
+    return undefined;
+  }, [isChatInFlight]);
 
   // Sync hasPendingResponse with the AI SDK status.
   // IMPORTANT: hasPendingResponse is intentionally excluded from the dependency
@@ -3401,6 +3419,11 @@ export function SessionChatContent({
                         isLoading={skillsLoading}
                       />
                     )}
+                    <ArtistWorkflowStatusPanel
+                      sessionId={session.id}
+                      isSandboxActive={isSandboxActive}
+                      chatJustFinished={workflowPollBoost}
+                    />
                     {/* Pinned Todo Panel — sits above the input box */}
                     <PinnedTodoPanel todos={latestTodos} />
                     {/* Input form */}

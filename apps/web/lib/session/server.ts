@@ -6,6 +6,18 @@ import { resolveAccountIdFromPrivyToken } from "@/lib/recoupable/resolve-account
 import { SESSION_COOKIE_NAME } from "./constants";
 import type { Session } from "./types";
 
+export type SessionResolution =
+  | { status: "missing-cookie" }
+  | { status: "invalid-token" }
+  | {
+      status: "account-resolution-failed";
+      privyUserId: string;
+    }
+  | {
+      status: "authenticated";
+      session: Session;
+    };
+
 /**
  * Resolves a Privy access token to a session shaped against the
  * recoupable identity model. Open-agents no longer maintains its
@@ -16,25 +28,47 @@ import type { Session } from "./types";
 export async function getSessionFromCookie(
   cookieValue?: string,
 ): Promise<Session | undefined> {
-  if (!cookieValue) return undefined;
+  const result = await getSessionResolutionFromCookie(cookieValue);
+  return result.status === "authenticated" ? result.session : undefined;
+}
+
+export async function getSessionResolutionFromCookie(
+  cookieValue?: string,
+): Promise<SessionResolution> {
+  if (!cookieValue) {
+    return { status: "missing-cookie" };
+  }
 
   const verified = await verifyPrivyAccessToken(cookieValue);
-  if (!verified) return undefined;
+  if (!verified) {
+    return { status: "invalid-token" };
+  }
 
   const accountId = await resolveAccountIdFromPrivyToken(cookieValue);
-  if (!accountId) return undefined;
+  if (!accountId) {
+    console.warn("[session] signed-in Privy user failed account resolution", {
+      privyUserId: verified.userId,
+    });
+    return {
+      status: "account-resolution-failed",
+      privyUserId: verified.userId,
+    };
+  }
 
   const profile = await fetchPrivyUserProfile(verified.userId);
 
   return {
-    created: verified.expiration * 1000,
-    authProvider: "privy",
-    user: {
-      id: accountId,
-      username: profile?.email ?? verified.userId,
-      email: profile?.email ?? undefined,
-      avatar: profile?.avatarUrl ?? "",
-      name: profile?.name ?? undefined,
+    status: "authenticated",
+    session: {
+      created: verified.expiration * 1000,
+      authProvider: "privy",
+      user: {
+        id: accountId,
+        username: profile?.email ?? verified.userId,
+        email: profile?.email ?? undefined,
+        avatar: profile?.avatarUrl ?? "",
+        name: profile?.name ?? undefined,
+      },
     },
   };
 }
