@@ -9,7 +9,10 @@ import type { useCreditsTopupDialog } from "@/hooks/use-credits-topup-dialog";
 
 type HookValues = ReturnType<typeof useCreditsTopupDialog>;
 
-type CreditsTopupFormProps = Omit<HookValues, "chargedSuccess"> & {
+type CreditsTopupFormProps = Omit<
+  HookValues,
+  "chargedSuccess" | "checkoutFallback"
+> & {
   onClose: () => void;
 };
 

@@ -48,4 +48,54 @@ describe("parseCreditsTopupResponse", () => {
     });
     expect(result?.kind).toBe("checkout");
   });
+
+  it("preserves declineReason on the checkout fallback when the api includes it", () => {
+    const result = parseCreditsTopupResponse({
+      id: "cs_live_xyz",
+      url: "https://pay.recoupable.com/c/pay/cs_live_xyz",
+      declineReason: {
+        code: "card_declined",
+        declineCode: "insufficient_funds",
+        message: "Your card has insufficient funds.",
+      },
+    });
+    expect(result).toEqual({
+      kind: "checkout",
+      sessionId: "cs_live_xyz",
+      url: "https://pay.recoupable.com/c/pay/cs_live_xyz",
+      declineReason: {
+        code: "card_declined",
+        declineCode: "insufficient_funds",
+        message: "Your card has insufficient funds.",
+      },
+    });
+  });
+
+  it("accepts declineReason without declineCode (e.g. expired_card)", () => {
+    const result = parseCreditsTopupResponse({
+      id: "cs_live_xyz",
+      url: "https://pay.recoupable.com/c/pay/cs_live_xyz",
+      declineReason: {
+        code: "expired_card",
+        message: "Your card has expired.",
+      },
+    });
+    expect(result).toEqual({
+      kind: "checkout",
+      sessionId: "cs_live_xyz",
+      url: "https://pay.recoupable.com/c/pay/cs_live_xyz",
+      declineReason: {
+        code: "expired_card",
+        message: "Your card has expired.",
+      },
+    });
+  });
+
+  it("omits declineReason from the parsed response when the payload doesn't include one", () => {
+    const result = parseCreditsTopupResponse({
+      id: "cs_live_xyz",
+      url: "https://pay.recoupable.com/c/pay/cs_live_xyz",
+    });
+    expect(result).not.toHaveProperty("declineReason");
+  });
 });

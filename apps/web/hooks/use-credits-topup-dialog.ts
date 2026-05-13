@@ -9,6 +9,7 @@ import {
   TOPUP_DEFAULT_CREDITS,
 } from "@/lib/credits/topup-presets";
 import { createClientCreditsSession } from "@/lib/stripe/create-client-credits-session";
+import type { CreditsTopupDeclineReason } from "@/lib/stripe/parse-credits-topup-response";
 
 export type TopupSelection =
   | { kind: "preset"; credits: number }
@@ -18,6 +19,11 @@ export type ChargedSuccess = {
   paymentIntentId: string;
   creditsPurchased: number;
   totalCents: number;
+};
+
+export type CheckoutFallback = {
+  url: string;
+  declineReason: CreditsTopupDeclineReason;
 };
 
 const CUSTOM_DOLLARS_PATTERN = /^\d{1,5}(\.\d{0,2})?$/;
@@ -41,6 +47,8 @@ export function useCreditsTopupDialog({
   const [chargedSuccess, setChargedSuccess] = useState<ChargedSuccess | null>(
     null,
   );
+  const [checkoutFallback, setCheckoutFallback] =
+    useState<CheckoutFallback | null>(null);
 
   const credits = useMemo(() => {
     if (selection.kind === "preset") return selection.credits;
@@ -57,6 +65,7 @@ export function useCreditsTopupDialog({
 
   const handleContinue = useCallback(async () => {
     setSubmitError(null);
+    setCheckoutFallback(null);
     setSubmitting(true);
     try {
       const token = await getAccessToken();
@@ -70,6 +79,16 @@ export function useCreditsTopupDialog({
         return;
       }
       if (result.response.kind === "checkout") {
+        // Stripe declined the saved card: surface the reason and let the
+        // user decide whether to update their payment method.
+        if (result.response.declineReason) {
+          setCheckoutFallback({
+            url: result.response.url,
+            declineReason: result.response.declineReason,
+          });
+          return;
+        }
+        // No card on file → open Checkout immediately to collect one.
         window.open(result.response.url, "_blank", "noopener,noreferrer");
         onClose();
         return;
@@ -95,5 +114,6 @@ export function useCreditsTopupDialog({
     submitDisabled,
     handleContinue,
     chargedSuccess,
+    checkoutFallback,
   };
 }

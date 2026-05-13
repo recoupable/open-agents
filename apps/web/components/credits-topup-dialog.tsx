@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { CreditsTopupDeclineView } from "@/components/credits-topup-decline-view";
 import { CreditsTopupForm } from "@/components/credits-topup-form";
 import { CreditsTopupSuccessView } from "@/components/credits-topup-success-view";
 import {
@@ -22,9 +23,20 @@ export function CreditsTopupDialog({
   onOpenChange,
 }: CreditsTopupDialogProps) {
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
-  const { chargedSuccess, ...form } = useCreditsTopupDialog({
+  const { chargedSuccess, checkoutFallback, ...form } = useCreditsTopupDialog({
     onClose: handleClose,
   });
+
+  const body = chargedSuccess ? (
+    <CreditsTopupSuccessView charged={chargedSuccess} onClose={handleClose} />
+  ) : checkoutFallback ? (
+    <CreditsTopupDeclineView
+      fallback={checkoutFallback}
+      onClose={handleClose}
+    />
+  ) : (
+    <CreditsTopupForm {...form} onClose={handleClose} />
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,14 +49,7 @@ export function CreditsTopupDialog({
             allotment.
           </DialogDescription>
         </DialogHeader>
-        {chargedSuccess ? (
-          <CreditsTopupSuccessView
-            charged={chargedSuccess}
-            onClose={handleClose}
-          />
-        ) : (
-          <CreditsTopupForm {...form} onClose={handleClose} />
-        )}
+        {body}
       </DialogContent>
     </Dialog>
   );
