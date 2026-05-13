@@ -1,20 +1,11 @@
-import { describe, expect, mock, test } from "bun:test";
-
-// Privy's ESM exports trip bun's module loader at evaluation time, and
-// the hook imports usePrivy at the top of its module. Bun's mock.module
-// is not hoisted above static ES imports, so we stub the SDK first and
-// then dynamic-import the module under test.
-mock.module("@privy-io/react-auth", () => ({
-  usePrivy: () => ({ getAccessToken: async () => null }),
-}));
-
-const {
+import { describe, expect, test } from "bun:test";
+import {
   applySessionSummary,
   applySessionSummaryFromChats,
   deriveSessionSummaryFromChats,
   didSessionSummaryChange,
-} = await import("./use-session-chats");
-type SessionChatListItem = import("./use-session-chats").SessionChatListItem;
+  type SessionChatListItem,
+} from "./use-session-chats";
 
 function createChat(
   id: string,
