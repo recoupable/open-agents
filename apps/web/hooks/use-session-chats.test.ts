@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  applySessionSummary,
-  applySessionSummaryFromChats,
-  deriveSessionSummaryFromChats,
-  didSessionSummaryChange,
-  type SessionChatListItem,
-} from "./session-chats-summary";
+import { applySessionSummary } from "./apply-session-summary";
+import { applySessionSummaryFromChats } from "./apply-session-summary-from-chats";
+import { deriveSessionSummaryFromChats } from "./derive-session-summary-from-chats";
+import { didSessionSummaryChange } from "./did-session-summary-change";
+import type { SessionChatListItem } from "./session-summary-types";
 
 function createChat(
   id: string,

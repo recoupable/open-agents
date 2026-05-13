@@ -6,26 +6,24 @@ import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
 import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
 import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
-import {
-  applySessionSummary,
-  applySessionSummaryFromChats,
-  deriveSessionSummaryFromChats,
-  didSessionSummaryChange,
-  type SessionChatListItem,
-  type SessionsResponse,
-  type SessionSummary,
-} from "./session-chats-summary";
+import { applySessionSummary } from "./apply-session-summary";
+import { applySessionSummaryFromChats } from "./apply-session-summary-from-chats";
+import { deriveSessionSummaryFromChats } from "./derive-session-summary-from-chats";
+import { didSessionSummaryChange } from "./did-session-summary-change";
+import type {
+  SessionChatListItem,
+  SessionsResponse,
+  SessionSummary,
+} from "./session-summary-types";
 
 export type {
   SessionChatListItem,
   SessionSummary,
-} from "./session-chats-summary";
-export {
-  applySessionSummary,
-  applySessionSummaryFromChats,
-  deriveSessionSummaryFromChats,
-  didSessionSummaryChange,
-} from "./session-chats-summary";
+} from "./session-summary-types";
+export { applySessionSummary } from "./apply-session-summary";
+export { applySessionSummaryFromChats } from "./apply-session-summary-from-chats";
+export { deriveSessionSummaryFromChats } from "./derive-session-summary-from-chats";
+export { didSessionSummaryChange } from "./did-session-summary-change";
 
 interface ChatsResponse {
   defaultModelId: string | null;
