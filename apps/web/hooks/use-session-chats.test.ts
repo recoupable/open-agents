@@ -1,9 +1,19 @@
-import { describe, expect, test } from "bun:test";
-import { applySessionSummary } from "./apply-session-summary";
-import { applySessionSummaryFromChats } from "./apply-session-summary-from-chats";
-import { deriveSessionSummaryFromChats } from "./derive-session-summary-from-chats";
-import { didSessionSummaryChange } from "./did-session-summary-change";
-import type { SessionChatListItem } from "./session-summary-types";
+import { describe, expect, mock, test } from "bun:test";
+
+// Privy's ESM exports trip bun's module loader at import time; the hook
+// imports usePrivy at the top of the module, so we stub the SDK here
+// before the file is evaluated.
+mock.module("@privy-io/react-auth", () => ({
+  usePrivy: () => ({ getAccessToken: async () => null }),
+}));
+
+const {
+  applySessionSummary,
+  applySessionSummaryFromChats,
+  deriveSessionSummaryFromChats,
+  didSessionSummaryChange,
+} = await import("./use-session-chats");
+type SessionChatListItem = import("./use-session-chats").SessionChatListItem;
 
 function createChat(
   id: string,
