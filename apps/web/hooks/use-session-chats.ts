@@ -1,10 +1,11 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
-import { fetcherNoStore } from "@/lib/swr";
-
+import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
+import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
 export type SessionChatListItem = Chat & {
   hasUnread: boolean;
   isStreaming: boolean;
@@ -198,6 +199,7 @@ export function useSessionChats(
   sessionId: string | null,
   options?: UseSessionChatsOptions,
 ) {
+  const { getAccessToken } = usePrivy();
   const [_overlayVersion, setOverlayVersion] = useState(0);
   const lastNonEmptyChatsRef = useRef<{
     sessionId: string | null;
@@ -234,8 +236,17 @@ export function useSessionChats(
   }, [sessionId]);
 
   const { data, error, isLoading, mutate } = useSWR<ChatsResponse>(
-    sessionId ? `/api/sessions/${sessionId}/chats` : null,
-    fetcherNoStore,
+    sessionId ? `recoup-session-chats:${sessionId}` : null,
+    async () => {
+      if (!sessionId) {
+        throw new Error("Missing sessionId");
+      }
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
+      }
+      return listRecoupSessionChats(sessionId, accessToken);
+    },
     {
       fallbackData,
       // We already render server-prefetched chats in the layout; avoid an
@@ -519,18 +530,8 @@ export function useSessionChats(
     );
 
     const persisted = (async () => {
-      const res = await fetch(`/api/sessions/${sessionId}/chats`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: optimisticChat.id }),
-      });
-
-      const responseData = (await res.json()) as {
-        chat?: Chat;
-        error?: string;
-      };
-
-      if (!res.ok || !responseData.chat) {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
         await mutate(
           (current) =>
             toChatsResponse(
@@ -541,10 +542,29 @@ export function useSessionChats(
             ),
           { revalidate: false },
         );
-        throw new Error(responseData.error ?? "Failed to create chat");
+        throw new Error("Not authenticated");
       }
 
-      const createdChat = responseData.chat;
+      let createdChat: Chat;
+      try {
+        createdChat = await createRecoupSessionChat(
+          sessionId,
+          { id: optimisticChat.id },
+          accessToken,
+        );
+      } catch (error) {
+        await mutate(
+          (current) =>
+            toChatsResponse(
+              current,
+              (current?.chats ?? []).filter(
+                (chat) => chat.id !== optimisticChat.id,
+              ),
+            ),
+          { revalidate: false },
+        );
+        throw error;
+      }
 
       // Replace the optimistic entry in-place with the server version
       await mutate(
