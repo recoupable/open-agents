@@ -1,8 +1,11 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
+import { deleteRecoupSessionChat } from "@/lib/recoupable/delete-recoup-session-chat";
+import { patchRecoupSessionChat } from "@/lib/recoupable/patch-recoup-session-chat";
 import { fetcherNoStore } from "@/lib/swr";
 
 export type SessionChatListItem = Chat & {
@@ -198,6 +201,7 @@ export function useSessionChats(
   sessionId: string | null,
   options?: UseSessionChatsOptions,
 ) {
+  const { getAccessToken } = usePrivy();
   const [_overlayVersion, setOverlayVersion] = useState(0);
   const lastNonEmptyChatsRef = useRef<{
     sessionId: string | null;
@@ -675,18 +679,18 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const res = await fetch(`/api/sessions/${sessionId}/chats/${chatId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-
-    const responseData = (await res.json()) as { chat?: Chat; error?: string };
-    if (!res.ok || !responseData.chat) {
-      throw new Error(responseData.error ?? "Failed to rename chat");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
 
-    const updatedChat = responseData.chat;
+    const { chat: updatedChat } = await patchRecoupSessionChat(
+      sessionId,
+      chatId,
+      { title },
+      accessToken,
+    );
+
     await mutate(
       (current) =>
         toChatsResponse(
@@ -706,18 +710,12 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const res = await fetch(`/api/sessions/${sessionId}/chats/${chatId}`, {
-      method: "DELETE",
-    });
-
-    const responseData = (await res.json()) as {
-      success?: boolean;
-      error?: string;
-    };
-
-    if (!res.ok || !responseData.success) {
-      throw new Error(responseData.error ?? "Failed to delete chat");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
+
+    await deleteRecoupSessionChat(sessionId, chatId, accessToken);
 
     await mutate(
       (current) =>

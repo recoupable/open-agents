@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { SandboxState } from "@open-harness/sandbox";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   createContext,
   type ReactNode,
@@ -13,6 +14,7 @@ import {
   useState,
 } from "react";
 import { useSWRConfig } from "swr";
+import { patchRecoupSessionChat } from "@/lib/recoupable/patch-recoup-session-chat";
 import type { ReconnectResponse } from "@/app/api/sandbox/reconnect/route";
 import type { SandboxStatusResponse } from "@/app/api/sandbox/status/route";
 import type { DiffResponse } from "@/app/api/sessions/[sessionId]/diff/route";
@@ -288,6 +290,7 @@ export function SessionChatProvider({
   children,
 }: SessionChatProviderProps) {
   const { mutate } = useSWRConfig();
+  const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
   const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
@@ -874,23 +877,21 @@ export function SessionChatProvider({
 
   const updateChatModel = useCallback(
     async (modelId: string) => {
-      const res = await fetch(
-        `/api/sessions/${sessionRecord.id}/chats/${chatInfo.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ modelId }),
-        },
-      );
-
-      const data = (await res.json()) as { chat?: Chat; error?: string };
-      if (!res.ok || !data.chat) {
-        throw new Error(data.error ?? "Failed to update chat model");
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
       }
 
-      setChatInfo(data.chat);
+      const { chat: updatedChat } = await patchRecoupSessionChat(
+        sessionRecord.id,
+        chatInfo.id,
+        { modelId },
+        accessToken,
+      );
+
+      setChatInfo(updatedChat);
     },
-    [sessionRecord.id, chatInfo.id],
+    [sessionRecord.id, chatInfo.id, getAccessToken],
   );
 
   const runtimeContextValue = useMemo<SessionChatRuntimeContextValue>(
