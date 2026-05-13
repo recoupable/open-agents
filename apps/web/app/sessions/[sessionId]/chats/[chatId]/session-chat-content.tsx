@@ -42,7 +42,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
-import type { ChatRefreshResponse } from "@/app/api/sessions/[sessionId]/chats/[chatId]/route";
+import { usePrivy } from "@privy-io/react-auth";
+import { getRecoupSessionChat } from "@/lib/recoupable/get-recoup-session-chat";
 import type { PrDeploymentResponse } from "@/lib/pr-deployment-polling";
 import type {
   WebAgentCommitDataPart,
@@ -830,6 +831,7 @@ export function SessionChatContent({
   codeEditorDisabledReason: string | null;
 }) {
   const router = useRouter();
+  const { getAccessToken } = usePrivy();
   const [input, setInput] = useState("");
   const [isRestoringSnapshot, setIsRestoringSnapshot] = useState(false);
   const [_isUnarchiving, _setIsUnarchiving] = useState(false);
@@ -1368,24 +1370,24 @@ export function SessionChatContent({
       return;
     }
 
-    const response = await fetch(
-      `/api/sessions/${session.id}/chats/${chatInfo.id}`,
-      {
-        cache: "no-store",
-      },
-    );
-    if (!response.ok) {
+    const accessToken = await getAccessToken().catch(() => null);
+    if (!accessToken) {
       return;
     }
 
-    const data = (await response.json()) as ChatRefreshResponse;
+    let data;
+    try {
+      data = await getRecoupSessionChat(session.id, chatInfo.id, accessToken);
+    } catch {
+      return;
+    }
     if (data.isStreaming) {
       return;
     }
 
     clearError();
     setMessages(data.messages);
-  }, [chatInfo.id, clearError, session.id, setMessages]);
+  }, [chatInfo.id, clearError, getAccessToken, session.id, setMessages]);
 
   const refreshAfterTabResume = useCallback(async (): Promise<void> => {
     if (

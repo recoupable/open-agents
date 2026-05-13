@@ -26,11 +26,6 @@ type OwnedSessionChatResult =
       response: Response;
     };
 
-type ChatMessageRecord = {
-  id: string;
-  parts: Array<{ type: string; text?: string }>;
-};
-
 type ChatRecord = {
   id: string;
   sessionId: string;
@@ -55,13 +50,6 @@ let currentSession: {
 } | null = {
   user: { id: "user-1" },
 };
-let chatMessages: ChatMessageRecord[] = [
-  {
-    id: "message-1",
-    parts: [{ type: "text", text: "Hello" }],
-  },
-];
-
 let updatedChat: ChatRecord | null = {
   id: "chat-1",
   sessionId: "session-1",
@@ -92,7 +80,6 @@ mock.module("@/lib/db/sessions", () => ({
     updateChatCalls.push({ chatId, patch });
     return updatedChat;
   },
-  getChatMessages: async () => chatMessages,
   getChatsBySessionId: async () => chatsInSession,
   deleteChat: async (chatId: string) => {
     deleteChatCalls.push(chatId);
@@ -128,10 +115,6 @@ function createContext(sessionId = "session-1", chatId = "chat-1") {
   };
 }
 
-function createGetRequest(): Request {
-  return new Request("http://localhost/api/sessions/session-1/chats/chat-1");
-}
-
 function createPatchRequest(body: unknown): Request {
   return new Request("http://localhost/api/sessions/session-1/chats/chat-1", {
     method: "PATCH",
@@ -154,12 +137,6 @@ describe("/api/sessions/[sessionId]/chats/[chatId]", () => {
       },
     };
     currentSession = { user: { id: "user-1" } };
-    chatMessages = [
-      {
-        id: "message-1",
-        parts: [{ type: "text", text: "Hello" }],
-      },
-    ];
     updatedChat = {
       id: "chat-1",
       sessionId: "session-1",
@@ -169,58 +146,6 @@ describe("/api/sessions/[sessionId]/chats/[chatId]", () => {
     chatsInSession = [{ id: "chat-1" }, { id: "chat-2" }];
     updateChatCalls.length = 0;
     deleteChatCalls.length = 0;
-  });
-
-  test("GET returns auth error from guard", async () => {
-    authResult = {
-      ok: false,
-      response: Response.json({ error: "Not authenticated" }, { status: 401 }),
-    };
-    const { GET } = await routeModulePromise;
-
-    const response = await GET(createGetRequest(), createContext());
-
-    expect(response.status).toBe(401);
-  });
-
-  test("GET returns the latest chat snapshot", async () => {
-    ownedSessionChatResult = {
-      ok: true,
-      sessionRecord: { id: "session-1" },
-      chat: {
-        id: "chat-1",
-        sessionId: "session-1",
-        modelId: "model-1",
-        activeStreamId: "stream-1",
-      },
-    };
-    chatMessages = [
-      {
-        id: "message-1",
-        parts: [{ type: "text", text: "Hello" }],
-      },
-      {
-        id: "message-2",
-        parts: [{ type: "text", text: "World" }],
-      },
-    ];
-    const { GET } = await routeModulePromise;
-
-    const response = await GET(createGetRequest(), createContext());
-    const body = (await response.json()) as {
-      chat: { id: string; modelId: string; activeStreamId: string | null };
-      isStreaming: boolean;
-      messages: ChatMessageRecord["parts"][];
-    };
-
-    expect(response.status).toBe(200);
-    expect(body.chat).toEqual({
-      id: "chat-1",
-      modelId: "model-1",
-      activeStreamId: "stream-1",
-    });
-    expect(body.isStreaming).toBe(true);
-    expect(body.messages).toEqual(chatMessages.map((message) => message.parts));
   });
 
   test("PATCH returns auth error from guard", async () => {

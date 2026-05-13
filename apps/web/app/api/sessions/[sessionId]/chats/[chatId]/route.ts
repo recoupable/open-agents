@@ -2,13 +2,7 @@ import {
   requireAuthenticatedUser,
   requireOwnedSessionChat,
 } from "@/app/api/sessions/_lib/session-context";
-import type { WebAgentUIMessage } from "@/app/types";
-import {
-  deleteChat,
-  getChatMessages,
-  getChatsBySessionId,
-  updateChat,
-} from "@/lib/db/sessions";
+import { deleteChat, getChatsBySessionId, updateChat } from "@/lib/db/sessions";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeSelectedModelIdForSession } from "@/lib/model-access";
 import { getAllVariants } from "@/lib/model-variants";
@@ -21,59 +15,6 @@ type RouteContext = {
 interface UpdateChatRequest {
   title?: string;
   modelId?: string;
-}
-
-export interface ChatRefreshResponse {
-  chat: {
-    id: string;
-    modelId: string | null;
-    activeStreamId: string | null;
-  };
-  isStreaming: boolean;
-  messages: WebAgentUIMessage[];
-}
-
-export async function GET(req: Request, context: RouteContext) {
-  const authResult = await requireAuthenticatedUser();
-  if (!authResult.ok) {
-    return authResult.response;
-  }
-
-  const session = await getServerSession();
-  const { sessionId, chatId } = await context.params;
-
-  const chatContext = await requireOwnedSessionChat({
-    userId: authResult.userId,
-    sessionId,
-    chatId,
-  });
-  if (!chatContext.ok) {
-    return chatContext.response;
-  }
-
-  const [messages, preferences] = await Promise.all([
-    getChatMessages(chatId),
-    getUserPreferences(authResult.userId),
-  ]);
-  const modelId =
-    sanitizeSelectedModelIdForSession(
-      chatContext.chat.modelId,
-      getAllVariants(preferences.modelVariants),
-      session,
-      req.url,
-    ) ??
-    chatContext.chat.modelId ??
-    null;
-
-  return Response.json({
-    chat: {
-      id: chatContext.chat.id,
-      modelId,
-      activeStreamId: chatContext.chat.activeStreamId,
-    },
-    isStreaming: chatContext.chat.activeStreamId !== null,
-    messages: messages.map((message) => message.parts as WebAgentUIMessage),
-  } satisfies ChatRefreshResponse);
 }
 
 export async function PATCH(req: Request, context: RouteContext) {
