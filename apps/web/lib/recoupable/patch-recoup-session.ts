@@ -1,13 +1,18 @@
+import type { Session } from "@/lib/db/schema";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
+/** Request body for Recoup `PATCH /api/sessions/{sessionId}` (matches public OpenAPI). */
 export type PatchRecoupSessionBody = {
   title?: string;
-  status?: "running" | "archived";
+  status?: Session["status"];
+  linesAdded?: number;
+  linesRemoved?: number;
 };
 
 /**
  * PATCH `recoup-api/api/sessions/{sessionId}` with Privy Bearer auth.
- * Response body matches open-agents session JSON (`{ session }` on success).
+ * Optional fields: rename (`title`), lifecycle `status`, persisted line counters.
+ * Response shape: `{ session }` on 200 (same wire format as open-agents `Session`).
  */
 export function patchRecoupSession(
   sessionId: string,
