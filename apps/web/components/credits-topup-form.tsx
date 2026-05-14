@@ -2,6 +2,7 @@
 
 import { CreditsTopupAmountDisplay } from "@/components/credits-topup-amount-display";
 import { CreditsTopupFeeDisclosure } from "@/components/credits-topup-fee-disclosure";
+import { CreditsTopupPaymentMethod } from "@/components/credits-topup-payment-method";
 import { CreditsTopupPresetChips } from "@/components/credits-topup-preset-chips";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -46,6 +47,7 @@ export function CreditsTopupForm({
           charge={charge}
           customCreditsBelowMin={customCreditsBelowMin}
         />
+        <CreditsTopupPaymentMethod />
         {submitError ? (
           <p className="text-sm text-destructive" role="alert">
             {submitError}
