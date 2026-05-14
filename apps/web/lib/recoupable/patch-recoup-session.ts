@@ -1,4 +1,5 @@
 import type { Session } from "@/lib/db/schema";
+import { z } from "zod";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
 /** Request body for Recoup `PATCH /api/sessions/{sessionId}` (matches public OpenAPI). */
@@ -8,6 +9,33 @@ export type PatchRecoupSessionBody = {
   linesAdded?: number;
   linesRemoved?: number;
 };
+
+const recoupErrorBodySchema = z
+  .object({
+    status: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .passthrough();
+
+const sessionStatusEnum = z.enum([
+  "running",
+  "completed",
+  "failed",
+  "archived",
+]);
+
+const recoupPatchSessionWireSchema = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    title: z.string(),
+    status: sessionStatusEnum,
+  })
+  .passthrough();
+
+const recoupPatchSessionSuccessSchema = z.object({
+  session: recoupPatchSessionWireSchema,
+});
 
 /**
  * PATCH `recoup-api/api/sessions/{sessionId}` with Privy Bearer auth.
@@ -32,11 +60,9 @@ export function patchRecoupSession(
   );
 }
 
-type RecoupSessionPatchJson = { session?: Session; error?: string };
-
 /**
  * PATCH session on Recoup API and return `{ session }` or throw with server message.
- * Keeps call sites small (fetch + parse + error shape live here, not in UI files).
+ * Parses JSON with Zod (no `as` assertions on untrusted responses).
  */
 export async function patchRecoupSessionJson(
   sessionId: string,
@@ -44,12 +70,19 @@ export async function patchRecoupSessionJson(
   accessToken: string,
 ): Promise<Session> {
   const res = await patchRecoupSession(sessionId, body, accessToken);
-  const data = (await res.json()) as RecoupSessionPatchJson;
+  const raw: unknown = await res.json();
+
   if (!res.ok) {
-    throw new Error(data.error ?? "Request failed");
+    const err = recoupErrorBodySchema.safeParse(raw);
+    throw new Error(
+      err.success ? (err.data.error ?? "Request failed") : "Request failed",
+    );
   }
-  if (!data.session) {
-    throw new Error(data.error ?? "Missing session in response");
+
+  const ok = recoupPatchSessionSuccessSchema.safeParse(raw);
+  if (!ok.success) {
+    throw new Error("Missing or invalid session in response");
   }
-  return data.session;
+
+  return ok.data.session as Session;
 }
