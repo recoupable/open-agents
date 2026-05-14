@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: credits + stripe unit tests
+    name: bun run test:unit
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -21,13 +21,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # Runs every *.test.ts under apps/web/lib/credits and apps/web/lib/stripe
-      # via Bun's built-in test runner. Scope is intentionally narrow — these
-      # are pure-unit tests with no external dependencies (no Redis, Supabase,
-      # Privy, etc.), so they're safe and fast to run on every PR.
-      #
-      # Broader integration tests in apps/web/lib/sandbox/, hooks/, and the
-      # route tests under app/api/ are intentionally excluded — they need
-      # services that aren't available on a vanilla GitHub Actions runner.
+      # Test scope lives in the root package.json `test:unit` script so it
+      # can be widened (or narrowed) without touching the workflow file.
+      # Same pattern as the chat repo where `pnpm test` defers to
+      # vitest.config.ts for the scope.
       - name: Run unit tests
-        run: bun test apps/web/lib/credits apps/web/lib/stripe
+        run: bun run test:unit
