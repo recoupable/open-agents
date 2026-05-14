@@ -296,14 +296,6 @@ export async function deleteSession(sessionId: string) {
   await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
-export async function createChat(data: NewChat) {
-  const [chat] = await db.insert(chats).values(data).returning();
-  if (!chat) {
-    throw new Error("Failed to create chat");
-  }
-  return chat;
-}
-
 export async function getChatById(chatId: string) {
   return db.query.chats.findFirst({
     where: eq(chats.id, chatId),

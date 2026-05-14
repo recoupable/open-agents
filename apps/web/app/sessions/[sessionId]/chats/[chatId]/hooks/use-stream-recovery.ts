@@ -1,7 +1,9 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useRef } from "react";
 import type { ChatUiStatus } from "@/lib/chat-streaming-state";
+import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
 import {
   getStreamRecoveryDecision,
   getStreamRecoveryDelayMs,
@@ -31,6 +33,8 @@ export function useStreamRecovery({
   hasAssistantRenderableContent,
   retryChatStream,
 }: UseStreamRecoveryParams): void {
+  const { getAccessToken } = usePrivy();
+
   const inFlightStartedAtRef = useRef<number | null>(null);
   const lastStreamRecoveryAtRef = useRef(0);
   const streamRecoveryProbeInFlightRef = useRef(false);
@@ -70,14 +74,12 @@ export function useStreamRecovery({
 
     void (async () => {
       try {
-        const response = await fetch(`/api/sessions/${sessionId}/chats`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
           return;
         }
 
-        const payload: unknown = await response.json();
+        const payload = await listRecoupSessionChats(sessionId, accessToken);
         if (!isChatStreamingProbeResponse(payload)) {
           return;
         }

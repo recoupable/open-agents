@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
+import { fetchAccountId } from "@/lib/recoupable/fetch-account-id";
 import { fetcher } from "@/lib/swr";
 import { formatDateOnly } from "@/lib/usage/date-range";
 import type { UsageDomainLeaderboard } from "@/lib/usage/types";
@@ -105,8 +106,18 @@ function RangeFilter({
 }
 
 export function LeaderboardSection() {
-  const { session } = useSession();
-  const userId = session?.user?.id;
+  const { ready, authenticated, getAccessToken, user } = usePrivy();
+  const { data: userId } = useSWR(
+    ready && authenticated && user?.id ? ["account-id", user.id] : null,
+    async () => {
+      const token = await getAccessToken();
+      if (!token) {
+        throw new Error("Missing Privy access token");
+      }
+      return fetchAccountId(token);
+    },
+    { revalidateOnFocus: true },
+  );
   const [range, setRange] = useState<LeaderboardRange>("today");
 
   const usagePath = useMemo(() => buildUsagePath(range), [range]);

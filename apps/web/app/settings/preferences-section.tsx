@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { ModelCombobox } from "@/components/model-combobox";
 import { useModelOptions } from "@/hooks/use-model-options";
-import { useSession } from "@/hooks/use-session";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   type DiffMode,
   useUserPreferences,
@@ -113,7 +113,7 @@ export function PreferencesSectionSkeleton() {
 
 export function PreferencesSection() {
   const { theme, setTheme } = useTheme();
-  const { session } = useSession();
+  const { user } = usePrivy();
   const { preferences, loading, updatePreferences } = useUserPreferences();
   const { modelOptions, loading: modelOptionsLoading } = useModelOptions();
   const [isSaving, setIsSaving] = useState(false);
@@ -127,9 +127,8 @@ export function PreferencesSection() {
   const selectedDefaultModelId =
     preferences?.defaultModelId ?? getDefaultModelOptionId(modelOptions);
   const selectedSubagentModelId = preferences?.defaultSubagentModelId ?? "auto";
-  const publicProfilePath = session?.user?.username
-    ? `/u/${session.user.username}`
-    : null;
+  const username = user?.email?.address ?? user?.id;
+  const publicProfilePath = username ? `/u/${username}` : null;
 
   const defaultModelOptions = useMemo(
     () => withMissingModelOption(modelOptions, selectedDefaultModelId),
