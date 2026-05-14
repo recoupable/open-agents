@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { isCardExpired } from "./is-card-expired";
+import { isCardExpired } from "../is-card-expired";
 
 describe("isCardExpired", () => {
   it("is not expired during the exp month", () => {

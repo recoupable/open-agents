@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { formatBrand } from "./format-brand";
+import { formatBrand } from "../format-brand";
 
 describe("formatBrand", () => {
   it("capitalizes the first letter of common Stripe brand strings", () => {
