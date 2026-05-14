@@ -24,6 +24,7 @@
     "fix": "ultracite fix",
     "ci": "bun run check && bun run typecheck && bun run test:isolated && bun run --cwd apps/web db:check",
     "test:isolated": "bun run scripts/test-isolated.ts",
+    "test:unit": "bun test apps/web/lib/credits apps/web/lib/stripe",
     "test:verbose": "bun test --reporter=junit --reporter-outfile /dev/stdout"
   },
   "devDependencies": {
