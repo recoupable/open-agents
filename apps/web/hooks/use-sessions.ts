@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
 import { patchRecoupSessionJson } from "@/lib/recoupable/patch-recoup-session";
+import {
+  archiveSessionViaRecoup,
+  unarchiveSessionViaRecoup,
+} from "@/lib/recoupable/recoup-session-mutations-client";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -141,10 +145,14 @@ export function useSessions(options?: {
         session?: Session;
         chat?: Chat;
         error?: string;
+        message?: string;
       };
 
       if (!res.ok || !responseData.session || !responseData.chat) {
-        const message = responseData.error ?? "Failed to create session";
+        const message =
+          responseData.error ??
+          responseData.message ??
+          "Failed to create session";
         toast.error(message);
         throw new Error(message);
       }
@@ -306,15 +314,9 @@ export function useSessions(options?: {
       );
 
       try {
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-          throw new Error("Not authenticated");
-        }
-
-        const updatedSession = await patchRecoupSessionJson(
+        const updatedSession = await archiveSessionViaRecoup(
           sessionId,
-          { status: "archived" },
-          accessToken,
+          getAccessToken,
         );
 
         if (includeArchived) {
@@ -382,15 +384,9 @@ export function useSessions(options?: {
       );
 
       try {
-        const accessToken = await getAccessToken();
-        if (!accessToken) {
-          throw new Error("Not authenticated");
-        }
-
-        const updatedSession = await patchRecoupSessionJson(
+        const updatedSession = await unarchiveSessionViaRecoup(
           sessionId,
-          { status: "running" },
-          accessToken,
+          getAccessToken,
         );
 
         if (includeArchived) {

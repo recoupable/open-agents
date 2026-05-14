@@ -14,6 +14,7 @@ const recoupErrorBodySchema = z
   .object({
     status: z.string().optional(),
     error: z.string().optional(),
+    message: z.string().optional(),
   })
   .passthrough();
 
@@ -75,7 +76,9 @@ export async function patchRecoupSessionJson(
   if (!res.ok) {
     const err = recoupErrorBodySchema.safeParse(raw);
     throw new Error(
-      err.success ? (err.data.error ?? "Request failed") : "Request failed",
+      err.success
+        ? (err.data.error ?? err.data.message ?? "Request failed")
+        : "Request failed",
     );
   }
 

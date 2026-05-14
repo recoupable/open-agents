@@ -31,6 +31,10 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
+import {
+  archiveSessionViaRecoup,
+  unarchiveSessionViaRecoup,
+} from "@/lib/recoupable/recoup-session-mutations-client";
 import { patchRecoupSessionJson } from "@/lib/recoupable/patch-recoup-session";
 import {
   mergeSessionIntoSessionsSwrSnapshot,
@@ -756,17 +760,10 @@ export function SessionChatProvider({
     setSessionRecord(optimisticSession);
     await pushSessionToSessionsSwr(optimisticSession, false);
 
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      await rollback();
-      throw new Error("Not authenticated");
-    }
-
     try {
-      const nextSession = await patchRecoupSessionJson(
+      const nextSession = await archiveSessionViaRecoup(
         sessionRecord.id,
-        { status: "archived" },
-        accessToken,
+        getAccessToken,
       );
       setSessionRecord(nextSession);
       await pushSessionToSessionsSwr(nextSession, true);
@@ -780,15 +777,9 @@ export function SessionChatProvider({
     // Wait for server confirmation before updating local state so that
     // sandbox-related effects (reconnect probe, auto-restore, auto-create)
     // don't fire until the server has actually reset the session.
-    const accessToken = await getAccessToken();
-    if (!accessToken) {
-      throw new Error("Not authenticated");
-    }
-
-    const nextSession = await patchRecoupSessionJson(
+    const nextSession = await unarchiveSessionViaRecoup(
       sessionRecord.id,
-      { status: "running" },
-      accessToken,
+      getAccessToken,
     );
     setSessionRecord(nextSession);
     await pushSessionToSessionsSwr(nextSession, true);
