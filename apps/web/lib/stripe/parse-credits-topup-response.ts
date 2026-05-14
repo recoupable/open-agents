@@ -65,9 +65,7 @@ export function parseCreditsTopupResponse(
   if (charged.success) {
     return {
       kind: "charged",
-      paymentIntentId: charged.data.paymentIntentId,
-      creditsPurchased: charged.data.creditsPurchased,
-      totalCents: charged.data.totalCents,
+      ...charged.data,
     };
   }
 
