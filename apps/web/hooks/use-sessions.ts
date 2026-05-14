@@ -5,7 +5,7 @@ import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
-import { patchRecoupSession } from "@/lib/recoupable/patch-recoup-session";
+import { patchRecoupSessionJson } from "@/lib/recoupable/patch-recoup-session";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -223,18 +223,11 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const res = await patchRecoupSession(sessionId, { title }, accessToken);
-
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok || !responseData.session) {
-          throw new Error(responseData.error ?? "Failed to rename session");
-        }
-
-        const updatedSession = responseData.session;
+        const updatedSession = await patchRecoupSessionJson(
+          sessionId,
+          { title },
+          accessToken,
+        );
 
         await mutate(
           (current) => {
@@ -318,31 +311,16 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const res = await patchRecoupSession(
+        const updatedSession = await patchRecoupSessionJson(
           sessionId,
           { status: "archived" },
           accessToken,
         );
 
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok) {
-          throw new Error(responseData.error ?? "Failed to archive session");
-        }
-
-        if (responseData.session) {
-          const updatedSession = responseData.session;
-
+        if (includeArchived) {
           await mutate(
             (current) => {
               if (!current) {
-                return current;
-              }
-
-              if (!includeArchived) {
                 return current;
               }
 
@@ -359,7 +337,7 @@ export function useSessions(options?: {
           );
         }
 
-        return responseData.session;
+        return updatedSession;
       } catch (error) {
         if (previousData) {
           await mutate(previousData, { revalidate: false });
@@ -409,22 +387,11 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const res = await patchRecoupSession(
+        const updatedSession = await patchRecoupSessionJson(
           sessionId,
           { status: "running" },
           accessToken,
         );
-
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok || !responseData.session) {
-          throw new Error(responseData.error ?? "Failed to unarchive session");
-        }
-
-        const updatedSession = responseData.session;
 
         if (includeArchived) {
           await mutate(
@@ -448,7 +415,7 @@ export function useSessions(options?: {
           await mutate();
         }
 
-        return responseData.session;
+        return updatedSession;
       } catch (error) {
         if (previousData) {
           await mutate(previousData, { revalidate: false });

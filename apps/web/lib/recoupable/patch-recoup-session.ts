@@ -31,3 +31,25 @@ export function patchRecoupSession(
     },
   );
 }
+
+type RecoupSessionPatchJson = { session?: Session; error?: string };
+
+/**
+ * PATCH session on Recoup API and return `{ session }` or throw with server message.
+ * Keeps call sites small (fetch + parse + error shape live here, not in UI files).
+ */
+export async function patchRecoupSessionJson(
+  sessionId: string,
+  body: PatchRecoupSessionBody,
+  accessToken: string,
+): Promise<Session> {
+  const res = await patchRecoupSession(sessionId, body, accessToken);
+  const data = (await res.json()) as RecoupSessionPatchJson;
+  if (!res.ok) {
+    throw new Error(data.error ?? "Request failed");
+  }
+  if (!data.session) {
+    throw new Error(data.error ?? "Missing session in response");
+  }
+  return data.session;
+}
