@@ -165,7 +165,7 @@ export const workflowRunSteps = pgTable(
 export const usageEvents = pgTable("usage_events", {
   id: text("id").primaryKey(),
   userId: text("account_id").notNull(),
-  source: text("source", { enum: ["web"] })
+  source: text("source", { enum: ["web", "api"] })
     .notNull()
     .default("web"),
   agentType: text("agent_type", { enum: ["main", "subagent"] })
@@ -177,7 +177,23 @@ export const usageEvents = pgTable("usage_events", {
   cachedInputTokens: integer("cached_input_tokens").notNull().default(0),
   outputTokens: integer("output_tokens").notNull().default(0),
   toolCallCount: integer("tool_call_count").notNull().default(0),
+  creditsDeductedCents: integer("credits_deducted_cents").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Legacy wallet (Supabase-owned). Open-agents debits this on each
+// recordUsage() write so credits_usage.remaining_credits stays the
+// fast cached balance, and usage_events stays the append-only ledger.
+// Schema lives in recoupable/database (see lib/supabase/credits_usage/
+// in the api repo for the canonical write path).
+export const creditsUsage = pgTable("credits_usage", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  // One wallet row per account — the Supabase-owned schema enforces this
+  // via a unique index; we mirror it here so Drizzle's typing matches the
+  // single-row read pattern (e.g. api/lib/supabase/credits_usage/select).
+  accountId: text("account_id").notNull().unique(),
+  remainingCredits: integer("remaining_credits").notNull().default(0),
+  timestamp: timestamp("timestamp", { withTimezone: true }),
 });
 
 export type Session = typeof sessions.$inferSelect;
@@ -194,3 +210,5 @@ export type WorkflowRunStep = typeof workflowRunSteps.$inferSelect;
 export type NewWorkflowRunStep = typeof workflowRunSteps.$inferInsert;
 export type UsageEvent = typeof usageEvents.$inferSelect;
 export type NewUsageEvent = typeof usageEvents.$inferInsert;
+export type CreditsUsage = typeof creditsUsage.$inferSelect;
+export type NewCreditsUsage = typeof creditsUsage.$inferInsert;

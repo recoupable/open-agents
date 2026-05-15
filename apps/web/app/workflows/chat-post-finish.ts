@@ -279,6 +279,11 @@ export async function recordWorkflowUsage(
           cachedInputTokens: cachedInputTokensFor(totalUsage),
           outputTokens: totalUsage.outputTokens ?? 0,
         },
+        // Use the gateway-reported total cost when present so the wallet
+        // debit converges with the cost label the UI shows next to this
+        // turn's assistant response. Subagent calls below don't carry a
+        // per-step cost and fall back to the token-based estimate.
+        gatewayCostUsd: responseMessage.metadata?.totalMessageCost,
       });
     }
 

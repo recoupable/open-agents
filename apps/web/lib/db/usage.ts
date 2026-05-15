@@ -1,11 +1,12 @@
 import { isToolUIPart, type LanguageModel, type UIMessage } from "ai";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { computeCreditsDeductedCents } from "@/lib/credits/compute-credits-deducted-cents";
 import type { UsageDateRange } from "@/lib/usage/date-range";
 import { db } from "./client";
-import { usageEvents } from "./schema";
+import { creditsUsage, usageEvents } from "./schema";
 
-export type UsageSource = "web";
+export type UsageSource = "web" | "api";
 export type UsageAgentType = "main" | "subagent";
 
 export async function recordUsage(
@@ -21,6 +22,14 @@ export async function recordUsage(
       outputTokens: number;
     };
     toolCallCount?: number;
+    /**
+     * Gateway-reported total cost in USD for this turn (from
+     * `assistantMessage.metadata.totalMessageCost`). When present this is
+     * used directly so the wallet debit converges with the cost the UI
+     * displays next to the assistant response. Falls back to a token-based
+     * estimate when omitted (subagent steps don't carry per-step cost).
+     */
+    gatewayCostUsd?: number;
   },
 ) {
   const inferredToolCallCount = data.messages
@@ -35,18 +44,50 @@ export async function recordUsage(
   const modelId =
     typeof data.model === "string" ? data.model : data.model.modelId;
 
-  await db.insert(usageEvents).values({
-    id: nanoid(),
-    userId,
-    source: data.source,
-    agentType: data.agentType ?? "main",
-    provider: provider ?? null,
-    modelId: modelId ?? null,
-    inputTokens: data.usage.inputTokens,
-    cachedInputTokens: data.usage.cachedInputTokens,
-    outputTokens: data.usage.outputTokens,
-    toolCallCount,
-  });
+  const creditsDeductedCents = modelId
+    ? await computeCreditsDeductedCents(
+        data.usage,
+        modelId,
+        data.gatewayCostUsd,
+      )
+    : 0;
+
+  // Atomic: either both the wallet debit AND the meter insert land, or
+  // neither does. Prevents the wallet from drifting past the meter when
+  // one side fails (the cubic/code-review concern). Errors are caught
+  // outside the transaction so the agent workflow never aborts on a
+  // credit accounting failure.
+  try {
+    await db.transaction(async (tx) => {
+      if (creditsDeductedCents > 0) {
+        await tx
+          .update(creditsUsage)
+          .set({
+            remainingCredits: sql`${creditsUsage.remainingCredits} - ${creditsDeductedCents}`,
+          })
+          .where(eq(creditsUsage.accountId, userId));
+      }
+
+      await tx.insert(usageEvents).values({
+        id: nanoid(),
+        userId,
+        source: data.source,
+        agentType: data.agentType ?? "main",
+        provider: provider ?? null,
+        modelId: modelId ?? null,
+        inputTokens: data.usage.inputTokens,
+        cachedInputTokens: data.usage.cachedInputTokens,
+        outputTokens: data.usage.outputTokens,
+        toolCallCount,
+        creditsDeductedCents,
+      });
+    });
+  } catch (error) {
+    console.error(
+      "Failed to record usage (wallet + meter rolled back together):",
+      error,
+    );
+  }
 }
 
 export interface DailyUsage {
