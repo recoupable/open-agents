@@ -31,7 +31,7 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
-import { patchOwnedSession } from "@/lib/session/patch-owned-session-client";
+import { patchOwnSession } from "@/lib/session/patch-own-session";
 import {
   mergeSessionIntoSessionsSwrSnapshot,
   type SessionsSwrSnapshot,
@@ -763,7 +763,7 @@ export function SessionChatProvider({
         throw new Error("Not authenticated");
       }
 
-      const nextSession = await patchOwnedSession(
+      const nextSession = await patchOwnSession(
         sessionRecord.id,
         { status: "archived" },
         accessToken,
@@ -785,7 +785,7 @@ export function SessionChatProvider({
       throw new Error("Not authenticated");
     }
 
-    const nextSession = await patchOwnedSession(
+    const nextSession = await patchOwnSession(
       sessionRecord.id,
       { status: "running" },
       accessToken,
@@ -801,7 +801,7 @@ export function SessionChatProvider({
         throw new Error("Not authenticated");
       }
 
-      const nextSession = await patchOwnedSession(
+      const nextSession = await patchOwnSession(
         sessionRecord.id,
         { title },
         accessToken,

@@ -5,7 +5,7 @@ import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
-import { patchOwnedSession } from "@/lib/session/patch-owned-session-client";
+import { patchOwnSession } from "@/lib/session/patch-own-session";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -227,7 +227,7 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const updatedSession = await patchOwnedSession(
+        const updatedSession = await patchOwnSession(
           sessionId,
           { title },
           accessToken,
@@ -315,7 +315,7 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const updatedSession = await patchOwnedSession(
+        const updatedSession = await patchOwnSession(
           sessionId,
           { status: "archived" },
           accessToken,
@@ -391,7 +391,7 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const updatedSession = await patchOwnedSession(
+        const updatedSession = await patchOwnSession(
           sessionId,
           { status: "running" },
           accessToken,
