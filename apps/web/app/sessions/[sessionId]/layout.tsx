@@ -6,6 +6,7 @@ import { getSessionByIdCached } from "@/lib/db/sessions-cache";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
 import { getServerSession } from "@/lib/session/get-server-session";
+import type { SessionChatListItem } from "@/hooks/use-session-chats";
 import { SessionLayoutShell } from "./session-layout-shell";
 
 interface SessionLayoutProps {
@@ -38,7 +39,7 @@ export default async function SessionLayout({
 
   let initialChatsData:
     | {
-        chats: Awaited<ReturnType<typeof getChatSummariesBySessionId>>;
+        chats: SessionChatListItem[];
         defaultModelId: string | null;
       }
     | undefined;
@@ -55,7 +56,16 @@ export default async function SessionLayout({
       requestHost,
     );
     initialChatsData = {
-      chats,
+      // Serialize timestamps at the server/client boundary so the
+      // shape matches the recoupable API wire format that
+      // useSessionChats now consumes.
+      chats: chats.map((chat) => ({
+        ...chat,
+        createdAt: chat.createdAt.toISOString(),
+        updatedAt: chat.updatedAt.toISOString(),
+        lastAssistantMessageAt:
+          chat.lastAssistantMessageAt?.toISOString() ?? null,
+      })),
       defaultModelId: preferences.defaultModelId,
     };
   } catch (error) {

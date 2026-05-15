@@ -3,10 +3,12 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
-import type { Chat } from "@/lib/db/schema";
 import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
-import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
-export type SessionChatListItem = Chat & {
+import {
+  listRecoupSessionChats,
+  type RecoupChat,
+} from "@/lib/recoupable/list-recoup-session-chats";
+export type SessionChatListItem = RecoupChat & {
   hasUnread: boolean;
   isStreaming: boolean;
 };
@@ -30,8 +32,8 @@ interface UseSessionChatsOptions {
 }
 
 type CreateChatResult = {
-  chat: Chat;
-  persisted: Promise<Chat>;
+  chat: RecoupChat;
+  persisted: Promise<RecoupChat>;
 };
 
 type StreamingOverlay = {
@@ -502,8 +504,8 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const now = new Date();
-    const optimisticChat: Chat = {
+    const now = new Date().toISOString();
+    const optimisticChat: RecoupChat = {
       id: crypto.randomUUID(),
       sessionId,
       title: "New chat",
@@ -545,7 +547,7 @@ export function useSessionChats(
         throw new Error("Not authenticated");
       }
 
-      let createdChat: Chat;
+      let createdChat: RecoupChat;
       try {
         createdChat = await createRecoupSessionChat(
           sessionId,
@@ -603,8 +605,8 @@ export function useSessionChats(
       throw new Error("Source chat not found");
     }
 
-    const now = new Date();
-    const optimisticChat: Chat = {
+    const now = new Date().toISOString();
+    const optimisticChat: RecoupChat = {
       id: crypto.randomUUID(),
       sessionId,
       title: `Fork of ${sourceChat.title}`,
@@ -644,7 +646,7 @@ export function useSessionChats(
       );
 
       const responseData = (await res.json()) as {
-        chat?: Chat;
+        chat?: RecoupChat;
         error?: string;
       };
 
@@ -701,7 +703,10 @@ export function useSessionChats(
       body: JSON.stringify({ title }),
     });
 
-    const responseData = (await res.json()) as { chat?: Chat; error?: string };
+    const responseData = (await res.json()) as {
+      chat?: RecoupChat;
+      error?: string;
+    };
     if (!res.ok || !responseData.chat) {
       throw new Error(responseData.error ?? "Failed to rename chat");
     }
