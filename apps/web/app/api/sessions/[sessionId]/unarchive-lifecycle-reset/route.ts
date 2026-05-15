@@ -37,16 +37,20 @@ export async function POST(
   }
 
   // Recoup may flip `status` before archive finalization finishes; do not clear
-  // lifecycle while a live sandbox is still winding down from archive.
+  // lifecycle while sandbox pause / snapshot work is still in progress.
+  const lifecycleBlocksReset =
+    existing.lifecycleState === "archived" ||
+    existing.lifecycleState === "hibernating";
+
   if (
-    existing.lifecycleState === "archived" &&
+    lifecycleBlocksReset &&
     !existing.snapshotUrl &&
     hasRuntimeSandboxState(existing.sandboxState)
   ) {
     return Response.json(
       {
         error:
-          "Sandbox is still being paused for this session. Try again in a few seconds.",
+          "Sandbox is still being paused for this archived session. Please try unarchiving again in a few seconds.",
       },
       { status: 409 },
     );
