@@ -271,14 +271,10 @@ describe("archiveSession", () => {
     );
   });
 
-  test("refreshes merged PR status before archiving", async () => {
+  test("archives session row and schedules sandbox finalization", async () => {
     const { archiveSession } = await archiveSessionModulePromise;
 
     sandboxQueue = [createMockSandbox(), createMockSandbox()];
-    spies.getPullRequestStatus.mockImplementation(async () => ({
-      success: true,
-      status: "merged",
-    }));
 
     let backgroundTask: Promise<void> | null = null;
 
@@ -301,9 +297,12 @@ describe("archiveSession", () => {
 
     expect(updateCalls[0]?.[1]).toMatchObject({
       status: "archived",
-      prStatus: "merged",
+      lifecycleState: "archived",
+      sandboxExpiresAt: null,
+      hibernateAfter: null,
     });
     expect(spies.findPullRequestByBranch).not.toHaveBeenCalled();
-    expect(sessionRecord?.prStatus).toBe("merged");
+    expect(spies.getPullRequestStatus).not.toHaveBeenCalled();
+    expect(sessionRecord?.prStatus).toBe("open");
   });
 });

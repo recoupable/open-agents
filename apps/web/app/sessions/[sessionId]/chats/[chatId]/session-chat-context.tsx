@@ -1,5 +1,6 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { SandboxState } from "@open-harness/sandbox";
 import {
@@ -30,6 +31,11 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
+import { patchOwnSession } from "@/lib/session/patch-own-session";
+import {
+  mergeSessionIntoSessionsSwrSnapshot,
+  type SessionsSwrSnapshot,
+} from "@/lib/recoupable/merge-session-into-sessions-swr";
 import {
   clearSandboxResumeState,
   clearSandboxState,
@@ -276,10 +282,6 @@ type SessionChatProviderProps = {
   children: ReactNode;
 };
 
-interface SessionsResponse {
-  sessions: (Session & { hasUnread?: boolean })[];
-}
-
 export function SessionChatProvider({
   session: initialSession,
   chat: initialChat,
@@ -288,7 +290,17 @@ export function SessionChatProvider({
   children,
 }: SessionChatProviderProps) {
   const { mutate } = useSWRConfig();
+  const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
+  const pushSessionToSessionsSwr = useCallback(
+    (next: Session, revalidate: boolean) =>
+      mutate<SessionsSwrSnapshot>(
+        "/api/sessions",
+        (c) => mergeSessionIntoSessionsSwrSnapshot(c, sessionId, next),
+        { revalidate },
+      ),
+    [mutate, sessionId],
+  );
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
   const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
   const [hasSnapshotState, setHasSnapshotState] = useState<boolean>(
@@ -736,140 +748,68 @@ export function SessionChatProvider({
       status: "archived",
     };
 
-    setSessionRecord(optimisticSession);
-    await mutate<SessionsResponse>(
-      "/api/sessions",
-      (current) =>
-        current
-          ? {
-              ...current,
-              sessions: current.sessions.map((s) =>
-                s.id === sessionRecord.id
-                  ? { ...optimisticSession, hasUnread: s.hasUnread }
-                  : s,
-              ),
-            }
-          : current,
-      { revalidate: false },
-    );
-
-    const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "archived" }),
-    });
-
-    const data = (await res.json()) as { session?: Session; error?: string };
-
-    if (!res.ok) {
+    const rollback = async () => {
       setSessionRecord(previousSession);
-      await mutate<SessionsResponse>(
-        "/api/sessions",
-        (current) =>
-          current
-            ? {
-                ...current,
-                sessions: current.sessions.map((s) =>
-                  s.id === sessionRecord.id
-                    ? { ...previousSession, hasUnread: s.hasUnread }
-                    : s,
-                ),
-              }
-            : current,
-        { revalidate: false },
-      );
-      throw new Error(data.error ?? "Failed to archive session");
-    }
+      await pushSessionToSessionsSwr(previousSession, false);
+    };
 
-    const nextSession = data.session ?? optimisticSession;
-    setSessionRecord(nextSession);
-    await mutate<SessionsResponse>(
-      "/api/sessions",
-      (current) =>
-        current
-          ? {
-              ...current,
-              sessions: current.sessions.map((s) =>
-                s.id === sessionRecord.id
-                  ? { ...nextSession, hasUnread: s.hasUnread }
-                  : s,
-              ),
-            }
-          : current,
-      { revalidate: true },
-    );
-  }, [sessionRecord, mutate]);
+    setSessionRecord(optimisticSession);
+    await pushSessionToSessionsSwr(optimisticSession, false);
+
+    try {
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        await rollback();
+        throw new Error("Not authenticated");
+      }
+
+      const nextSession = await patchOwnSession(
+        sessionRecord.id,
+        { status: "archived" },
+        accessToken,
+      );
+      setSessionRecord(nextSession);
+      await pushSessionToSessionsSwr(nextSession, true);
+    } catch (e) {
+      await rollback();
+      throw e;
+    }
+  }, [getAccessToken, sessionRecord, pushSessionToSessionsSwr]);
 
   const unarchiveSession = useCallback(async () => {
     // Wait for server confirmation before updating local state so that
     // sandbox-related effects (reconnect probe, auto-restore, auto-create)
     // don't fire until the server has actually reset the session.
-    const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "running" }),
-    });
-
-    const data = (await res.json()) as { session?: Session; error?: string };
-
-    if (!res.ok) {
-      throw new Error(data.error ?? "Failed to unarchive session");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
 
-    const nextSession: Session = data.session ?? {
-      ...sessionRecord,
-      status: "running",
-      lifecycleState: null,
-    };
-    setSessionRecord(nextSession);
-    await mutate<SessionsResponse>(
-      "/api/sessions",
-      (current) =>
-        current
-          ? {
-              ...current,
-              sessions: current.sessions.map((s) =>
-                s.id === sessionRecord.id
-                  ? { ...nextSession, hasUnread: s.hasUnread }
-                  : s,
-              ),
-            }
-          : current,
-      { revalidate: true },
+    const nextSession = await patchOwnSession(
+      sessionRecord.id,
+      { status: "running" },
+      accessToken,
     );
-  }, [sessionRecord, mutate]);
+    setSessionRecord(nextSession);
+    await pushSessionToSessionsSwr(nextSession, true);
+  }, [getAccessToken, sessionRecord, pushSessionToSessionsSwr]);
 
   const updateSessionTitle = useCallback(
     async (title: string) => {
-      const res = await fetch(`/api/sessions/${sessionRecord.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-
-      const data = (await res.json()) as { session?: Session; error?: string };
-
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to update session title");
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
       }
 
-      const nextSession = data.session ?? { ...sessionRecord, title };
-      setSessionRecord(nextSession);
-      await mutate<SessionsResponse>(
-        "/api/sessions",
-        (current) =>
-          current
-            ? {
-                ...current,
-                sessions: current.sessions.map((s) =>
-                  s.id === sessionRecord.id ? { ...s, ...nextSession } : s,
-                ),
-              }
-            : current,
-        { revalidate: false },
+      const nextSession = await patchOwnSession(
+        sessionRecord.id,
+        { title },
+        accessToken,
       );
+      setSessionRecord(nextSession);
+      await pushSessionToSessionsSwr(nextSession, false);
     },
-    [sessionRecord, mutate],
+    [getAccessToken, sessionRecord, pushSessionToSessionsSwr],
   );
 
   const updateChatModel = useCallback(

@@ -1,9 +1,11 @@
 "use client";
 
+import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
+import { patchOwnSession } from "@/lib/session/patch-own-session";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -92,6 +94,7 @@ export function useSessions(options?: {
     : "/api/sessions?status=active";
 
   const initialData = options?.initialData;
+  const { getAccessToken } = usePrivy();
 
   const { data, error, isLoading, mutate } = useSWR<SessionsResponse>(
     enabled ? "/api/sessions" : null,
@@ -138,10 +141,14 @@ export function useSessions(options?: {
         session?: Session;
         chat?: Chat;
         error?: string;
+        message?: string;
       };
 
       if (!res.ok || !responseData.session || !responseData.chat) {
-        const message = responseData.error ?? "Failed to create session";
+        const message =
+          responseData.error ??
+          responseData.message ??
+          "Failed to create session";
         toast.error(message);
         throw new Error(message);
       }
@@ -215,22 +222,16 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
-        });
-
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok || !responseData.session) {
-          throw new Error(responseData.error ?? "Failed to rename session");
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
         }
 
-        const updatedSession = responseData.session;
+        const updatedSession = await patchOwnSession(
+          sessionId,
+          { title },
+          accessToken,
+        );
 
         await mutate(
           (current) => {
@@ -261,7 +262,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, mutate],
+    [data, getAccessToken, mutate],
   );
 
   const archiveSession = useCallback(
@@ -309,31 +310,21 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "archived" }),
-        });
-
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok) {
-          throw new Error(responseData.error ?? "Failed to archive session");
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
         }
 
-        if (responseData.session) {
-          const updatedSession = responseData.session;
+        const updatedSession = await patchOwnSession(
+          sessionId,
+          { status: "archived" },
+          accessToken,
+        );
 
+        if (includeArchived) {
           await mutate(
             (current) => {
               if (!current) {
-                return current;
-              }
-
-              if (!includeArchived) {
                 return current;
               }
 
@@ -350,7 +341,7 @@ export function useSessions(options?: {
           );
         }
 
-        return responseData.session;
+        return updatedSession;
       } catch (error) {
         if (previousData) {
           await mutate(previousData, { revalidate: false });
@@ -361,7 +352,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, includeArchived, mutate],
+    [data, getAccessToken, includeArchived, mutate],
   );
 
   const unarchiveSession = useCallback(
@@ -395,22 +386,16 @@ export function useSessions(options?: {
       );
 
       try {
-        const res = await fetch(`/api/sessions/${sessionId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "running" }),
-        });
-
-        const responseData = (await res.json()) as {
-          session?: Session;
-          error?: string;
-        };
-
-        if (!res.ok || !responseData.session) {
-          throw new Error(responseData.error ?? "Failed to unarchive session");
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
         }
 
-        const updatedSession = responseData.session;
+        const updatedSession = await patchOwnSession(
+          sessionId,
+          { status: "running" },
+          accessToken,
+        );
 
         if (includeArchived) {
           await mutate(
@@ -434,7 +419,7 @@ export function useSessions(options?: {
           await mutate();
         }
 
-        return responseData.session;
+        return updatedSession;
       } catch (error) {
         if (previousData) {
           await mutate(previousData, { revalidate: false });
@@ -445,7 +430,7 @@ export function useSessions(options?: {
         throw error;
       }
     },
-    [data, includeArchived, mutate],
+    [data, getAccessToken, includeArchived, mutate],
   );
 
   return {

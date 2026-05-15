@@ -116,6 +116,36 @@ async function finalizeArchivedSessionSandbox(
   }
 }
 
+/**
+ * After Recoup (or any remote) has set `sessions.status` to `archived`, run the
+ * same follow-up as the legacy local PATCH route: optional git branch refresh
+ * from the live sandbox, then schedule sandbox stop + DB cleanup.
+ */
+export async function schedulePostRecoupArchiveSandboxFinalization(
+  sessionId: string,
+  options: {
+    logPrefix?: string;
+    scheduleBackgroundWork: (callback: () => Promise<void>) => void;
+  },
+): Promise<{ scheduled: boolean }> {
+  const logPrefix = options.logPrefix ?? "[Sessions]";
+  const current = await getSessionById(sessionId);
+  if (!current || current.status !== "archived") {
+    return { scheduled: false };
+  }
+
+  const gitStateUpdate = await refreshArchiveGitState(current, logPrefix);
+  if (Object.keys(gitStateUpdate).length > 0) {
+    await updateSession(sessionId, gitStateUpdate);
+  }
+
+  options.scheduleBackgroundWork(() =>
+    finalizeArchivedSessionSandbox(sessionId, logPrefix),
+  );
+
+  return { scheduled: true };
+}
+
 export async function archiveSession(
   sessionId: string,
   options: ArchiveSessionOptions = {},
