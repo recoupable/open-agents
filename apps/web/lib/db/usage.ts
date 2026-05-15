@@ -1,11 +1,13 @@
 import { isToolUIPart, type LanguageModel, type UIMessage } from "ai";
 import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { computeCreditsFromUsage } from "@/lib/credits/compute-credits-from-usage";
 import type { UsageDateRange } from "@/lib/usage/date-range";
 import { db } from "./client";
+import { deductCredits } from "./deduct-credits";
 import { usageEvents } from "./schema";
 
-export type UsageSource = "web";
+export type UsageSource = "web" | "api";
 export type UsageAgentType = "main" | "subagent";
 
 export async function recordUsage(
@@ -35,18 +37,46 @@ export async function recordUsage(
   const modelId =
     typeof data.model === "string" ? data.model : data.model.modelId;
 
-  await db.insert(usageEvents).values({
-    id: nanoid(),
-    userId,
-    source: data.source,
-    agentType: data.agentType ?? "main",
-    provider: provider ?? null,
-    modelId: modelId ?? null,
-    inputTokens: data.usage.inputTokens,
-    cachedInputTokens: data.usage.cachedInputTokens,
-    outputTokens: data.usage.outputTokens,
-    toolCallCount,
-  });
+  // Debit the wallet (credits_usage) so it stays paired with the meter
+  // (usage_events). Both writes are wrapped — a wallet failure must not
+  // block the meter insert (the meter is the audit log), and a meter
+  // failure must not abort the workflow.
+  let creditsDeductedCents = 0;
+  if (modelId) {
+    try {
+      creditsDeductedCents = await computeCreditsFromUsage(
+        {
+          inputTokens: data.usage.inputTokens,
+          outputTokens: data.usage.outputTokens,
+        },
+        modelId,
+      );
+      await deductCredits(userId, creditsDeductedCents);
+    } catch (error) {
+      console.error(
+        "Failed to debit credits_usage (continuing with meter insert):",
+        error,
+      );
+    }
+  }
+
+  try {
+    await db.insert(usageEvents).values({
+      id: nanoid(),
+      userId,
+      source: data.source,
+      agentType: data.agentType ?? "main",
+      provider: provider ?? null,
+      modelId: modelId ?? null,
+      inputTokens: data.usage.inputTokens,
+      cachedInputTokens: data.usage.cachedInputTokens,
+      outputTokens: data.usage.outputTokens,
+      toolCallCount,
+      creditsDeductedCents,
+    });
+  } catch (error) {
+    console.error("Failed to insert usage_events row:", error);
+  }
 }
 
 export interface DailyUsage {
