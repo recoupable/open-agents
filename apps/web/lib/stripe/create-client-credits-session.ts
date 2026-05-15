@@ -1,11 +1,18 @@
 import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
+import {
+  type CreditsTopupResponse,
+  parseCreditsTopupResponse,
+} from "./parse-credits-topup-response";
 
-type CreateCreditsSessionResult = { error: unknown } | undefined;
+export type CreateCreditsSessionResult =
+  | { ok: true; response: CreditsTopupResponse }
+  | { ok: false; error: unknown };
 
 /**
- * Creates a Stripe Checkout Session for a one-time credit top-up and opens
- * the hosted payment page in a new tab. Mirrors `createClientCheckoutSession`
- * for subscriptions.
+ * Calls POST /api/credits/sessions and returns a discriminated response —
+ * either an auto-charge confirmation (`kind: "charged"`) or a Checkout
+ * fallback (`kind: "checkout"`). Callers handle each path (redirect to
+ * Checkout vs. show success state + refresh balance).
  */
 export async function createClientCreditsSession(
   accessToken: string,
@@ -28,16 +35,19 @@ export async function createClientCreditsSession(
     );
 
     if (!response.ok) {
-      return { error: new Error(`HTTP ${response.status}`) };
+      return { ok: false, error: new Error(`HTTP ${response.status}`) };
     }
 
-    const data: { url?: string } = await response.json();
-    if (!data.url) {
-      return { error: new Error("Checkout URL missing") };
+    const parsed = parseCreditsTopupResponse(await response.json());
+    if (!parsed) {
+      return {
+        ok: false,
+        error: new Error("Unexpected response shape from credits API"),
+      };
     }
 
-    window.open(data.url, "_blank", "noopener,noreferrer");
+    return { ok: true, response: parsed };
   } catch (error) {
-    return { error };
+    return { ok: false, error };
   }
 }

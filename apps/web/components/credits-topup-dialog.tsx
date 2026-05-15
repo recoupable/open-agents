@@ -1,15 +1,13 @@
 "use client";
 
 import { useCallback } from "react";
-import { CreditsTopupAmountDisplay } from "@/components/credits-topup-amount-display";
-import { CreditsTopupFeeDisclosure } from "@/components/credits-topup-fee-disclosure";
-import { CreditsTopupPresetChips } from "@/components/credits-topup-preset-chips";
-import { Button } from "@/components/ui/button";
+import { CreditsTopupDeclineView } from "@/components/credits-topup-decline-view";
+import { CreditsTopupForm } from "@/components/credits-topup-form";
+import { CreditsTopupSuccessView } from "@/components/credits-topup-success-view";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -25,18 +23,20 @@ export function CreditsTopupDialog({
   onOpenChange,
 }: CreditsTopupDialogProps) {
   const handleClose = useCallback(() => onOpenChange(false), [onOpenChange]);
-  const {
-    selection,
-    setSelection,
-    customDollars,
-    setCustomDollars,
-    submitting,
-    submitError,
-    charge,
-    customCreditsBelowMin,
-    submitDisabled,
-    handleContinue,
-  } = useCreditsTopupDialog({ onClose: handleClose });
+  const { chargedSuccess, checkoutFallback, ...form } = useCreditsTopupDialog({
+    onClose: handleClose,
+  });
+
+  const body = chargedSuccess ? (
+    <CreditsTopupSuccessView charged={chargedSuccess} onClose={handleClose} />
+  ) : checkoutFallback ? (
+    <CreditsTopupDeclineView
+      fallback={checkoutFallback}
+      onClose={handleClose}
+    />
+  ) : (
+    <CreditsTopupForm {...form} onClose={handleClose} />
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,46 +49,7 @@ export function CreditsTopupDialog({
             allotment.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <CreditsTopupAmountDisplay
-            selection={selection}
-            customDollars={customDollars}
-            onCustomChange={setCustomDollars}
-            creditsCents={charge.credits}
-          />
-          <CreditsTopupPresetChips
-            selection={selection}
-            onSelect={setSelection}
-          />
-          <CreditsTopupFeeDisclosure
-            charge={charge}
-            customCreditsBelowMin={customCreditsBelowMin}
-          />
-          {submitError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {submitError}
-            </p>
-          ) : null}
-        </div>
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={submitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void handleContinue()}
-            disabled={submitDisabled}
-          >
-            {submitting ? "Opening checkout..." : "Continue to Payment"}
-          </Button>
-        </DialogFooter>
+        {body}
       </DialogContent>
     </Dialog>
   );
