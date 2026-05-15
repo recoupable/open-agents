@@ -4,10 +4,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
-import {
-  listRecoupSessionChats,
-  type RecoupChat,
-} from "@/lib/recoupable/list-recoup-session-chats";
+import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
+import type { RecoupChat } from "@/lib/recoupable/recoup-chat";
 export type SessionChatListItem = RecoupChat & {
   hasUnread: boolean;
   isStreaming: boolean;

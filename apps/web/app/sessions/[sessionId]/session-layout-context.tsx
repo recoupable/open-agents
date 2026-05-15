@@ -2,7 +2,7 @@
 
 import { createContext, useContext } from "react";
 import type { SessionChatListItem } from "@/hooks/use-session-chats";
-import type { RecoupChat } from "@/lib/recoupable/list-recoup-session-chats";
+import type { RecoupChat } from "@/lib/recoupable/recoup-chat";
 
 type CreateChatResult = {
   chat: RecoupChat;
