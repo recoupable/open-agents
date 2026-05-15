@@ -5,7 +5,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
 import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
+import { deleteRecoupSessionChat } from "@/lib/recoupable/delete-recoup-session-chat";
 import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
+import { patchRecoupSessionChat } from "@/lib/recoupable/patch-recoup-session-chat";
 export type SessionChatListItem = Chat & {
   hasUnread: boolean;
   isStreaming: boolean;
@@ -695,24 +697,26 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const res = await fetch(`/api/sessions/${sessionId}/chats/${chatId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
-    });
-
-    const responseData = (await res.json()) as { chat?: Chat; error?: string };
-    if (!res.ok || !responseData.chat) {
-      throw new Error(responseData.error ?? "Failed to rename chat");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
 
-    const updatedChat = responseData.chat;
+    const { chat: updatedChat } = await patchRecoupSessionChat(
+      sessionId,
+      chatId,
+      { title },
+      accessToken,
+    );
+
     await mutate(
       (current) =>
         toChatsResponse(
           current,
           (current?.chats ?? []).map((chat) =>
-            chat.id === chatId ? { ...chat, ...updatedChat } : chat,
+            chat.id === chatId
+              ? ({ ...chat, ...updatedChat } as unknown as SessionChatListItem)
+              : chat,
           ),
         ),
       { revalidate: false },
@@ -726,18 +730,12 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const res = await fetch(`/api/sessions/${sessionId}/chats/${chatId}`, {
-      method: "DELETE",
-    });
-
-    const responseData = (await res.json()) as {
-      success?: boolean;
-      error?: string;
-    };
-
-    if (!res.ok || !responseData.success) {
-      throw new Error(responseData.error ?? "Failed to delete chat");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
+
+    await deleteRecoupSessionChat(sessionId, chatId, accessToken);
 
     await mutate(
       (current) =>

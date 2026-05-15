@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { WebAgentUIMessage } from "@/app/types";
 import { DiffsProvider } from "@/components/diffs-provider";
 import {
-  getChatById,
   getChatMessages,
   getChatSummariesBySessionId,
 } from "@/lib/db/sessions";
@@ -26,6 +25,11 @@ import {
 } from "@/lib/managed-template-trial";
 import { getAllVariants } from "@/lib/model-variants";
 import { getInitialModels } from "@/lib/recoupable/get-initial-models";
+import {
+  getRecoupSessionChat,
+  type RecoupSessionChat,
+} from "@/lib/recoupable/get-recoup-session-chat";
+import { SESSION_COOKIE_NAME } from "@/lib/session/constants";
 import { getServerSession } from "@/lib/session/get-server-session";
 import { getInitialIsOnlyChatInSession } from "./only-chat-in-session";
 import { SessionChatContent } from "./session-chat-content";
@@ -51,14 +55,17 @@ const OPTIMISTIC_CHAT_RETRY_ATTEMPTS = 50;
 async function getChatByIdWithRetry(
   chatId: string,
   sessionId: string,
-): Promise<Awaited<ReturnType<typeof getChatById>>> {
+  accessToken: string,
+): Promise<RecoupSessionChat | undefined> {
   const maxAttempts = isOptimisticChatId(chatId)
     ? OPTIMISTIC_CHAT_RETRY_ATTEMPTS
     : 1;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const chat = await getChatById(chatId);
-    if (chat && chat.sessionId === sessionId) {
-      return chat;
+    try {
+      const data = await getRecoupSessionChat(sessionId, chatId, accessToken);
+      return data.chat;
+    } catch {
+      // Likely 404 while the optimistic chat hasn't persisted yet.
     }
     if (attempt < maxAttempts) {
       await sleep(OPTIMISTIC_CHAT_RETRY_DELAY_MS);
@@ -106,11 +113,15 @@ export default async function SessionChatPage({
   }
 
   const requestHost = (await headers()).get("host") ?? "";
+  const accessToken = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  if (!accessToken) {
+    redirect("/");
+  }
 
   // Fetch chat, messages, models, and preferences in parallel
   const [chat, dbMessages, initialModels, rawPreferences, sessionChats] =
     await Promise.all([
-      getChatByIdWithRetry(chatId, sessionId),
+      getChatByIdWithRetry(chatId, sessionId, accessToken),
       getChatMessages(chatId),
       getInitialModels(),
       getUserPreferences(session.user.id),
