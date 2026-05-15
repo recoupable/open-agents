@@ -15,45 +15,40 @@ import {
 } from "@/lib/recoupable/patch-recoup-session";
 import { schedulePostRecoupArchiveSandboxFinalization } from "@/lib/sandbox/archive-session";
 import { hasRuntimeSandboxState } from "@/lib/sandbox/utils";
-import { getServerSession } from "@/lib/session/get-server-session";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
-  const session = await getServerSession();
-  if (!session?.user) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 });
+type RouteContext = {
+  params: Promise<{ sessionId: string }>;
+};
+
+export async function GET(_req: Request, context: RouteContext) {
+  const authResult = await requireAuthenticatedUser();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
-  const { sessionId } = await params;
-  const existingSession = await getSessionById(sessionId);
-
-  if (!existingSession) {
-    return Response.json({ error: "Session not found" }, { status: 404 });
+  const { sessionId } = await context.params;
+  const owned = await requireOwnedSession({
+    userId: authResult.userId,
+    sessionId,
+  });
+  if (!owned.ok) {
+    return owned.response;
   }
 
-  if (existingSession.userId !== session.user.id) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  return Response.json({ session: existingSession });
+  return Response.json({ session: owned.sessionRecord });
 }
 
 /**
  * Mirrors production: one PATCH for session mutations. Forwards Bearer to Recoup,
  * then runs open-agents sandbox / lifecycle parity (same as pre–PR #31 local PATCH).
  */
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
+export async function PATCH(req: Request, context: RouteContext) {
   const authResult = await requireAuthenticatedUser();
   if (!authResult.ok) {
     return authResult.response;
   }
 
-  const { sessionId } = await params;
+  const { sessionId } = await context.params;
   const owned = await requireOwnedSession({
     userId: authResult.userId,
     sessionId,
@@ -73,7 +68,10 @@ export async function PATCH(
 
   const recoupPatch: PatchRecoupSessionBody = {};
   if (body.title !== undefined) {
-    recoupPatch.title = body.title;
+    const trimmed = typeof body.title === "string" ? body.title.trim() : "";
+    if (trimmed) {
+      recoupPatch.title = trimmed;
+    }
   }
   if (body.status !== undefined) {
     recoupPatch.status = body.status;
@@ -126,11 +124,7 @@ export async function PATCH(
     );
   }
 
-  const recoupRes = await patchRecoupSession(
-    sessionId,
-    recoupPatch,
-    bearer,
-  );
+  const recoupRes = await patchRecoupSession(sessionId, recoupPatch, bearer);
   const recoupResult = await interpretRecoupPatchSessionResponse(recoupRes);
   if (!recoupResult.ok) {
     return Response.json(
@@ -201,24 +195,19 @@ export async function PATCH(
   });
 }
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ sessionId: string }> },
-) {
-  const session = await getServerSession();
-  if (!session?.user) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 });
+export async function DELETE(_req: Request, context: RouteContext) {
+  const authResult = await requireAuthenticatedUser();
+  if (!authResult.ok) {
+    return authResult.response;
   }
 
-  const { sessionId } = await params;
-  const existingSession = await getSessionById(sessionId);
-
-  if (!existingSession) {
-    return Response.json({ error: "Session not found" }, { status: 404 });
-  }
-
-  if (existingSession.userId !== session.user.id) {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+  const { sessionId } = await context.params;
+  const owned = await requireOwnedSession({
+    userId: authResult.userId,
+    sessionId,
+  });
+  if (!owned.ok) {
+    return owned.response;
   }
 
   await deleteSession(sessionId);
