@@ -889,10 +889,7 @@ export function SessionChatProvider({
         accessToken,
       );
 
-      // chatInfo state is typed as Drizzle's `Chat` (Date timestamps)
-      // while the recoupable API returns ISO strings; the cast bridges
-      // the two until the state is typed against the wire format.
-      setChatInfo(updatedChat as unknown as Chat);
+      setChatInfo(updatedChat);
     },
     [sessionRecord.id, chatInfo.id, getAccessToken],
   );

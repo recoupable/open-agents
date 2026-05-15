@@ -1,3 +1,4 @@
+import type { Chat } from "@/lib/db/schema";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
 export type PatchRecoupSessionChatBody = {
@@ -6,20 +7,7 @@ export type PatchRecoupSessionChatBody = {
 };
 
 export type PatchRecoupSessionChatResponse = {
-  /**
-   * Updated chat row in the recoupable API wire shape (matches
-   * `toChatResponse`: camelCase keys, ISO-string timestamps).
-   */
-  chat: {
-    id: string;
-    sessionId: string;
-    title: string;
-    modelId: string | null;
-    activeStreamId: string | null;
-    lastAssistantMessageAt: string | null;
-    createdAt: string;
-    updatedAt: string;
-  };
+  chat: Chat;
 };
 
 /**

@@ -714,13 +714,7 @@ export function useSessionChats(
         toChatsResponse(
           current,
           (current?.chats ?? []).map((chat) =>
-            // The list shape currently extends Drizzle's `Chat` (Date
-            // timestamps) while the recoupable API returns ISO strings;
-            // the cast bridges the two until SessionChatListItem is
-            // typed against the wire format directly.
-            chat.id === chatId
-              ? ({ ...chat, ...updatedChat } as unknown as SessionChatListItem)
-              : chat,
+            chat.id === chatId ? { ...chat, ...updatedChat } : chat,
           ),
         ),
       { revalidate: false },
