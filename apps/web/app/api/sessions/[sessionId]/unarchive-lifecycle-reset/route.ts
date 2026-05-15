@@ -1,4 +1,5 @@
 import { getSessionById, updateSession } from "@/lib/db/sessions";
+import { hasRuntimeSandboxState } from "@/lib/sandbox/utils";
 import { getServerSession } from "@/lib/session/get-server-session";
 
 /**
@@ -30,6 +31,22 @@ export async function POST(
       {
         error:
           "Session is not active in the database yet. Retry unarchive in a moment.",
+      },
+      { status: 409 },
+    );
+  }
+
+  // Recoup may flip `status` before archive finalization finishes; do not clear
+  // lifecycle while a live sandbox is still winding down from archive.
+  if (
+    existing.lifecycleState === "archived" &&
+    !existing.snapshotUrl &&
+    hasRuntimeSandboxState(existing.sandboxState)
+  ) {
+    return Response.json(
+      {
+        error:
+          "Sandbox is still being paused for this session. Try again in a few seconds.",
       },
       { status: 409 },
     );

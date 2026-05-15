@@ -1,21 +1,52 @@
 import type { Session } from "@/lib/db/schema";
 import { hasRuntimeSandboxState } from "@/lib/sandbox/utils";
-import { patchRecoupSessionJson } from "./patch-recoup-session";
+import { z } from "zod";
+import { patchRecoupSessionJson, recoupSessionWireSchema } from "./patch-recoup-session";
+
+const localJsonErrorSchema = z
+  .object({
+    error: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
+
+const localGetSessionResponseSchema = z
+  .object({
+    session: recoupSessionWireSchema,
+    error: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
+
+function throwFromJsonErrorBody(
+  raw: unknown,
+  fallback: string,
+): never {
+  const parsed = localJsonErrorSchema.safeParse(raw);
+  throw new Error(
+    parsed.success
+      ? (parsed.data.error ?? parsed.data.message ?? fallback)
+      : fallback,
+  );
+}
 
 async function fetchLocalSession(sessionId: string): Promise<Session> {
   const res = await fetch(
     `/api/sessions/${encodeURIComponent(sessionId)}`,
     { credentials: "same-origin" },
   );
-  const raw = (await res.json()) as {
-    session?: Session;
-    error?: string;
-    message?: string;
-  };
-  if (!res.ok || !raw.session) {
-    throw new Error(raw.error ?? raw.message ?? "Failed to load session");
+  const raw: unknown = await res.json();
+
+  if (!res.ok) {
+    throwFromJsonErrorBody(raw, "Failed to load session");
   }
-  return raw.session;
+
+  const ok = localGetSessionResponseSchema.safeParse(raw);
+  if (!ok.success) {
+    throw new Error("Invalid session response");
+  }
+
+  return ok.data.session as Session;
 }
 
 async function fetchWithRetry(
@@ -55,10 +86,10 @@ export async function archiveSessionViaRecoup(
   );
 
   if (!finalizeRes.ok) {
-    console.warn(
-      "[archiveSessionViaRecoup] archive-finalize failed",
-      finalizeRes.status,
-      await finalizeRes.text().catch(() => ""),
+    const raw: unknown = await finalizeRes.json().catch(() => ({}));
+    throwFromJsonErrorBody(
+      raw,
+      `Failed to finalize archive (${finalizeRes.status})`,
     );
   }
 
@@ -101,14 +132,10 @@ export async function unarchiveSessionViaRecoup(
   );
 
   if (!resetRes.ok) {
-    const raw = (await resetRes.json().catch(() => ({}))) as {
-      error?: string;
-      message?: string;
-    };
-    throw new Error(
-      raw.error ??
-        raw.message ??
-        `Failed to finalize unarchive (${resetRes.status})`,
+    const raw: unknown = await resetRes.json().catch(() => ({}));
+    throwFromJsonErrorBody(
+      raw,
+      `Failed to finalize unarchive (${resetRes.status})`,
     );
   }
 

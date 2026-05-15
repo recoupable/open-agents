@@ -25,7 +25,8 @@ const sessionStatusEnum = z.enum([
   "archived",
 ]);
 
-const recoupPatchSessionWireSchema = z
+/** Shared wire shape for `{ session }` from Recoup or open-agents GET session. */
+export const recoupSessionWireSchema = z
   .object({
     id: z.string(),
     userId: z.string(),
@@ -35,7 +36,7 @@ const recoupPatchSessionWireSchema = z
   .passthrough();
 
 const recoupPatchSessionSuccessSchema = z.object({
-  session: recoupPatchSessionWireSchema,
+  session: recoupSessionWireSchema,
 });
 
 /**
