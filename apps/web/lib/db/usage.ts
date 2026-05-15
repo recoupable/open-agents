@@ -11,9 +11,12 @@ export type UsageSource = "web" | "api";
 export type UsageAgentType = "main" | "subagent";
 
 /**
- * Per-turn cost in cents (minimum 1), driven by the same `AvailableModel.cost`
- * catalog the settings/usage page uses via `estimateModelUsageCost`. Returns 1
- * when pricing isn't available so a successful turn never lands as a free run.
+ * Per-turn cost in cents (minimum 1). Prefers the gateway-reported actual
+ * cost when available (`metadata.totalMessageCost`, same source the chat UI
+ * shows next to the assistant response) and falls back to a token-based
+ * estimate via `estimateModelUsageCost` against the `AvailableModel.cost`
+ * catalog the settings/usage page uses. Returns 1 when no pricing is
+ * available so a successful turn never lands as a free run.
  */
 async function computeCreditsDeductedCents(
   usage: {
@@ -22,7 +25,16 @@ async function computeCreditsDeductedCents(
     outputTokens: number;
   },
   modelId: string,
+  gatewayCostUsd?: number,
 ): Promise<number> {
+  if (
+    typeof gatewayCostUsd === "number" &&
+    Number.isFinite(gatewayCostUsd) &&
+    gatewayCostUsd > 0
+  ) {
+    return Math.max(1, Math.round(gatewayCostUsd * 100));
+  }
+
   try {
     const models = await getInitialModels();
     const model = models.find((m) => m.id === modelId);
@@ -48,6 +60,14 @@ export async function recordUsage(
       outputTokens: number;
     };
     toolCallCount?: number;
+    /**
+     * Gateway-reported total cost in USD for this turn (from
+     * `assistantMessage.metadata.totalMessageCost`). When present this is
+     * used directly so the wallet debit converges with the cost the UI
+     * displays next to the assistant response. Falls back to a token-based
+     * estimate when omitted (subagent steps don't carry per-step cost).
+     */
+    gatewayCostUsd?: number;
   },
 ) {
   const inferredToolCallCount = data.messages
@@ -63,7 +83,11 @@ export async function recordUsage(
     typeof data.model === "string" ? data.model : data.model.modelId;
 
   const creditsDeductedCents = modelId
-    ? await computeCreditsDeductedCents(data.usage, modelId)
+    ? await computeCreditsDeductedCents(
+        data.usage,
+        modelId,
+        data.gatewayCostUsd,
+      )
     : 0;
 
   // Atomic: either both the wallet debit AND the meter insert land, or
