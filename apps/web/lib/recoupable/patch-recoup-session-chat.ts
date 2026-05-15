@@ -1,5 +1,5 @@
-import type { Chat } from "@/lib/db/schema";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
+import type { RecoupSessionChat } from "./get-recoup-session-chat";
 
 export type PatchRecoupSessionChatBody = {
   title?: string;
@@ -7,7 +7,7 @@ export type PatchRecoupSessionChatBody = {
 };
 
 export type PatchRecoupSessionChatResponse = {
-  chat: Chat;
+  chat: RecoupSessionChat;
 };
 
 /**

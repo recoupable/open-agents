@@ -1,12 +1,23 @@
 import type { WebAgentUIMessage } from "@/app/types";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
 
+/**
+ * Full chat row in the recoupable API wire shape (matches api's
+ * `toChatResponse`: camelCase keys, ISO-string timestamps).
+ */
+export type RecoupSessionChat = {
+  id: string;
+  sessionId: string;
+  title: string;
+  modelId: string | null;
+  activeStreamId: string | null;
+  lastAssistantMessageAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type GetRecoupSessionChatResponse = {
-  chat: {
-    id: string;
-    modelId: string | null;
-    activeStreamId: string | null;
-  };
+  chat: RecoupSessionChat;
   isStreaming: boolean;
   messages: WebAgentUIMessage[];
 };

@@ -714,7 +714,9 @@ export function useSessionChats(
         toChatsResponse(
           current,
           (current?.chats ?? []).map((chat) =>
-            chat.id === chatId ? { ...chat, ...updatedChat } : chat,
+            chat.id === chatId
+              ? ({ ...chat, ...updatedChat } as unknown as SessionChatListItem)
+              : chat,
           ),
         ),
       { revalidate: false },
