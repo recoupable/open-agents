@@ -188,7 +188,10 @@ export const usageEvents = pgTable("usage_events", {
 // in the api repo for the canonical write path).
 export const creditsUsage = pgTable("credits_usage", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  accountId: text("account_id").notNull(),
+  // One wallet row per account — the Supabase-owned schema enforces this
+  // via a unique index; we mirror it here so Drizzle's typing matches the
+  // single-row read pattern (e.g. api/lib/supabase/credits_usage/select).
+  accountId: text("account_id").notNull().unique(),
   remainingCredits: integer("remaining_credits").notNull().default(0),
   timestamp: timestamp("timestamp", { withTimezone: true }),
 });
