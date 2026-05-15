@@ -62,31 +62,32 @@ export function patchRecoupSession(
   );
 }
 
-/**
- * PATCH session on Recoup API and return `{ session }` or throw with server message.
- * Parses JSON with Zod (no `as` assertions on untrusted responses).
- */
-export async function patchRecoupSessionJson(
-  sessionId: string,
-  body: PatchRecoupSessionBody,
-  accessToken: string,
-): Promise<Session> {
-  const res = await patchRecoupSession(sessionId, body, accessToken);
-  const raw: unknown = await res.json();
+/** Parse Recoup PATCH response for route handlers (maps HTTP + body to success or error text). */
+export async function interpretRecoupPatchSessionResponse(res: Response): Promise<
+  | { ok: true; session: Session }
+  | { ok: false; status: number; error: string }
+> {
+  const raw: unknown = await res.json().catch(() => null);
 
   if (!res.ok) {
     const err = recoupErrorBodySchema.safeParse(raw);
-    throw new Error(
-      err.success
+    return {
+      ok: false,
+      status: res.status,
+      error: err.success
         ? (err.data.error ?? err.data.message ?? "Request failed")
         : "Request failed",
-    );
+    };
   }
 
   const ok = recoupPatchSessionSuccessSchema.safeParse(raw);
   if (!ok.success) {
-    throw new Error("Missing or invalid session in response");
+    return {
+      ok: false,
+      status: 502,
+      error: "Missing or invalid session in response",
+    };
   }
 
-  return ok.data.session as Session;
+  return { ok: true, session: ok.data.session as Session };
 }

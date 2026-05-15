@@ -31,11 +31,7 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
-import {
-  archiveSessionViaRecoup,
-  unarchiveSessionViaRecoup,
-} from "@/lib/recoupable/recoup-session-mutations-client";
-import { patchRecoupSessionJson } from "@/lib/recoupable/patch-recoup-session";
+import { patchOwnedSession } from "@/lib/session/patch-owned-session-client";
 import {
   mergeSessionIntoSessionsSwrSnapshot,
   type SessionsSwrSnapshot,
@@ -761,9 +757,16 @@ export function SessionChatProvider({
     await pushSessionToSessionsSwr(optimisticSession, false);
 
     try {
-      const nextSession = await archiveSessionViaRecoup(
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        await rollback();
+        throw new Error("Not authenticated");
+      }
+
+      const nextSession = await patchOwnedSession(
         sessionRecord.id,
-        getAccessToken,
+        { status: "archived" },
+        accessToken,
       );
       setSessionRecord(nextSession);
       await pushSessionToSessionsSwr(nextSession, true);
@@ -777,9 +780,15 @@ export function SessionChatProvider({
     // Wait for server confirmation before updating local state so that
     // sandbox-related effects (reconnect probe, auto-restore, auto-create)
     // don't fire until the server has actually reset the session.
-    const nextSession = await unarchiveSessionViaRecoup(
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    const nextSession = await patchOwnedSession(
       sessionRecord.id,
-      getAccessToken,
+      { status: "running" },
+      accessToken,
     );
     setSessionRecord(nextSession);
     await pushSessionToSessionsSwr(nextSession, true);
@@ -792,7 +801,7 @@ export function SessionChatProvider({
         throw new Error("Not authenticated");
       }
 
-      const nextSession = await patchRecoupSessionJson(
+      const nextSession = await patchOwnedSession(
         sessionRecord.id,
         { title },
         accessToken,

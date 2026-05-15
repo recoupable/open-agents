@@ -5,11 +5,7 @@ import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
-import { patchRecoupSessionJson } from "@/lib/recoupable/patch-recoup-session";
-import {
-  archiveSessionViaRecoup,
-  unarchiveSessionViaRecoup,
-} from "@/lib/recoupable/recoup-session-mutations-client";
+import { patchOwnedSession } from "@/lib/session/patch-owned-session-client";
 import { fetcher } from "@/lib/swr";
 
 export type SessionWithUnread = Pick<
@@ -231,7 +227,7 @@ export function useSessions(options?: {
           throw new Error("Not authenticated");
         }
 
-        const updatedSession = await patchRecoupSessionJson(
+        const updatedSession = await patchOwnedSession(
           sessionId,
           { title },
           accessToken,
@@ -314,9 +310,15 @@ export function useSessions(options?: {
       );
 
       try {
-        const updatedSession = await archiveSessionViaRecoup(
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const updatedSession = await patchOwnedSession(
           sessionId,
-          getAccessToken,
+          { status: "archived" },
+          accessToken,
         );
 
         if (includeArchived) {
@@ -384,9 +386,15 @@ export function useSessions(options?: {
       );
 
       try {
-        const updatedSession = await unarchiveSessionViaRecoup(
+        const accessToken = await getAccessToken();
+        if (!accessToken) {
+          throw new Error("Not authenticated");
+        }
+
+        const updatedSession = await patchOwnedSession(
           sessionId,
-          getAccessToken,
+          { status: "running" },
+          accessToken,
         );
 
         if (includeArchived) {
