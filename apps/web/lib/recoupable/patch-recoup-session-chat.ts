@@ -5,25 +5,21 @@ export type PatchRecoupSessionChatBody = {
   modelId?: string;
 };
 
-/**
- * Wire-format `chats` row as returned by the recoupable API
- * (`toChatResponse` shape: camelCase, ISO strings for timestamps).
- * Defined inline so this helper does not depend on the local Drizzle
- * schema declaration.
- */
-export type RecoupChat = {
-  id: string;
-  sessionId: string;
-  title: string;
-  modelId: string | null;
-  activeStreamId: string | null;
-  lastAssistantMessageAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
 export type PatchRecoupSessionChatResponse = {
-  chat: RecoupChat;
+  /**
+   * Updated chat row in the recoupable API wire shape (matches
+   * `toChatResponse`: camelCase keys, ISO-string timestamps).
+   */
+  chat: {
+    id: string;
+    sessionId: string;
+    title: string;
+    modelId: string | null;
+    activeStreamId: string | null;
+    lastAssistantMessageAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  };
 };
 
 /**
