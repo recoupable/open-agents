@@ -2,11 +2,11 @@
 
 import { createContext, useContext } from "react";
 import type { SessionChatListItem } from "@/hooks/use-session-chats";
-import type { Chat } from "@/lib/db/schema";
+import type { RecoupChat } from "@/lib/recoupable/recoup-chat";
 
 type CreateChatResult = {
-  chat: Chat;
-  persisted: Promise<Chat>;
+  chat: RecoupChat;
+  persisted: Promise<RecoupChat>;
 };
 
 type SessionLayoutContextValue = {

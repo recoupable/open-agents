@@ -1,7 +1,7 @@
-import type { Chat } from "@/lib/db/schema";
 import { RECOUPABLE_API_BASE_URL } from "./api-base-url";
+import type { RecoupChat } from "./recoup-chat";
 
-export type RecoupSessionChatSummary = Chat & {
+export type RecoupSessionChatSummary = RecoupChat & {
   hasUnread: boolean;
   isStreaming: boolean;
 };
