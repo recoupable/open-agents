@@ -195,6 +195,7 @@ export default async function SessionChatPage({
   return (
     <DiffsProvider>
       <SessionChatProvider
+        key={chat.id}
         session={sessionRecord}
         chat={{ ...chat, modelId: chatModelId }}
         initialMessages={initialMessages}
