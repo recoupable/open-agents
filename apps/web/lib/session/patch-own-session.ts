@@ -3,13 +3,14 @@
 import type { Session } from "@/lib/db/schema";
 import {
   interpretRecoupPatchSessionResponse,
+  patchRecoupSession,
   type PatchRecoupSessionBody,
 } from "@/lib/recoupable/patch-recoup-session";
 
 const UNARCHIVE_409_MAX_ATTEMPTS = 6;
 const UNARCHIVE_409_RETRY_DELAY_MS = 500;
 
-/** Trim title; omit empty title-only patches (matches server route). */
+/** Trim title; omit empty title-only patches (matches Recoup PATCH validation). */
 function normalizePatchBody(
   body: PatchRecoupSessionBody,
 ): PatchRecoupSessionBody | null {
@@ -39,25 +40,9 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function patchOnce(
-  sessionId: string,
-  body: PatchRecoupSessionBody,
-  accessToken: string,
-): Promise<Response> {
-  return fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, {
-    method: "PATCH",
-    credentials: "same-origin",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(body),
-  });
-}
-
 /**
- * Updates the user's session via local `PATCH /api/sessions/{id}` (forwards
- * Privy Bearer to Recoup and runs sandbox side effects on the server).
+ * Updates the user's session via Recoup `PATCH /api/sessions/{id}` with Privy
+ * Bearer auth (Phase B — same pattern as list/create session chats).
  */
 export async function patchOwnSession(
   sessionId: string,
@@ -78,7 +63,7 @@ export async function patchOwnSession(
     | null = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const res = await patchOnce(sessionId, recoupPatch, accessToken);
+    const res = await patchRecoupSession(sessionId, recoupPatch, accessToken);
     const result = await interpretRecoupPatchSessionResponse(res);
     lastResult = result;
 
