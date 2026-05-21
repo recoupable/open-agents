@@ -324,7 +324,7 @@ export function SessionChatProvider({
   const hadInitialMessages = initialMessages.length > 0;
   const { chat, stopChatStream, retryChatStream } = useSessionChatRuntime({
     sessionId: sessionRecord.id,
-    chatId: initialChat.id,
+    chatId: chatInfo.id,
     initialMessages,
     initialChatActiveStreamId: initialChat.activeStreamId,
     contextLimit,
