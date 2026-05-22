@@ -634,10 +634,14 @@ export async function runAgentWorkflow(options: Options) {
       // so the chat is never permanently marked as streaming.
       if (!streamClosed) {
         if (hasRenderableAssistantMessage(pendingAssistantResponse)) {
-          await persistAssistantMessage(
-            options.chatId,
-            pendingAssistantResponse,
-          );
+          try {
+            await persistAssistantMessage(
+              options.chatId,
+              pendingAssistantResponse,
+            );
+          } catch {
+            // Best-effort persistence; always run stream cleanup below.
+          }
         }
         await Promise.all([
           clearActiveStream(options.chatId, workflowRunId),
