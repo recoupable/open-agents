@@ -1113,14 +1113,9 @@ describe("runAgentWorkflow", () => {
       Promise.reject(new Error("lifecycle failed")),
     );
 
-    let threw = false;
-    try {
-      await runAgentWorkflow(makeOptions());
-    } catch (error) {
-      threw = true;
-      expect((error as Error).message).toBe("lifecycle failed");
-    }
-    expect(threw).toBe(true);
+    await expect(runAgentWorkflow(makeOptions())).rejects.toThrow(
+      "lifecycle failed",
+    );
 
     expect(spies.persistAssistantMessage).toHaveBeenCalled();
     const persistCalls = spies.persistAssistantMessage.mock
