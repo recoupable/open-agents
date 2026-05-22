@@ -9,6 +9,7 @@ mock.module("ai", () => ({
 const {
   getGitFinalizationState,
   getNavbarGitActionState,
+  hasRenderableAssistantMessage,
   hasRenderableAssistantPart,
   isChatInFlight,
   shouldKeepCollapsedReasoningStreaming,
@@ -33,6 +34,19 @@ describe("chat streaming state", () => {
     expect(isChatInFlight("streaming")).toBe(true);
     expect(isChatInFlight("ready")).toBe(false);
     expect(isChatInFlight("error")).toBe(false);
+  });
+
+  test("treats assistant messages with renderable parts as content", () => {
+    expect(
+      hasRenderableAssistantMessage(
+        assistantMessage([{ type: "text", text: "" }]) as never,
+      ),
+    ).toBe(false);
+    expect(
+      hasRenderableAssistantMessage(
+        assistantMessage([{ type: "text", text: "Hello" }]) as never,
+      ),
+    ).toBe(true);
   });
 
   test("treats only visibly renderable assistant parts as content", () => {

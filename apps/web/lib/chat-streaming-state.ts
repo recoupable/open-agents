@@ -28,6 +28,15 @@ export function shouldRenderGitDataPart(
   return true;
 }
 
+export function hasRenderableAssistantMessage(
+  message: WebAgentUIMessage,
+): boolean {
+  return (
+    message.role === "assistant" &&
+    message.parts.some(hasRenderableAssistantPart)
+  );
+}
+
 export function hasRenderableAssistantPart(
   part: WebAgentUIMessagePart,
 ): boolean {

@@ -1108,6 +1108,30 @@ describe("runAgentWorkflow", () => {
     expect(spies.runAutoCommitStep).not.toHaveBeenCalled();
   });
 
+  test("persists assistant message when refreshLifecycleActivity fails", async () => {
+    spies.refreshLifecycleActivity.mockImplementation(() =>
+      Promise.reject(new Error("lifecycle failed")),
+    );
+
+    try {
+      await runAgentWorkflow(makeOptions());
+    } catch {
+      // Expected to throw after persisting the streamed reply.
+    }
+
+    expect(spies.persistAssistantMessage).toHaveBeenCalled();
+    const persistCalls = spies.persistAssistantMessage.mock
+      .calls as unknown[][];
+    const persistedMessage = persistCalls[0]?.[1] as {
+      parts?: Array<{ type: string; text?: string }>;
+    };
+    expect(
+      persistedMessage.parts?.some(
+        (part) => part.type === "text" && (part.text?.length ?? 0) > 0,
+      ),
+    ).toBe(true);
+  });
+
   test("still clears stream and sends finish even on step error", async () => {
     // Mock the agent to throw
     mock.module("@/app/config", () => ({

@@ -30,6 +30,7 @@ import {
   runAutoCommitStep,
 } from "./chat-post-finish";
 import { dedupeMessageReasoning } from "@/lib/chat/dedupe-message-reasoning";
+import { hasRenderableAssistantMessage } from "@/lib/chat-streaming-state";
 import type {
   WorkflowRunStatus,
   WorkflowRunStepTiming,
@@ -516,10 +517,6 @@ export async function runAgentWorkflow(options: Options) {
       }
     }
 
-    if (sandboxState) {
-      await refreshLifecycleActivity(options.sessionId);
-    }
-
     if (totalUsage) {
       pendingAssistantResponse = {
         ...pendingAssistantResponse,
@@ -530,9 +527,13 @@ export async function runAgentWorkflow(options: Options) {
       };
     }
 
-    // Persist the assistant message immediately so completed model output is not
-    // lost if later post-finish work fails.
+    // Persist before post-finish side effects so lifecycle/git/diff failures
+    // cannot drop a completed reply that was already streamed to the client.
     await persistAssistantMessage(options.chatId, pendingAssistantResponse);
+
+    if (sandboxState) {
+      await refreshLifecycleActivity(options.sessionId);
+    }
 
     // Persist the sandbox state so lifecycle timers stay accurate.
     if (sandboxState) {
@@ -632,6 +633,12 @@ export async function runAgentWorkflow(options: Options) {
       // On unexpected errors, still clear the active stream and close
       // so the chat is never permanently marked as streaming.
       if (!streamClosed) {
+        if (hasRenderableAssistantMessage(pendingAssistantResponse)) {
+          await persistAssistantMessage(
+            options.chatId,
+            pendingAssistantResponse,
+          );
+        }
         await Promise.all([
           clearActiveStream(options.chatId, workflowRunId),
           sendFinish(writable).then(() => closeStream(writable)),
