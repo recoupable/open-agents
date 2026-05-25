@@ -1604,7 +1604,24 @@ export function SessionChatContent({
     deletingMessageId !== null ||
     resendingMessageId !== null;
 
-  const sendMessageWithPendingState = useCallback(
+  const outboundMessageQueueRef = useRef<
+    Parameters<typeof sendMessage>[0][]
+  >([]);
+  const isDrainingOutboundQueueRef = useRef(false);
+
+  const isChatResponseInProgressError = useCallback((error: unknown) => {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("409") ||
+      message.includes("response is still in progress")
+    );
+  }, []);
+
+  const sendMessageDirect = useCallback(
     async (message: Parameters<typeof sendMessage>[0]) => {
       setHasPendingResponse(true);
       setUserStopped(false);
@@ -1615,12 +1632,55 @@ export function SessionChatContent({
       try {
         await sendMessage(message);
       } catch (error) {
+        if (isChatResponseInProgressError(error)) {
+          outboundMessageQueueRef.current.push(message);
+          return;
+        }
+
         setHasPendingResponse(false);
         void setChatStreaming(chatInfo.id, false);
         throw error;
       }
     },
-    [chatInfo.id, sendMessage, setChatStreaming],
+    [chatInfo.id, isChatResponseInProgressError, sendMessage, setChatStreaming],
+  );
+
+  const drainOutboundMessageQueue = useCallback(async () => {
+    if (isDrainingOutboundQueueRef.current) {
+      return;
+    }
+    if (isChatInFlightStatus(status)) {
+      return;
+    }
+
+    const nextMessage = outboundMessageQueueRef.current.shift();
+    if (!nextMessage) {
+      return;
+    }
+
+    isDrainingOutboundQueueRef.current = true;
+    try {
+      await sendMessageDirect(nextMessage);
+    } finally {
+      isDrainingOutboundQueueRef.current = false;
+    }
+  }, [sendMessageDirect, status]);
+
+  const sendMessageWithPendingState = useCallback(
+    async (message: Parameters<typeof sendMessage>[0]) => {
+      if (isChatInFlight || hasPendingResponse) {
+        outboundMessageQueueRef.current.push(message);
+        setHasPendingResponse(true);
+        return;
+      }
+
+      await sendMessageDirect(message);
+    },
+    [
+      hasPendingResponse,
+      isChatInFlight,
+      sendMessageDirect,
+    ],
   );
 
   const bootstrapAttemptedRef = useRef(false);
@@ -1989,6 +2049,7 @@ export function SessionChatContent({
       };
 
       void refreshCompletedTurnState();
+      void drainOutboundMessageQueue();
       void requestMarkChatRead("force");
       void refreshChats();
 
@@ -2016,6 +2077,7 @@ export function SessionChatContent({
     requestMarkChatRead,
     refreshChats,
     refreshCurrentChatSnapshot,
+    drainOutboundMessageQueue,
     session.cloneUrl,
     session.repoOwner,
     session.repoName,

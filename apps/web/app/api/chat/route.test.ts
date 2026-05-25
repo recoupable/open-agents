@@ -456,7 +456,50 @@ describe("/api/chat route", () => {
     });
   });
 
-  test("reconnects to existing running workflow instead of starting new one", async () => {
+  test("reconnects to existing running workflow for tool-loop continuation", async () => {
+    if (!chatRecord) throw new Error("chatRecord must be set");
+    chatRecord.activeStreamId = "wrun_existing-456";
+    existingRunStatus = "running";
+
+    const { POST } = await routeModulePromise;
+
+    const response = await POST(
+      createRequest(
+        JSON.stringify({
+          sessionId: "session-1",
+          chatId: "chat-1",
+          messages: [
+            {
+              id: "user-1",
+              role: "user",
+              parts: [{ type: "text", text: "Fix the bug" }],
+            },
+            {
+              id: "assistant-1",
+              role: "assistant",
+              parts: [
+                {
+                  type: "tool-invocation",
+                  toolCallId: "tool-1",
+                  toolName: "bash",
+                  state: "output-available",
+                  input: { command: "ls" },
+                  output: "ok",
+                },
+              ],
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(response.ok).toBe(true);
+    expect(response.headers.get("x-workflow-run-id")).toBe("wrun_existing-456");
+    expect(startCalls).toHaveLength(0);
+    expect(compareAndSetChatActiveStreamIdSpy).not.toHaveBeenCalled();
+  });
+
+  test("returns 409 when a new user prompt arrives while a workflow is running", async () => {
     if (!chatRecord) throw new Error("chatRecord must be set");
     chatRecord.activeStreamId = "wrun_existing-456";
     existingRunStatus = "running";
@@ -465,10 +508,12 @@ describe("/api/chat route", () => {
 
     const response = await POST(createValidRequest());
 
-    expect(response.ok).toBe(true);
-    expect(response.headers.get("x-workflow-run-id")).toBe("wrun_existing-456");
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error:
+        "A response is still in progress for this chat. Your message was saved; it will be answered when the current reply finishes.",
+    });
     expect(startCalls).toHaveLength(0);
-    expect(compareAndSetChatActiveStreamIdSpy).not.toHaveBeenCalled();
   });
 
   test("starts new workflow when existing run is completed and clears the stale stream id first", async () => {
