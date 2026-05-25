@@ -1,4 +1,5 @@
 import { Sandbox as VercelSandboxSDK } from "@vercel/sandbox";
+import { resolveSandboxCredentials } from "./resolve-credentials";
 import type { Dirent } from "fs";
 import type {
   ExecResult,
@@ -530,6 +531,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
     // Calculate SDK timeout with buffer for beforeStop hook.
     const sdkTimeout = effectiveTimeout + TIMEOUT_BUFFER_MS;
 
+    const credentials = resolveSandboxCredentials();
     const createBaseConfig = {
       ...(name ? { name } : {}),
       resources: { vcpus },
@@ -539,6 +541,7 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       networkPolicy: buildGitHubCredentialBrokeringPolicy(githubToken),
       ...(ports && { ports }),
       ...(snapshotExpiration !== undefined && { snapshotExpiration }),
+      ...credentials,
     };
 
     let sdk: VercelSandboxSDK;
@@ -754,9 +757,11 @@ ${hostLine}${portLines}${runtimeEnvLine}`;
       resume?: boolean;
     } = {},
   ): Promise<VercelSandbox> {
+    const credentials = resolveSandboxCredentials();
     const sdk = await VercelSandboxSDK.get({
       name: sandboxName,
       resume: options.resume ?? false,
+      ...credentials,
     });
     await syncGitHubCredentialBrokering(sdk, options.githubToken);
     const session = sdk.currentSession();

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Snapshot } from "@vercel/sandbox";
+import { resolveSandboxCredentials } from "@open-harness/sandbox/vercel";
 
 /**
  * Finds the most recent `created` snapshot whose source sandbox name matches
@@ -13,10 +14,12 @@ export async function findOrgSnapshot(
   sandboxName: string,
 ): Promise<string | null> {
   try {
+    const credentials = resolveSandboxCredentials();
     const result = await Snapshot.list({
       name: sandboxName,
       sortOrder: "desc",
       limit: 5,
+      ...credentials,
     });
     const ready = result.snapshots.find((s) => s.status === "created");
     return ready?.id ?? null;
