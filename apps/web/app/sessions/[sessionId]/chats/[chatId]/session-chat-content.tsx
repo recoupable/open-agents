@@ -1640,7 +1640,6 @@ export function SessionChatContent({
 
   const outboundMessageQueueRef = useRef<QueuedOutboundMessage[]>([]);
   const isDrainingOutboundQueueRef = useRef(false);
-  const lastRecoveredUserMessageIdRef = useRef<string | null>(null);
 
   const isChatResponseInProgressError = useCallback((error: unknown) => {
     if (!(error instanceof Error)) {
@@ -1771,58 +1770,6 @@ export function SessionChatContent({
       sendMessageDirect,
     ],
   );
-
-  const recoverUnansweredUserPrompt = useCallback(async () => {
-    markChatSendInFlight();
-    try {
-      await sendMessage();
-    } catch (error) {
-      if (isChatResponseInProgressError(error)) {
-        return;
-      }
-      setHasPendingResponse(false);
-      void setChatStreaming(chatInfo.id, false);
-      console.error("Failed to recover unanswered user prompt:", error);
-    }
-  }, [
-    chatInfo.id,
-    isChatResponseInProgressError,
-    markChatSendInFlight,
-    sendMessage,
-    setChatStreaming,
-  ]);
-
-  useEffect(() => {
-    if (status !== "ready" || userStopped) {
-      return;
-    }
-    if (isChatInFlight || hasPendingResponse) {
-      return;
-    }
-    if (outboundMessageQueueRef.current.length > 0) {
-      return;
-    }
-
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.role !== "user") {
-      lastRecoveredUserMessageIdRef.current = null;
-      return;
-    }
-
-    if (lastRecoveredUserMessageIdRef.current === lastMessage.id) {
-      return;
-    }
-
-    lastRecoveredUserMessageIdRef.current = lastMessage.id;
-    void recoverUnansweredUserPrompt();
-  }, [
-    hasPendingResponse,
-    isChatInFlight,
-    messages,
-    recoverUnansweredUserPrompt,
-    status,
-    userStopped,
-  ]);
 
   const bootstrapAttemptedRef = useRef(false);
 
