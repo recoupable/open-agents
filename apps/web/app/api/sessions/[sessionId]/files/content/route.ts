@@ -4,10 +4,7 @@ import {
   requireAuthenticatedUser,
   requireOwnedSessionWithSandboxGuard,
 } from "@/app/api/sessions/_lib/session-context";
-import { updateSession } from "@/lib/db/sessions";
-import { buildHibernatedLifecycleUpdate } from "@/lib/sandbox/lifecycle";
 import {
-  clearUnavailableSandboxState,
   hasRuntimeSandboxState,
   isSandboxUnavailableError,
 } from "@/lib/sandbox/utils";
@@ -131,13 +128,9 @@ export async function GET(req: Request, context: RouteContext) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isSandboxUnavailableError(message)) {
-      await updateSession(sessionId, {
-        sandboxState: clearUnavailableSandboxState(
-          sessionRecord.sandboxState,
-          message,
-        ),
-        ...buildHibernatedLifecycleUpdate(),
-      });
+      // Post-cutover the sandbox lives in recoup-api's project, so
+      // open-agents can't see it from this route. Don't clobber
+      // sandbox_state — recoup-api owns it.
       return Response.json(
         { error: "Sandbox is unavailable. Please resume sandbox." },
         { status: 409 },
