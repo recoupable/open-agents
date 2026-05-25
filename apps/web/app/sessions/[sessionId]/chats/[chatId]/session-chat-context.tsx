@@ -2,6 +2,7 @@
 
 import type { UseChatHelpers } from "@ai-sdk/react";
 import type { SandboxState } from "@open-harness/sandbox";
+import { usePrivy } from "@privy-io/react-auth";
 import {
   createContext,
   type ReactNode,
@@ -15,6 +16,7 @@ import {
 import { useSWRConfig } from "swr";
 import type { ReconnectResponse } from "@/app/api/sandbox/reconnect/route";
 import type { SandboxStatusResponse } from "@/app/api/sandbox/status/route";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import type { DiffResponse } from "@/app/api/sessions/[sessionId]/diff/route";
 import type { FileSuggestion } from "@/app/api/sessions/[sessionId]/files/route";
 import type { SkillSuggestion } from "@/app/api/sessions/[sessionId]/skills/route";
@@ -288,6 +290,7 @@ export function SessionChatProvider({
   children,
 }: SessionChatProviderProps) {
   const { mutate } = useSWRConfig();
+  const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
   const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
@@ -430,8 +433,15 @@ export function SessionChatProvider({
       setReconnectionStatus("checking");
 
       try {
+        // recoup-api owns sandboxes post-cutover — reach across-origin
+        // with a fresh Privy JWT so its `validateAuthContext` accepts
+        // the request. Falling back to no-auth would just hit 401.
+        const recoupAccessToken = await getAccessToken().catch(() => null);
         const response = await fetch(
-          `/api/sandbox/reconnect?sessionId=${sessionRecord.id}`,
+          `${RECOUPABLE_API_BASE_URL}/api/sandbox/reconnect?sessionId=${sessionRecord.id}`,
+          recoupAccessToken
+            ? { headers: { Authorization: `Bearer ${recoupAccessToken}` } }
+            : undefined,
         );
 
         if (!response.ok) {
@@ -493,7 +503,7 @@ export function SessionChatProvider({
         setReconnectionStatus("failed");
         return "failed";
       }
-    }, [sessionRecord.id, sessionId, applyLifecycleTiming]);
+    }, [sessionRecord.id, sessionId, applyLifecycleTiming, getAccessToken]);
 
   const syncSandboxStatus =
     useCallback(async (): Promise<SandboxStatusSyncResult> => {
@@ -509,8 +519,16 @@ export function SessionChatProvider({
 
       const run = (async (): Promise<SandboxStatusSyncResult> => {
         try {
+          // Status polling moved to recoup-api post-cutover for the
+          // same project-scope reason as reconnect — open-agents'
+          // local route can no longer see sandboxes provisioned in
+          // recoup-api's project.
+          const recoupAccessToken = await getAccessToken().catch(() => null);
           const response = await fetch(
-            `/api/sandbox/status?sessionId=${sessionRecord.id}`,
+            `${RECOUPABLE_API_BASE_URL}/api/sandbox/status?sessionId=${sessionRecord.id}`,
+            recoupAccessToken
+              ? { headers: { Authorization: `Bearer ${recoupAccessToken}` } }
+              : undefined,
           );
           if (!response.ok) {
             return "unknown";
@@ -596,7 +614,7 @@ export function SessionChatProvider({
       } finally {
         statusSyncRef.current.inFlight = null;
       }
-    }, [sessionRecord.id, sessionId, applyLifecycleTiming]);
+    }, [sessionRecord.id, sessionId, applyLifecycleTiming, getAccessToken]);
 
   const updateSessionRepo = useCallback(
     (info: {
