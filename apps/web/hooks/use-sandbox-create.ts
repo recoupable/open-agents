@@ -35,7 +35,7 @@ export function useSandboxCreate({
   setSandboxTypeFromUnknown,
   requestStatusSync,
 }: UseSandboxCreateParams) {
-  const { ready } = usePrivy();
+  const { ready, getAccessToken } = usePrivy();
   const [isCreatingSandbox, setIsCreatingSandbox] = useState(false);
   const [sandboxCreateError, setSandboxCreateError] =
     useState<SandboxCreateErrorDetails | null>(null);
@@ -48,12 +48,19 @@ export function useSandboxCreate({
       throw new Error("Session is missing a clone URL");
     }
     const shouldCreateNewBranch = session.isNewBranch;
+    // Cross-origin call to recoup-api needs the user's Privy JWT so
+    // `validateAuthContext` accepts the request (same Bearer pattern
+    // the chat-workflow cutover uses). recoup-api falls back to 401
+    // when no token is provided, so let the call go through and
+    // surface that error rather than guarding it client-side.
+    const recoupAccessToken = await getAccessToken().catch(() => null);
     const newSandbox = await createSandbox(
       session.cloneUrl,
       session.branch ?? undefined,
       shouldCreateNewBranch,
       session.id,
       preferredSandboxType,
+      recoupAccessToken,
     );
     setSandboxInfo(newSandbox);
     setSandboxTypeFromUnknown(newSandbox.type);
@@ -65,6 +72,7 @@ export function useSandboxCreate({
     session.branch,
     session.id,
     preferredSandboxType,
+    getAccessToken,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,

@@ -1,4 +1,5 @@
 import type { SandboxInfo } from "@/app/sessions/[sessionId]/chats/[chatId]/session-chat-context";
+import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
 import { SandboxCreateRequestError } from "./sandbox-create-request-error";
 
 type CreateSandboxResponse = SandboxInfo & {
@@ -47,22 +48,49 @@ function getFallbackSandboxCreateErrorMessage(status: number): string {
   return "Failed to create sandbox. Please try again.";
 }
 
+/**
+ * Provision a sandbox for the given session.
+ *
+ * Cut over (recoupable/api Path C) from open-agents' own `/api/sandbox`
+ * route to recoup-api's `POST /api/sandbox`. recoup-api owns the
+ * sandbox lifecycle (provisioning, lifecycle workflow, snapshot
+ * lookup, global-skill install) so the sandbox is born in recoup-api's
+ * Vercel project and the chat workflow's `sandbox.exec` calls — which
+ * also resolve via recoup-api's OIDC — can reach it without any
+ * cross-project credential plumbing.
+ *
+ * `branch`, `isNewBranch`, and `sandboxType` are no longer sent on the
+ * wire — recoup-api always provisions against the repo's default
+ * branch and only supports `vercel` sandboxes. They remain in the
+ * parameter list so the in-app callers don't need to change.
+ *
+ * @param recoupAccessToken - Short-lived Privy JWT. Forwarded as
+ *   `Authorization: Bearer …` so recoup-api's `validateAuthContext`
+ *   accepts the cross-origin request. Pass `null` only in contexts
+ *   where the caller is sure auth has already been resolved (the
+ *   handler will return 401 otherwise).
+ */
 export async function createSandbox(
   cloneUrl: string,
-  branch: string | undefined,
-  isNewBranch: boolean,
+  _branch: string | undefined,
+  _isNewBranch: boolean,
   sessionId: string,
-  sandboxType: string | undefined,
+  _sandboxType: string | undefined,
+  recoupAccessToken: string | null,
 ): Promise<CreateSandboxResponse> {
-  const response = await fetch("/api/sandbox", {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (recoupAccessToken) {
+    headers.Authorization = `Bearer ${recoupAccessToken}`;
+  }
+
+  const response = await fetch(`${RECOUPABLE_API_BASE_URL}/api/sandbox`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({
       repoUrl: cloneUrl,
-      branch: branch ?? "main",
-      isNewBranch,
       sessionId,
-      sandboxType: sandboxType ?? "vercel",
     }),
   });
 
