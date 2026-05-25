@@ -113,6 +113,7 @@ import {
   estimateModelUsageCost,
 } from "@/lib/models";
 import { getPrDeploymentRefreshInterval } from "@/lib/pr-deployment-polling";
+import { shouldPreserveLocalMessagesOverServerSnapshot } from "@/lib/chat/should-preserve-local-messages-over-server-snapshot";
 import { fetcher } from "@/lib/swr";
 import { streamdownPlugins } from "@/lib/streamdown-config";
 import { cn } from "@/lib/utils";
@@ -1368,6 +1369,8 @@ export function SessionChatContent({
       return;
     }
 
+    const localMessagesSnapshot = messages;
+
     const response = await fetch(
       `/api/sessions/${session.id}/chats/${chatInfo.id}`,
       {
@@ -1383,9 +1386,28 @@ export function SessionChatContent({
       return;
     }
 
+    if (shouldSkipServerSnapshotOverwriteRef.current) {
+      return;
+    }
+
+    if (
+      shouldPreserveLocalMessagesOverServerSnapshot(
+        localMessagesSnapshot,
+        data.messages,
+      )
+    ) {
+      return;
+    }
+
     clearError();
     setMessages(data.messages);
-  }, [chatInfo.id, clearError, session.id, setMessages]);
+  }, [
+    chatInfo.id,
+    clearError,
+    messages,
+    session.id,
+    setMessages,
+  ]);
 
   const refreshAfterTabResume = useCallback(async (): Promise<void> => {
     if (
@@ -1621,13 +1643,18 @@ export function SessionChatContent({
     );
   }, []);
 
+  const markChatSendInFlight = useCallback(() => {
+    shouldSkipServerSnapshotOverwriteRef.current = true;
+    setHasPendingResponse(true);
+    setUserStopped(false);
+    lastSendTimestampRef.current = Date.now();
+    hasSeenAssistantRenderableContentRef.current = false;
+    void setChatStreaming(chatInfo.id, true);
+  }, [chatInfo.id, setChatStreaming]);
+
   const sendMessageDirect = useCallback(
     async (message: Parameters<typeof sendMessage>[0]) => {
-      setHasPendingResponse(true);
-      setUserStopped(false);
-      lastSendTimestampRef.current = Date.now();
-      hasSeenAssistantRenderableContentRef.current = false;
-      void setChatStreaming(chatInfo.id, true);
+      markChatSendInFlight();
 
       try {
         await sendMessage(message);
@@ -1642,7 +1669,12 @@ export function SessionChatContent({
         throw error;
       }
     },
-    [chatInfo.id, isChatResponseInProgressError, sendMessage, setChatStreaming],
+    [
+      chatInfo.id,
+      isChatResponseInProgressError,
+      markChatSendInFlight,
+      sendMessage,
+    ],
   );
 
   const drainOutboundMessageQueue = useCallback(async () => {
@@ -1670,7 +1702,7 @@ export function SessionChatContent({
     async (message: Parameters<typeof sendMessage>[0]) => {
       if (isChatInFlight || hasPendingResponse) {
         outboundMessageQueueRef.current.push(message);
-        setHasPendingResponse(true);
+        markChatSendInFlight();
         return;
       }
 
@@ -1679,6 +1711,7 @@ export function SessionChatContent({
     [
       hasPendingResponse,
       isChatInFlight,
+      markChatSendInFlight,
       sendMessageDirect,
     ],
   );
