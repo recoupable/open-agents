@@ -47,10 +47,7 @@ describe("createSandbox", () => {
 
     await createSandbox(
       "https://github.com/owner/repo",
-      "main",
-      false,
       "session-abc",
-      "vercel",
       "jwt-token-here",
     );
 
@@ -72,10 +69,7 @@ describe("createSandbox", () => {
 
     await createSandbox(
       "https://github.com/owner/repo",
-      "main",
-      false,
       "session-abc",
-      "vercel",
       "the-privy-jwt",
     );
 
@@ -93,14 +87,7 @@ describe("createSandbox", () => {
       }),
     });
 
-    await createSandbox(
-      "https://github.com/owner/repo",
-      "main",
-      false,
-      "session-abc",
-      "vercel",
-      null,
-    );
+    await createSandbox("https://github.com/owner/repo", "session-abc", null);
 
     const headers = new Headers(fetchMock.calls[0]?.init?.headers);
     expect(headers.get("authorization")).toBeNull();
@@ -116,14 +103,7 @@ describe("createSandbox", () => {
       }),
     });
 
-    await createSandbox(
-      "https://github.com/owner/repo",
-      "feature/xyz",
-      true,
-      "session-abc",
-      "vercel",
-      "jwt",
-    );
+    await createSandbox("https://github.com/owner/repo", "session-abc", "jwt");
 
     const body = JSON.parse(fetchMock.calls[0]?.init?.body as string);
     expect(body.repoUrl).toBe("https://github.com/owner/repo");
@@ -142,10 +122,7 @@ describe("createSandbox", () => {
 
     const result = await createSandbox(
       "https://github.com/owner/repo",
-      "main",
-      false,
       "session-abc",
-      "vercel",
       "jwt",
     );
 

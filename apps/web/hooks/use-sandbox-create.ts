@@ -11,17 +11,13 @@ import {
 } from "@/lib/sandbox/get-sandbox-create-error-details";
 import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 
-type SessionFields = Pick<
-  Session,
-  "id" | "cloneUrl" | "branch" | "isNewBranch"
->;
+type SessionFields = Pick<Session, "id" | "cloneUrl">;
 
 type CreatedSandbox = SandboxInfo & { type: string };
 
 type UseSandboxCreateParams = {
   session: SessionFields;
   sandboxInfo: SandboxInfo | null;
-  preferredSandboxType: string | undefined;
   setSandboxInfo: (info: CreatedSandbox) => void;
   setSandboxTypeFromUnknown: (type: unknown) => void;
   requestStatusSync: (mode?: "force" | "normal") => Promise<unknown>;
@@ -30,7 +26,6 @@ type UseSandboxCreateParams = {
 export function useSandboxCreate({
   session,
   sandboxInfo,
-  preferredSandboxType,
   setSandboxInfo,
   setSandboxTypeFromUnknown,
   requestStatusSync,
@@ -47,7 +42,6 @@ export function useSandboxCreate({
     if (!session.cloneUrl) {
       throw new Error("Session is missing a clone URL");
     }
-    const shouldCreateNewBranch = session.isNewBranch;
     // Cross-origin call to recoup-api needs the user's Privy JWT so
     // `validateAuthContext` accepts the request (same Bearer pattern
     // the chat-workflow cutover uses). recoup-api falls back to 401
@@ -56,10 +50,7 @@ export function useSandboxCreate({
     const recoupAccessToken = await getAccessToken().catch(() => null);
     const newSandbox = await createSandbox(
       session.cloneUrl,
-      session.branch ?? undefined,
-      shouldCreateNewBranch,
       session.id,
-      preferredSandboxType,
       recoupAccessToken,
     );
     setSandboxInfo(newSandbox);
@@ -67,11 +58,8 @@ export function useSandboxCreate({
     requestStatusSync("force").catch(() => undefined);
     return newSandbox;
   }, [
-    session.isNewBranch,
     session.cloneUrl,
-    session.branch,
     session.id,
-    preferredSandboxType,
     getAccessToken,
     setSandboxInfo,
     setSandboxTypeFromUnknown,

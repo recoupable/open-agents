@@ -59,10 +59,10 @@ function getFallbackSandboxCreateErrorMessage(status: number): string {
  * also resolve via recoup-api's OIDC — can reach it without any
  * cross-project credential plumbing.
  *
- * `branch`, `isNewBranch`, and `sandboxType` are no longer sent on the
- * wire — recoup-api always provisions against the repo's default
- * branch and only supports `vercel` sandboxes. They remain in the
- * parameter list so the in-app callers don't need to change.
+ * recoup-api always provisions against the repo's default branch and
+ * only supports `vercel` sandboxes, so the previous `branch`,
+ * `isNewBranch`, and `sandboxType` arguments have no remote semantics
+ * and have been dropped from the wire and the signature.
  *
  * @param recoupAccessToken - Short-lived Privy JWT. Forwarded as
  *   `Authorization: Bearer …` so recoup-api's `validateAuthContext`
@@ -72,10 +72,7 @@ function getFallbackSandboxCreateErrorMessage(status: number): string {
  */
 export async function createSandbox(
   cloneUrl: string,
-  _branch: string | undefined,
-  _isNewBranch: boolean,
   sessionId: string,
-  _sandboxType: string | undefined,
   recoupAccessToken: string | null,
 ): Promise<CreateSandboxResponse> {
   const headers: Record<string, string> = {
