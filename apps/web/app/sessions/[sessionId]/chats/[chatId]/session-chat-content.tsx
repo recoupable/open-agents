@@ -1978,6 +1978,11 @@ export function SessionChatContent({
 
       const refreshCompletedTurnState = async () => {
         await requestStatusSync("force").catch(() => undefined);
+        if (!userStopped) {
+          // Reconcile in-memory chat state with persisted messages so earlier
+          // assistant replies stay visible when the user sends the next prompt.
+          await refreshCurrentChatSnapshot().catch(() => undefined);
+        }
         await refreshGitStatus().catch(() => undefined);
         await refreshDiff().catch(() => undefined);
         await refreshFiles().catch(() => undefined);
@@ -2010,6 +2015,7 @@ export function SessionChatContent({
     refreshFiles,
     requestMarkChatRead,
     refreshChats,
+    refreshCurrentChatSnapshot,
     session.cloneUrl,
     session.repoOwner,
     session.repoName,
