@@ -113,7 +113,10 @@ import {
   estimateModelUsageCost,
 } from "@/lib/models";
 import { getPrDeploymentRefreshInterval } from "@/lib/pr-deployment-polling";
-import { createOptimisticUserMessage } from "@/lib/chat/create-optimistic-user-message";
+import {
+  createOptimisticUserMessage,
+  type ChatOutboundMessageInput,
+} from "@/lib/chat/create-optimistic-user-message";
 import {
   chatMessagesSnapshotChanged,
   mergeChatMessagesFromServer,
@@ -1630,7 +1633,7 @@ export function SessionChatContent({
     resendingMessageId !== null;
 
   type QueuedOutboundMessage = {
-    message: NonNullable<Parameters<typeof sendMessage>[0]>;
+    message: ChatOutboundMessageInput;
     /** When set, the user row is already in local state from optimistic enqueue. */
     existingUserMessageId?: string;
   };
@@ -1693,7 +1696,7 @@ export function SessionChatContent({
   );
 
   const sendMessageDirect = useCallback(
-    async (message: NonNullable<Parameters<typeof sendMessage>[0]>) => {
+    async (message: ChatOutboundMessageInput) => {
       await submitOutboundMessage({ message });
     },
     [submitOutboundMessage],
@@ -1721,7 +1724,7 @@ export function SessionChatContent({
   }, [submitOutboundMessage, status]);
 
   const enqueueOutboundMessage = useCallback(
-    async (message: NonNullable<Parameters<typeof sendMessage>[0]>) => {
+    async (message: ChatOutboundMessageInput) => {
       try {
         const optimisticUserMessage = await createOptimisticUserMessage(message);
         outboundMessageQueueRef.current.push({

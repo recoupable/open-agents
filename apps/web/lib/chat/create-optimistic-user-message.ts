@@ -1,14 +1,11 @@
+import type { UseChatHelpers } from "@ai-sdk/react";
 import { generateId, type FileUIPart } from "ai";
 import type { WebAgentUIMessage } from "@/app/types";
 
-type SendMessageArg = Parameters<
-  (
-    message?:
-      | { text: string; files?: FileList | FileUIPart[] }
-      | { files: FileList | FileUIPart[] }
-      | Omit<WebAgentUIMessage, "id">,
-  ) => Promise<void>
->[0];
+/** Matches `useChat().sendMessage` message argument (non-null). */
+export type ChatOutboundMessageInput = NonNullable<
+  Parameters<UseChatHelpers<WebAgentUIMessage>["sendMessage"]>[0]
+>;
 
 async function filePartsFromSendArg(
   files: FileList | FileUIPart[] | undefined,
@@ -43,7 +40,7 @@ async function filePartsFromSendArg(
  * behind an in-flight response (no network call yet).
  */
 export async function createOptimisticUserMessage(
-  message: NonNullable<SendMessageArg>,
+  message: ChatOutboundMessageInput,
 ): Promise<WebAgentUIMessage> {
   if ("text" in message || "files" in message) {
     const fileParts = await filePartsFromSendArg(
