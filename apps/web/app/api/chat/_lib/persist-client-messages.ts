@@ -1,16 +1,30 @@
 import type { WebAgentUIMessage } from "@/app/types";
 import { dedupeMessageReasoning } from "@/lib/chat/dedupe-message-reasoning";
+import { shouldUpsertClientAssistant } from "@/lib/chat/should-upsert-client-assistant";
 import { hasRenderableAssistantMessage } from "@/lib/chat-streaming-state";
 import {
   createChatMessageIfNotExists,
+  getChatMessageById,
   touchChat,
   upsertChatMessageScoped,
 } from "@/lib/db/sessions";
 
+function storedMessageFromParts(parts: unknown): WebAgentUIMessage | null {
+  if (!parts || typeof parts !== "object") {
+    return null;
+  }
+
+  const candidate = parts as WebAgentUIMessage;
+  if (candidate.role !== "assistant" || !Array.isArray(candidate.parts)) {
+    return null;
+  }
+
+  return candidate;
+}
+
 /**
- * Persist all renderable assistant messages from the client payload.
- * Backfills the DB when the UI already has replies that never made it to
- * `chat_messages` (e.g. interrupted workflow, ID conflict, or race).
+ * Persist renderable assistant messages from the client only when missing
+ * from the DB or the client snapshot is richer than the stored row.
  *
  * Must not be imported from workflow code (uses Node DB + chat-streaming-state).
  */
@@ -28,6 +42,16 @@ export async function persistClientAssistantMessages(
 
     try {
       const dedupedMessage = dedupeMessageReasoning(message);
+      const existingRow = await getChatMessageById(dedupedMessage.id);
+      const existingMessage =
+        existingRow?.chatId === chatId && existingRow.role === "assistant"
+          ? storedMessageFromParts(existingRow.parts)
+          : null;
+
+      if (!shouldUpsertClientAssistant(dedupedMessage, existingMessage)) {
+        continue;
+      }
+
       const result = await upsertChatMessageScoped({
         id: dedupedMessage.id,
         chatId,

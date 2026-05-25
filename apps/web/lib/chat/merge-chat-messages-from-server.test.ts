@@ -61,4 +61,14 @@ describe("chatMessagesSnapshotChanged", () => {
       true,
     );
   });
+
+  test("detects richer content when ids are unchanged", () => {
+    const local = [user("u1", "hi"), assistant("a1", "short")];
+    const merged = mergeChatMessagesFromServer(local, [
+      user("u1", "hi"),
+      assistant("a1", "longer server answer"),
+    ]);
+
+    expect(chatMessagesSnapshotChanged(local, merged)).toBe(true);
+  });
 });

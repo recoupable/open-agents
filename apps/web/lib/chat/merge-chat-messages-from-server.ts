@@ -1,17 +1,5 @@
 import type { WebAgentUIMessage } from "@/app/types";
-function messageRichnessScore(message: WebAgentUIMessage): number {
-  if (message.role !== "assistant") {
-    return message.parts.length;
-  }
-
-  let score = message.parts.length;
-  for (const part of message.parts) {
-    if (part.type === "text") {
-      score += part.text.length;
-    }
-  }
-  return score;
-}
+import { messageRichnessScore } from "@/lib/chat/message-richness-score";
 
 function pickPreferredMessage(
   serverMessage: WebAgentUIMessage,
@@ -21,9 +9,9 @@ function pickPreferredMessage(
     return serverMessage;
   }
 
-  const serverScore = messageRichnessScore(serverMessage);
-  const localScore = messageRichnessScore(localMessage);
-  return localScore > serverScore ? localMessage : serverMessage;
+  return messageRichnessScore(localMessage) > messageRichnessScore(serverMessage)
+    ? localMessage
+    : serverMessage;
 }
 
 /**
@@ -62,7 +50,7 @@ export function mergeChatMessagesFromServer(
   return merged;
 }
 
-/** True when merge would change the message list (by id sequence or count). */
+/** True when merged messages differ from the local snapshot in ids or content. */
 export function chatMessagesSnapshotChanged(
   before: WebAgentUIMessage[],
   after: WebAgentUIMessage[],
@@ -72,7 +60,12 @@ export function chatMessagesSnapshotChanged(
   }
 
   for (let index = 0; index < before.length; index += 1) {
-    if (before[index]?.id !== after[index]?.id) {
+    const previous = before[index];
+    const next = after[index];
+    if (!previous || !next || previous.id !== next.id) {
+      return true;
+    }
+    if (messageRichnessScore(previous) !== messageRichnessScore(next)) {
       return true;
     }
   }

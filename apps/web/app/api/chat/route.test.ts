@@ -509,10 +509,27 @@ describe("/api/chat route", () => {
     expect(compareAndSetChatActiveStreamIdSpy).not.toHaveBeenCalled();
   });
 
+  test("reconnects when last message is user but already persisted", async () => {
+    if (!chatRecord) throw new Error("chatRecord must be set");
+    chatRecord.activeStreamId = "wrun_existing-456";
+    existingRunStatus = "running";
+    existingChatMessage = { id: "user-1" };
+
+    const { POST } = await routeModulePromise;
+
+    const response = await POST(createValidRequest());
+
+    expect(response.ok).toBe(true);
+    expect(response.headers.get("x-workflow-run-id")).toBe("wrun_existing-456");
+    expect(startCalls).toHaveLength(0);
+    expect(persistTrailingUserMessagesSpy).not.toHaveBeenCalled();
+  });
+
   test("returns 409 when a new user prompt arrives while a workflow is running", async () => {
     if (!chatRecord) throw new Error("chatRecord must be set");
     chatRecord.activeStreamId = "wrun_existing-456";
     existingRunStatus = "running";
+    existingChatMessage = null;
 
     const { POST } = await routeModulePromise;
 

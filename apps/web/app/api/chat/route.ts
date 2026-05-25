@@ -59,11 +59,6 @@ function getLatestUserMessage(messages: WebAgentUIMessage[]) {
   return null;
 }
 
-/** True when the client is submitting a new user turn (not tool-loop continuation). */
-function isNewUserPrompt(messages: WebAgentUIMessage[]): boolean {
-  return messages.at(-1)?.role === "user";
-}
-
 export async function POST(req: Request) {
   // 1. Validate session
   const authResult = await requireAuthenticatedUser();
@@ -132,21 +127,22 @@ export async function POST(req: Request) {
     );
 
     if (existingStreamResolution.action === "resume") {
-      // A new user prompt while a workflow is still running must not attach
-      // to the in-flight stream — that only persists the user row and drops
-      // assistant replies for the middle turns after refresh.
-      if (isNewUserPrompt(messages)) {
-        await Promise.all([
-          persistTrailingUserMessages(chatId, messages),
-          persistClientAssistantMessages(chatId, messages),
-        ]);
-        return Response.json(
-          {
-            error:
-              "A response is still in progress for this chat. Your message was saved; it will be answered when the current reply finishes.",
-          },
-          { status: 409 },
-        );
+      const lastMessage = messages.at(-1);
+      if (lastMessage?.role === "user") {
+        const existingMessage = await getChatMessageById(lastMessage.id);
+        if (!existingMessage) {
+          await Promise.all([
+            persistTrailingUserMessages(chatId, messages),
+            persistClientAssistantMessages(chatId, messages),
+          ]);
+          return Response.json(
+            {
+              error:
+                "A response is still in progress for this chat. Your message was saved; it will be answered when the current reply finishes.",
+            },
+            { status: 409 },
+          );
+        }
       }
 
       return createUIMessageStreamResponse({
