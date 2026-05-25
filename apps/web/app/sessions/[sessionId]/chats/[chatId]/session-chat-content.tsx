@@ -113,7 +113,11 @@ import {
   estimateModelUsageCost,
 } from "@/lib/models";
 import { getPrDeploymentRefreshInterval } from "@/lib/pr-deployment-polling";
-import { shouldPreserveLocalMessagesOverServerSnapshot } from "@/lib/chat/should-preserve-local-messages-over-server-snapshot";
+import { createOptimisticUserMessage } from "@/lib/chat/create-optimistic-user-message";
+import {
+  chatMessagesSnapshotChanged,
+  mergeChatMessagesFromServer,
+} from "@/lib/chat/merge-chat-messages-from-server";
 import { fetcher } from "@/lib/swr";
 import { streamdownPlugins } from "@/lib/streamdown-config";
 import { cn } from "@/lib/utils";
@@ -1390,17 +1394,16 @@ export function SessionChatContent({
       return;
     }
 
-    if (
-      shouldPreserveLocalMessagesOverServerSnapshot(
-        localMessagesSnapshot,
-        data.messages,
-      )
-    ) {
+    const mergedMessages = mergeChatMessagesFromServer(
+      localMessagesSnapshot,
+      data.messages,
+    );
+    if (!chatMessagesSnapshotChanged(localMessagesSnapshot, mergedMessages)) {
       return;
     }
 
     clearError();
-    setMessages(data.messages);
+    setMessages(mergedMessages);
   }, [
     chatInfo.id,
     clearError,
@@ -1626,10 +1629,15 @@ export function SessionChatContent({
     deletingMessageId !== null ||
     resendingMessageId !== null;
 
-  const outboundMessageQueueRef = useRef<
-    Parameters<typeof sendMessage>[0][]
-  >([]);
+  type QueuedOutboundMessage = {
+    message: NonNullable<Parameters<typeof sendMessage>[0]>;
+    /** When set, the user row is already in local state from optimistic enqueue. */
+    existingUserMessageId?: string;
+  };
+
+  const outboundMessageQueueRef = useRef<QueuedOutboundMessage[]>([]);
   const isDrainingOutboundQueueRef = useRef(false);
+  const lastRecoveredUserMessageIdRef = useRef<string | null>(null);
 
   const isChatResponseInProgressError = useCallback((error: unknown) => {
     if (!(error instanceof Error)) {
@@ -1652,15 +1660,21 @@ export function SessionChatContent({
     void setChatStreaming(chatInfo.id, true);
   }, [chatInfo.id, setChatStreaming]);
 
-  const sendMessageDirect = useCallback(
-    async (message: Parameters<typeof sendMessage>[0]) => {
+  const submitOutboundMessage = useCallback(
+    async (entry: QueuedOutboundMessage) => {
       markChatSendInFlight();
 
+      const { message, existingUserMessageId } = entry;
+      const messageWithId =
+        existingUserMessageId != null
+          ? { ...message, messageId: existingUserMessageId }
+          : message;
+
       try {
-        await sendMessage(message);
+        await sendMessage(messageWithId);
       } catch (error) {
         if (isChatResponseInProgressError(error)) {
-          outboundMessageQueueRef.current.push(message);
+          outboundMessageQueueRef.current.unshift(entry);
           return;
         }
 
@@ -1674,7 +1688,15 @@ export function SessionChatContent({
       isChatResponseInProgressError,
       markChatSendInFlight,
       sendMessage,
+      setChatStreaming,
     ],
+  );
+
+  const sendMessageDirect = useCallback(
+    async (message: NonNullable<Parameters<typeof sendMessage>[0]>) => {
+      await submitOutboundMessage({ message });
+    },
+    [submitOutboundMessage],
   );
 
   const drainOutboundMessageQueue = useCallback(async () => {
@@ -1685,23 +1707,53 @@ export function SessionChatContent({
       return;
     }
 
-    const nextMessage = outboundMessageQueueRef.current.shift();
-    if (!nextMessage) {
+    const nextEntry = outboundMessageQueueRef.current.shift();
+    if (!nextEntry) {
       return;
     }
 
     isDrainingOutboundQueueRef.current = true;
     try {
-      await sendMessageDirect(nextMessage);
+      await submitOutboundMessage(nextEntry);
     } finally {
       isDrainingOutboundQueueRef.current = false;
     }
-  }, [sendMessageDirect, status]);
+  }, [submitOutboundMessage, status]);
+
+  const enqueueOutboundMessage = useCallback(
+    async (message: NonNullable<Parameters<typeof sendMessage>[0]>) => {
+      try {
+        const optimisticUserMessage = await createOptimisticUserMessage(message);
+        outboundMessageQueueRef.current.push({
+          message,
+          existingUserMessageId: optimisticUserMessage.id,
+        });
+        setMessages((currentMessages) => {
+          if (
+            currentMessages.some(
+              (entry) => entry.id === optimisticUserMessage.id,
+            )
+          ) {
+            return currentMessages;
+          }
+          return [...currentMessages, optimisticUserMessage];
+        });
+      } catch (error) {
+        console.error("Failed to queue optimistic user message:", error);
+        outboundMessageQueueRef.current.push({ message });
+      }
+    },
+    [setMessages],
+  );
 
   const sendMessageWithPendingState = useCallback(
     async (message: Parameters<typeof sendMessage>[0]) => {
+      if (!message) {
+        return;
+      }
+
       if (isChatInFlight || hasPendingResponse) {
-        outboundMessageQueueRef.current.push(message);
+        await enqueueOutboundMessage(message);
         markChatSendInFlight();
         return;
       }
@@ -1709,12 +1761,65 @@ export function SessionChatContent({
       await sendMessageDirect(message);
     },
     [
+      enqueueOutboundMessage,
       hasPendingResponse,
       isChatInFlight,
       markChatSendInFlight,
       sendMessageDirect,
     ],
   );
+
+  const recoverUnansweredUserPrompt = useCallback(async () => {
+    markChatSendInFlight();
+    try {
+      await sendMessage();
+    } catch (error) {
+      if (isChatResponseInProgressError(error)) {
+        return;
+      }
+      setHasPendingResponse(false);
+      void setChatStreaming(chatInfo.id, false);
+      console.error("Failed to recover unanswered user prompt:", error);
+    }
+  }, [
+    chatInfo.id,
+    isChatResponseInProgressError,
+    markChatSendInFlight,
+    sendMessage,
+    setChatStreaming,
+  ]);
+
+  useEffect(() => {
+    if (status !== "ready" || userStopped) {
+      return;
+    }
+    if (isChatInFlight || hasPendingResponse) {
+      return;
+    }
+    if (outboundMessageQueueRef.current.length > 0) {
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.role !== "user") {
+      lastRecoveredUserMessageIdRef.current = null;
+      return;
+    }
+
+    if (lastRecoveredUserMessageIdRef.current === lastMessage.id) {
+      return;
+    }
+
+    lastRecoveredUserMessageIdRef.current = lastMessage.id;
+    void recoverUnansweredUserPrompt();
+  }, [
+    hasPendingResponse,
+    isChatInFlight,
+    messages,
+    recoverUnansweredUserPrompt,
+    status,
+    userStopped,
+  ]);
 
   const bootstrapAttemptedRef = useRef(false);
 

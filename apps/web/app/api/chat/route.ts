@@ -38,6 +38,10 @@ import { resolveChatModelSelection } from "./_lib/model-selection";
 import { parseChatRequestBody, requireChatIdentifiers } from "./_lib/request";
 import { createChatRuntime } from "./_lib/runtime";
 import { runAgentWorkflow } from "@/app/workflows/chat";
+import {
+  persistClientAssistantMessages,
+  persistTrailingUserMessages,
+} from "./_lib/persist-client-messages";
 import { persistAssistantMessagesWithToolResults } from "./_lib/persist-tool-results";
 
 export const maxDuration = 800;
@@ -132,7 +136,10 @@ export async function POST(req: Request) {
       // to the in-flight stream — that only persists the user row and drops
       // assistant replies for the middle turns after refresh.
       if (isNewUserPrompt(messages)) {
-        await persistLatestUserMessage(chatId, messages);
+        await Promise.all([
+          persistTrailingUserMessages(chatId, messages),
+          persistClientAssistantMessages(chatId, messages),
+        ]);
         return Response.json(
           {
             error:
@@ -169,6 +176,10 @@ export async function POST(req: Request) {
   // in the DB before the workflow starts. This ensures a page refresh
   // during workflow queue time still shows the message.
   void persistLatestUserMessage(chatId, messages);
+
+  // Backfill assistant rows from the client payload (all turns), not only the
+  // latest tool-result message — prevents refresh from loading a thin DB history.
+  void persistClientAssistantMessages(chatId, messages);
 
   // Also persist any assistant messages that contain client-side tool results
   // (e.g. ask_user_question responses). Without this, tool results are only

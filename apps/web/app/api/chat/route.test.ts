@@ -149,6 +149,14 @@ const persistAssistantMessagesWithToolResultsSpy = mock(() =>
   Promise.resolve(),
 );
 
+const persistClientAssistantMessagesSpy = mock(() => Promise.resolve());
+const persistTrailingUserMessagesSpy = mock(() => Promise.resolve());
+
+mock.module("./_lib/persist-client-messages", () => ({
+  persistClientAssistantMessages: persistClientAssistantMessagesSpy,
+  persistTrailingUserMessages: persistTrailingUserMessagesSpy,
+}));
+
 mock.module("./_lib/persist-tool-results", () => ({
   persistAssistantMessagesWithToolResults:
     persistAssistantMessagesWithToolResultsSpy,
@@ -258,6 +266,8 @@ describe("/api/chat route", () => {
     };
     compareAndSetChatActiveStreamIdSpy.mockClear();
     persistAssistantMessagesWithToolResultsSpy.mockClear();
+    persistClientAssistantMessagesSpy.mockClear();
+    persistTrailingUserMessagesSpy.mockClear();
     currentAuthSession = {
       user: {
         id: "user-1",
@@ -514,6 +524,9 @@ describe("/api/chat route", () => {
         "A response is still in progress for this chat. Your message was saved; it will be answered when the current reply finishes.",
     });
     expect(startCalls).toHaveLength(0);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(persistTrailingUserMessagesSpy).toHaveBeenCalledTimes(1);
+    expect(persistClientAssistantMessagesSpy).toHaveBeenCalledTimes(1);
   });
 
   test("starts new workflow when existing run is completed and clears the stale stream id first", async () => {
@@ -586,6 +599,7 @@ describe("/api/chat route", () => {
     // Wait for the fire-and-forget call to settle
     await new Promise((resolve) => setTimeout(resolve, 50));
 
+    expect(persistClientAssistantMessagesSpy).toHaveBeenCalledTimes(1);
     expect(persistAssistantMessagesWithToolResultsSpy).toHaveBeenCalledTimes(1);
     expect(persistAssistantMessagesWithToolResultsSpy).toHaveBeenCalledWith(
       "chat-1",

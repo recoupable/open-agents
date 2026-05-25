@@ -633,7 +633,7 @@ export async function runAgentWorkflow(options: Options) {
       // On unexpected errors, still clear the active stream and close
       // so the chat is never permanently marked as streaming.
       if (!streamClosed) {
-        if (hasRenderableAssistantMessage(pendingAssistantResponse)) {
+        if (pendingAssistantResponse.parts.length > 0) {
           try {
             await persistAssistantMessage(
               options.chatId,
