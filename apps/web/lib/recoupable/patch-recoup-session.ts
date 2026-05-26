@@ -43,6 +43,9 @@ const recoupPatchSessionSuccessSchema = z.object({
  * PATCH `recoup-api/api/sessions/{sessionId}` with Privy Bearer auth.
  * Optional fields: rename (`title`), lifecycle `status`, persisted line counters.
  * Response shape: `{ session }` on 200 (same wire format as open-agents `Session`).
+ *
+ * Archive/unarchive sandbox stop, lifecycle clears, and unarchive 409 guards are
+ * implemented in Recoup api (`patchSessionByIdHandler` / `stopSandboxOnArchive`).
  */
 export function patchRecoupSession(
   sessionId: string,

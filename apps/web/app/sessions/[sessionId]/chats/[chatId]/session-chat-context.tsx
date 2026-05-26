@@ -31,6 +31,7 @@ import {
 import { useSessionSkills } from "@/hooks/use-session-skills";
 import type { Chat, Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
+import { applySyncArchiveLifecyclePatch } from "@/lib/session/apply-sync-archive-lifecycle-patch";
 import { patchOwnSession } from "@/lib/session/patch-own-session";
 import {
   mergeSessionIntoSessionsSwrSnapshot,
@@ -743,10 +744,7 @@ export function SessionChatProvider({
 
   const archiveSession = useCallback(async () => {
     const previousSession = sessionRecord;
-    const optimisticSession: Session = {
-      ...sessionRecord,
-      status: "archived",
-    };
+    const optimisticSession = applySyncArchiveLifecyclePatch(sessionRecord);
 
     const rollback = async () => {
       setSessionRecord(previousSession);

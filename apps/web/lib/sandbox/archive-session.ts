@@ -1,5 +1,11 @@
 import "server-only";
 
+/**
+ * Legacy open-agents Postgres archive helper (local `updateSession` + sandbox stop).
+ * Browser archive/unarchive uses Recoup `PATCH /api/sessions/{id}` via `patchOwnSession`;
+ * sandbox teardown and sync lifecycle clears live in Recoup api.
+ */
+
 import { connectSandbox } from "@open-harness/sandbox";
 import { getSessionById, updateSession } from "@/lib/db/sessions";
 import { canOperateOnSandbox, clearSandboxState } from "./utils";
