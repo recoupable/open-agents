@@ -119,8 +119,8 @@ import {
 } from "@/lib/chat/create-optimistic-user-message";
 import {
   appendMessagesMissingFromTail,
-  getMessagesAfterUser,
 } from "@/lib/chat/append-messages-missing-from-tail";
+import { getMessagesAfterUser } from "@/lib/chat/get-messages-after-user";
 import {
   chatMessagesSnapshotChanged,
   mergeChatMessagesFromServer,

@@ -150,11 +150,11 @@ const persistAssistantMessagesWithToolResultsSpy = mock(() =>
 );
 
 const persistClientAssistantMessagesSpy = mock(() => Promise.resolve());
-const persistTrailingUserMessagesSpy = mock(() => Promise.resolve());
+const persistQueuedUserMessageSpy = mock(() => Promise.resolve());
 
 mock.module("./_lib/persist-client-messages", () => ({
   persistClientAssistantMessages: persistClientAssistantMessagesSpy,
-  persistTrailingUserMessages: persistTrailingUserMessagesSpy,
+  persistQueuedUserMessage: persistQueuedUserMessageSpy,
 }));
 
 mock.module("./_lib/persist-tool-results", () => ({
@@ -267,7 +267,7 @@ describe("/api/chat route", () => {
     compareAndSetChatActiveStreamIdSpy.mockClear();
     persistAssistantMessagesWithToolResultsSpy.mockClear();
     persistClientAssistantMessagesSpy.mockClear();
-    persistTrailingUserMessagesSpy.mockClear();
+    persistQueuedUserMessageSpy.mockClear();
     currentAuthSession = {
       user: {
         id: "user-1",
@@ -545,7 +545,7 @@ describe("/api/chat route", () => {
 
     expect(response.status).toBe(409);
     expect(startCalls).toHaveLength(0);
-    expect(persistTrailingUserMessagesSpy).toHaveBeenCalled();
+    expect(persistQueuedUserMessageSpy).toHaveBeenCalled();
   });
 
   test("reconnects when last message is user but already persisted", async () => {
@@ -561,7 +561,7 @@ describe("/api/chat route", () => {
     expect(response.ok).toBe(true);
     expect(response.headers.get("x-workflow-run-id")).toBe("wrun_existing-456");
     expect(startCalls).toHaveLength(0);
-    expect(persistTrailingUserMessagesSpy).not.toHaveBeenCalled();
+    expect(persistQueuedUserMessageSpy).not.toHaveBeenCalled();
   });
 
   test("returns 409 when a new user prompt arrives while a workflow is running", async () => {
@@ -581,7 +581,7 @@ describe("/api/chat route", () => {
     });
     expect(startCalls).toHaveLength(0);
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(persistTrailingUserMessagesSpy).toHaveBeenCalledTimes(1);
+    expect(persistQueuedUserMessageSpy).toHaveBeenCalledTimes(1);
     expect(persistClientAssistantMessagesSpy).toHaveBeenCalledTimes(1);
   });
 

@@ -1,9 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import type { WebAgentUIMessage } from "@/app/types";
-import {
-  appendMessagesMissingFromTail,
-  getMessagesAfterUser,
-} from "./append-messages-missing-from-tail";
+import { appendMessagesMissingFromTail } from "./append-messages-missing-from-tail";
+import { getMessagesAfterUser } from "./get-messages-after-user";
 
 function user(id: string): WebAgentUIMessage {
   return { id, role: "user", parts: [{ type: "text", text: id }] };

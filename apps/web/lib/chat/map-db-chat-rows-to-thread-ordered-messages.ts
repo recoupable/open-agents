@@ -10,7 +10,11 @@ type ChatMessageRow = {
 export function mapDbChatRowsToThreadOrderedMessages(
   rows: ChatMessageRow[],
 ): WebAgentUIMessage[] {
-  const messages = rows.map((row) => row.parts as WebAgentUIMessage);
-  const createdAtById = new Map(rows.map((row) => [row.id, row.createdAt]));
+  const messages: WebAgentUIMessage[] = [];
+  const createdAtById = new Map<string, Date>();
+  for (const row of rows) {
+    messages.push(row.parts as WebAgentUIMessage);
+    createdAtById.set(row.id, row.createdAt);
+  }
   return reorderChatMessagesForThreadDisplay(messages, createdAtById);
 }

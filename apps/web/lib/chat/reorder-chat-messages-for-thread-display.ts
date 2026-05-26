@@ -11,10 +11,6 @@ export function reorderChatMessagesForThreadDisplay(
   messages: WebAgentUIMessage[],
   createdAtById: ReadonlyMap<string, Date>,
 ): WebAgentUIMessage[] {
-  if (messages.length <= 1) {
-    return messages;
-  }
-
   const sorted = [...messages].sort((left, right) => {
     const leftAt = createdAtById.get(left.id)?.getTime() ?? 0;
     const rightAt = createdAtById.get(right.id)?.getTime() ?? 0;

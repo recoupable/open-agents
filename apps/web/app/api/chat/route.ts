@@ -41,7 +41,7 @@ import { createChatRuntime } from "./_lib/runtime";
 import { runAgentWorkflow } from "@/app/workflows/chat";
 import {
   persistClientAssistantMessages,
-  persistTrailingUserMessages,
+  persistQueuedUserMessage,
 } from "./_lib/persist-client-messages";
 import { persistAssistantMessagesWithToolResults } from "./_lib/persist-tool-results";
 
@@ -137,7 +137,7 @@ export async function POST(req: Request) {
 
         if (!existingMessage || isQueuedUserTurn) {
           await Promise.all([
-            persistTrailingUserMessages(chatId, messages),
+            persistQueuedUserMessage(chatId, messages),
             persistClientAssistantMessages(chatId, messages),
           ]);
           return Response.json(

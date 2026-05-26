@@ -71,11 +71,12 @@ export async function persistClientAssistantMessages(
 }
 
 /**
- * Persist the user message that triggered a 409 while another stream is active.
- * Only the latest user row is saved — persisting every trailing user at once
- * gives them earlier created_at values than the in-flight assistant reply.
+ * Persist the single queued user message that triggered a 409.
+ * Only the very last user row is saved — saving earlier queued users here
+ * would give them created_at values before the in-flight assistant, breaking
+ * turn order on refresh.
  */
-export async function persistTrailingUserMessages(
+export async function persistQueuedUserMessage(
   chatId: string,
   messages: WebAgentUIMessage[],
 ): Promise<void> {
@@ -96,6 +97,6 @@ export async function persistTrailingUserMessages(
       await touchChat(chatId).catch(() => undefined);
     }
   } catch (error) {
-    console.error("Failed to persist trailing user message:", error);
+    console.error("Failed to persist queued user message:", error);
   }
 }

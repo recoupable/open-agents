@@ -1,21 +1,8 @@
 import type { WebAgentUIMessage } from "@/app/types";
 
-/** Messages that follow a specific user row in the thread (e.g. later queued prompts). */
-export function getMessagesAfterUser(
-  messages: WebAgentUIMessage[],
-  userMessageId: string,
-): WebAgentUIMessage[] {
-  const userIndex = messages.findIndex((message) => message.id === userMessageId);
-  if (userIndex < 0) {
-    return [];
-  }
-
-  return messages.slice(userIndex + 1);
-}
-
 /**
- * Re-append rows removed when the AI SDK truncates history for a queued turn
- * (`sendMessage` with `messageId` slices after that user).
+ * Re-appends rows that the AI SDK drops when replaying a queued turn
+ * (`sendMessage` with `messageId` slices the history after that user message).
  */
 export function appendMessagesMissingFromTail(
   current: WebAgentUIMessage[],

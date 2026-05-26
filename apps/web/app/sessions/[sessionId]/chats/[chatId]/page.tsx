@@ -156,11 +156,8 @@ export default async function SessionChatPage({
   const lastUserMessage = initialMessages
     .toReversed()
     .find((m) => m.role === "user");
-  const lastUserMessageCreatedAt = lastUserMessage
-    ? createdAtById.get(lastUserMessage.id)
-    : undefined;
-  const lastUserMessageSentAt = lastUserMessageCreatedAt
-    ? lastUserMessageCreatedAt.toISOString()
+  const lastUserMessageSentAt = lastUserMessage
+    ? (createdAtById.get(lastUserMessage.id)?.toISOString() ?? null)
     : null;
   const codeEditorDisabledReason = isManagedTemplateTrialUser(
     session,
