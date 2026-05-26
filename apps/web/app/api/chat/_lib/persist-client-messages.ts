@@ -71,52 +71,31 @@ export async function persistClientAssistantMessages(
 }
 
 /**
- * Persist user messages after the last assistant in the client array.
- * Used when a new prompt arrives during an active stream (409) so every
- * queued user turn is in the DB before the next workflow starts.
+ * Persist the user message that triggered a 409 while another stream is active.
+ * Only the latest user row is saved — persisting every trailing user at once
+ * gives them earlier created_at values than the in-flight assistant reply.
  */
 export async function persistTrailingUserMessages(
   chatId: string,
   messages: WebAgentUIMessage[],
 ): Promise<void> {
-  const trailingUsers: WebAgentUIMessage[] = [];
-
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (!message) {
-      continue;
-    }
-    if (message.role === "assistant") {
-      break;
-    }
-    if (message.role === "user") {
-      trailingUsers.unshift(message);
-    }
-  }
-
-  if (trailingUsers.length === 0) {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage || lastMessage.role !== "user") {
     return;
   }
 
-  let touched = false;
+  try {
+    const created = await createChatMessageIfNotExists({
+      id: lastMessage.id,
+      chatId,
+      role: "user",
+      parts: lastMessage,
+    });
 
-  for (const message of trailingUsers) {
-    try {
-      const created = await createChatMessageIfNotExists({
-        id: message.id,
-        chatId,
-        role: "user",
-        parts: message,
-      });
-      if (created) {
-        touched = true;
-      }
-    } catch (error) {
-      console.error("Failed to persist trailing user message:", error);
+    if (created) {
+      await touchChat(chatId).catch(() => undefined);
     }
-  }
-
-  if (touched) {
-    await touchChat(chatId).catch(() => undefined);
+  } catch (error) {
+    console.error("Failed to persist trailing user message:", error);
   }
 }

@@ -118,6 +118,10 @@ import {
   type ChatOutboundMessageInput,
 } from "@/lib/chat/create-optimistic-user-message";
 import {
+  appendMessagesMissingFromTail,
+  getMessagesAfterUser,
+} from "@/lib/chat/append-messages-missing-from-tail";
+import {
   chatMessagesSnapshotChanged,
   mergeChatMessagesFromServer,
 } from "@/lib/chat/merge-chat-messages-from-server";
@@ -1720,6 +1724,11 @@ export function SessionChatContent({
       markChatSendInFlight();
 
       const { message, existingUserMessageId } = entry;
+      const tailAfterUser =
+        existingUserMessageId != null
+          ? getMessagesAfterUser(messagesRef.current, existingUserMessageId)
+          : [];
+
       const messageWithId =
         existingUserMessageId != null
           ? { ...message, messageId: existingUserMessageId }
@@ -1739,6 +1748,12 @@ export function SessionChatContent({
         setHasPendingResponse(false);
         void setChatStreaming(chatInfo.id, false);
         throw error;
+      } finally {
+        if (tailAfterUser.length > 0) {
+          setMessages((current) =>
+            appendMessagesMissingFromTail(current, tailAfterUser),
+          );
+        }
       }
     },
     [
@@ -1747,6 +1762,7 @@ export function SessionChatContent({
       markChatSendInFlight,
       sendMessage,
       setChatStreaming,
+      setMessages,
     ],
   );
 
@@ -1823,7 +1839,6 @@ export function SessionChatContent({
 
       if (isChatInFlight || hasPendingResponse) {
         await enqueueOutboundMessage(message);
-        markChatSendInFlight();
         return;
       }
 
@@ -1833,7 +1848,6 @@ export function SessionChatContent({
       enqueueOutboundMessage,
       hasPendingResponse,
       isChatInFlight,
-      markChatSendInFlight,
       sendMessageDirect,
     ],
   );

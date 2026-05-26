@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import type { WebAgentUIMessage } from "@/app/types";
 import { DiffsProvider } from "@/components/diffs-provider";
+import { mapDbChatRowsToThreadOrderedMessages } from "@/lib/chat/map-db-chat-rows-to-thread-ordered-messages";
 import {
   getChatById,
   getChatMessages,
@@ -124,7 +124,7 @@ export default async function SessionChatPage({
     notFound();
   }
 
-  const initialMessages = dbMessages.map((m) => m.parts as WebAgentUIMessage);
+  const initialMessages = mapDbChatRowsToThreadOrderedMessages(dbMessages);
 
   // Compute generation duration for each assistant message:
   // duration = assistant.createdAt − preceding user.createdAt
@@ -132,14 +132,19 @@ export default async function SessionChatPage({
   // Also store the preceding user message's createdAt so that a currently-
   // streaming message can show a live timer relative to when the user sent it.
   const messageStartedAtMap: Record<string, string> = {};
-  for (let i = 0; i < dbMessages.length; i++) {
-    const m = dbMessages[i];
-    if (m.role === "assistant" && i > 0) {
-      const prev = dbMessages[i - 1];
-      if (prev && prev.role === "user") {
-        messageDurationMap[m.id] =
-          m.createdAt.getTime() - prev.createdAt.getTime();
-        messageStartedAtMap[m.id] = prev.createdAt.toISOString();
+  const createdAtById = new Map(dbMessages.map((row) => [row.id, row.createdAt]));
+  for (let i = 0; i < initialMessages.length; i++) {
+    const m = initialMessages[i];
+    if (m?.role === "assistant" && i > 0) {
+      const prev = initialMessages[i - 1];
+      if (prev?.role === "user") {
+        const userCreatedAt = createdAtById.get(prev.id);
+        const assistantCreatedAt = createdAtById.get(m.id);
+        if (userCreatedAt && assistantCreatedAt) {
+          messageDurationMap[m.id] =
+            assistantCreatedAt.getTime() - userCreatedAt.getTime();
+          messageStartedAtMap[m.id] = userCreatedAt.toISOString();
+        }
       }
     }
   }
@@ -148,11 +153,14 @@ export default async function SessionChatPage({
   // not be in the maps above (not yet persisted or different ID). Use the
   // last user message's createdAt so the timer still starts from the right
   // moment.
-  const lastUserMessage = dbMessages
+  const lastUserMessage = initialMessages
     .toReversed()
     .find((m) => m.role === "user");
-  const lastUserMessageSentAt = lastUserMessage
-    ? lastUserMessage.createdAt.toISOString()
+  const lastUserMessageCreatedAt = lastUserMessage
+    ? createdAtById.get(lastUserMessage.id)
+    : undefined;
+  const lastUserMessageSentAt = lastUserMessageCreatedAt
+    ? lastUserMessageCreatedAt.toISOString()
     : null;
   const codeEditorDisabledReason = isManagedTemplateTrialUser(
     session,

@@ -3,6 +3,7 @@ import {
   requireOwnedSessionChat,
 } from "@/app/api/sessions/_lib/session-context";
 import type { WebAgentUIMessage } from "@/app/types";
+import { mapDbChatRowsToThreadOrderedMessages } from "@/lib/chat/map-db-chat-rows-to-thread-ordered-messages";
 import {
   deleteChat,
   getChatMessages,
@@ -72,7 +73,7 @@ export async function GET(req: Request, context: RouteContext) {
       activeStreamId: chatContext.chat.activeStreamId,
     },
     isStreaming: chatContext.chat.activeStreamId !== null,
-    messages: messages.map((message) => message.parts as WebAgentUIMessage),
+    messages: mapDbChatRowsToThreadOrderedMessages(messages),
   } satisfies ChatRefreshResponse);
 }
 
