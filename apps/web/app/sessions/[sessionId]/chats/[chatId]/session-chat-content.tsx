@@ -985,7 +985,6 @@ export function SessionChatContent({
     unarchiveSession: _unarchiveSession,
     updateChatModel,
     updateSessionTitle,
-    preferredSandboxType,
     supportsRepoCreation,
     hasRuntimeSandboxState,
     hasSnapshot,
@@ -1913,7 +1912,6 @@ export function SessionChatContent({
   } = useSandboxCreate({
     session,
     sandboxInfo,
-    preferredSandboxType,
     setSandboxInfo,
     setSandboxTypeFromUnknown,
     requestStatusSync,

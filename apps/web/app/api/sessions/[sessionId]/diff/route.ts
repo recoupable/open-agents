@@ -8,10 +8,7 @@ import {
   computeAndCacheDiff,
   DiffComputationError,
 } from "@/lib/diff/compute-diff";
-import { updateSession } from "@/lib/db/sessions";
-import { buildHibernatedLifecycleUpdate } from "@/lib/sandbox/lifecycle";
 import {
-  clearUnavailableSandboxState,
   hasRuntimeSandboxState,
   isSandboxUnavailableError,
 } from "@/lib/sandbox/utils";
@@ -53,13 +50,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isSandboxUnavailableError(message)) {
-      await updateSession(sessionId, {
-        sandboxState: clearUnavailableSandboxState(
-          sessionRecord.sandboxState,
-          message,
-        ),
-        ...buildHibernatedLifecycleUpdate(),
-      });
+      // Don't write hibernated state: post-cutover the sandbox lives in
+      // recoup-api's project, so a connect failure here is "wrong
+      // project, can't see it from open-agents", not "sandbox died."
+      // recoup-api is the source of truth for sandbox_state — leave its
+      // value alone.
       return Response.json(
         { error: "Sandbox is unavailable. Please resume sandbox." },
         { status: 409 },

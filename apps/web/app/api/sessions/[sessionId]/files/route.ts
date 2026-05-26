@@ -3,10 +3,7 @@ import {
   requireAuthenticatedUser,
   requireOwnedSessionWithSandboxGuard,
 } from "@/app/api/sessions/_lib/session-context";
-import { updateSession } from "@/lib/db/sessions";
-import { buildHibernatedLifecycleUpdate } from "@/lib/sandbox/lifecycle";
 import {
-  clearUnavailableSandboxState,
   hasRuntimeSandboxState,
   isSandboxUnavailableError,
 } from "@/lib/sandbox/utils";
@@ -119,13 +116,10 @@ export async function GET(_req: Request, context: RouteContext) {
     if (!trackedResult.success) {
       const stderr = trackedResult.stderr ?? "";
       if (isSandboxUnavailableError(stderr)) {
-        await updateSession(sessionId, {
-          sandboxState: clearUnavailableSandboxState(
-            sessionRecord.sandboxState,
-            stderr,
-          ),
-          ...buildHibernatedLifecycleUpdate(),
-        });
+        // Post-cutover: sandbox lives in recoup-api's project, so a
+        // "not found" here is a cross-project visibility miss, not a
+        // dead sandbox. Don't clobber sandbox_state — recoup-api owns
+        // it now.
         return Response.json(
           { error: "Sandbox is unavailable. Please resume sandbox." },
           { status: 409 },
@@ -141,13 +135,10 @@ export async function GET(_req: Request, context: RouteContext) {
     if (!untrackedResult.success) {
       const stderr = untrackedResult.stderr ?? "";
       if (isSandboxUnavailableError(stderr)) {
-        await updateSession(sessionId, {
-          sandboxState: clearUnavailableSandboxState(
-            sessionRecord.sandboxState,
-            stderr,
-          ),
-          ...buildHibernatedLifecycleUpdate(),
-        });
+        // Post-cutover: sandbox lives in recoup-api's project, so a
+        // "not found" here is a cross-project visibility miss, not a
+        // dead sandbox. Don't clobber sandbox_state — recoup-api owns
+        // it now.
         return Response.json(
           { error: "Sandbox is unavailable. Please resume sandbox." },
           { status: 409 },
@@ -178,13 +169,8 @@ export async function GET(_req: Request, context: RouteContext) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (isSandboxUnavailableError(message)) {
-      await updateSession(sessionId, {
-        sandboxState: clearUnavailableSandboxState(
-          sessionRecord.sandboxState,
-          message,
-        ),
-        ...buildHibernatedLifecycleUpdate(),
-      });
+      // See note above — don't clobber sandbox_state on a connect
+      // failure; recoup-api is the source of truth post-cutover.
       return Response.json(
         { error: "Sandbox is unavailable. Please resume sandbox." },
         { status: 409 },

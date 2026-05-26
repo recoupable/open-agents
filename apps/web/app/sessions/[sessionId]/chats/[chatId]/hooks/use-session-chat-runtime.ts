@@ -99,6 +99,18 @@ export function useSessionChatRuntime({
     () =>
       new AbortableChatTransport({
         api: CHAT_API_POST_PATH,
+        // The Privy JWT serves two purposes after the recoup-api
+        // cutover: (1) Authorization: Bearer header so recoup-api's
+        // validateAuthContext accepts the request, (2) body field so
+        // recoup-api forwards it into the sandbox env as
+        // `RECOUP_ACCESS_TOKEN` for the recoup-api skill's curl
+        // examples. Privy caches the token internally so calling
+        // `getAccessToken()` from both callbacks is cheap.
+        headers: async (): Promise<Record<string, string>> => {
+          const recoupAccessToken = await getAccessToken().catch(() => null);
+          if (!recoupAccessToken) return {};
+          return { Authorization: `Bearer ${recoupAccessToken}` };
+        },
         body: async () => {
           const requestContextLimit = contextLimitRef.current;
           const recoupAccessToken = await getAccessToken().catch((error) => {
@@ -115,6 +127,12 @@ export function useSessionChatRuntime({
             contextLimit: requestContextLimit,
           });
         },
+        // Stop + resume-stream sub-routes remain on open-agents'
+        // own backend — recoup-api doesn't host equivalents yet.
+        // Run-ids aren't portable across Vercel Workflow projects,
+        // so resuming a recoup-api run via the open-agents stream
+        // route will return null. Tracked as partial degradation
+        // until the sub-routes are ported.
         prepareReconnectToStreamRequest: ({ id }) => ({
           api: `/api/chat/${id}/stream`,
         }),
