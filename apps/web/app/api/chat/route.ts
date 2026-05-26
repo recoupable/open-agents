@@ -1,6 +1,7 @@
 import { createUIMessageStreamResponse, type InferUIMessageChunk } from "ai";
 import { start } from "workflow/api";
 import type { WebAgentUIMessage } from "@/app/types";
+import { hasCompletedAssistantBeforeLastUser } from "@/lib/chat/has-completed-assistant-before-last-user";
 import {
   compareAndSetChatActiveStreamId,
   countUserMessagesByUserId,
@@ -130,7 +131,11 @@ export async function POST(req: Request) {
       const lastMessage = messages.at(-1);
       if (lastMessage?.role === "user") {
         const existingMessage = await getChatMessageById(lastMessage.id);
-        if (!existingMessage) {
+        const isQueuedUserTurn =
+          existingMessage != null &&
+          hasCompletedAssistantBeforeLastUser(messages);
+
+        if (!existingMessage || isQueuedUserTurn) {
           await Promise.all([
             persistTrailingUserMessages(chatId, messages),
             persistClientAssistantMessages(chatId, messages),

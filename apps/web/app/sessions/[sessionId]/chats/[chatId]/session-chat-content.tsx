@@ -138,6 +138,9 @@ import { useGitPanel } from "./git-panel-context";
 import { useSandboxCreate } from "@/hooks/use-sandbox-create";
 import { isSandboxValid } from "@/lib/sandbox/is-sandbox-valid";
 import { takePendingBootstrapPrompt } from "@/lib/sessions/pending-bootstrap-prompts";
+
+const CHAT_STREAM_SETTLE_POLL_MS = 250;
+const CHAT_STREAM_SETTLE_MAX_ATTEMPTS = 40;
 import { SandboxCreateErrorBanner } from "./sandbox-create-error-banner";
 import { WorkspaceFileViewer } from "./workspace-file-viewer";
 import "streamdown/styles.css";
@@ -1370,6 +1373,53 @@ export function SessionChatContent({
     lastAt: 0,
   });
   const shouldSkipServerSnapshotOverwriteRef = useRef(false);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
+  const persistClientSnapshotToServer = useCallback(
+    async (snapshot: WebAgentUIMessage[]) => {
+      try {
+        await fetch(
+          `/api/sessions/${session.id}/chats/${chatInfo.id}/persist-client-messages`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: snapshot }),
+          },
+        );
+      } catch {
+        // Best-effort: backfill assistant rows before queue drain or refresh.
+      }
+    },
+    [chatInfo.id, session.id],
+  );
+
+  const waitUntilServerChatNotStreaming = useCallback(async (): Promise<boolean> => {
+    for (
+      let attempt = 0;
+      attempt < CHAT_STREAM_SETTLE_MAX_ATTEMPTS;
+      attempt += 1
+    ) {
+      const response = await fetch(
+        `/api/sessions/${session.id}/chats/${chatInfo.id}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) {
+        return false;
+      }
+
+      const data = (await response.json()) as ChatRefreshResponse;
+      if (!data.isStreaming) {
+        return true;
+      }
+
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, CHAT_STREAM_SETTLE_POLL_MS);
+      });
+    }
+
+    return false;
+  }, [chatInfo.id, session.id]);
 
   const refreshCurrentChatSnapshot = useCallback(async (): Promise<void> => {
     if (shouldSkipServerSnapshotOverwriteRef.current) {
@@ -1640,6 +1690,9 @@ export function SessionChatContent({
 
   const outboundMessageQueueRef = useRef<QueuedOutboundMessage[]>([]);
   const isDrainingOutboundQueueRef = useRef(false);
+  const drainOutboundMessageQueueRef = useRef<() => Promise<void>>(
+    async () => undefined,
+  );
 
   const isChatResponseInProgressError = useCallback((error: unknown) => {
     if (!(error instanceof Error)) {
@@ -1677,6 +1730,9 @@ export function SessionChatContent({
       } catch (error) {
         if (isChatResponseInProgressError(error)) {
           outboundMessageQueueRef.current.unshift(entry);
+          setTimeout(() => {
+            void drainOutboundMessageQueueRef.current();
+          }, CHAT_STREAM_SETTLE_POLL_MS);
           return;
         }
 
@@ -1716,11 +1772,22 @@ export function SessionChatContent({
 
     isDrainingOutboundQueueRef.current = true;
     try {
+      const streamSettled = await waitUntilServerChatNotStreaming();
+      if (!streamSettled) {
+        outboundMessageQueueRef.current.unshift(nextEntry);
+        setTimeout(() => {
+          void drainOutboundMessageQueueRef.current();
+        }, CHAT_STREAM_SETTLE_POLL_MS);
+        return;
+      }
+
       await submitOutboundMessage(nextEntry);
     } finally {
       isDrainingOutboundQueueRef.current = false;
     }
-  }, [submitOutboundMessage, status]);
+  }, [submitOutboundMessage, status, waitUntilServerChatNotStreaming]);
+
+  drainOutboundMessageQueueRef.current = drainOutboundMessageQueue;
 
   const enqueueOutboundMessage = useCallback(
     async (message: ChatOutboundMessageInput) => {
@@ -2127,6 +2194,9 @@ export function SessionChatContent({
       const refreshCompletedTurnState = async () => {
         await requestStatusSync("force").catch(() => undefined);
         if (!userStopped) {
+          await persistClientSnapshotToServer(messagesRef.current).catch(
+            () => undefined,
+          );
           // Reconcile in-memory chat state with persisted messages so earlier
           // assistant replies stay visible when the user sends the next prompt.
           await refreshCurrentChatSnapshot().catch(() => undefined);
@@ -2165,6 +2235,7 @@ export function SessionChatContent({
     requestMarkChatRead,
     refreshChats,
     refreshCurrentChatSnapshot,
+    persistClientSnapshotToServer,
     drainOutboundMessageQueue,
     session.cloneUrl,
     session.repoOwner,

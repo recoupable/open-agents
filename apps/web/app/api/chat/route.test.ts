@@ -509,6 +509,45 @@ describe("/api/chat route", () => {
     expect(compareAndSetChatActiveStreamIdSpy).not.toHaveBeenCalled();
   });
 
+  test("returns 409 when a queued user turn follows completed assistants during an active stream", async () => {
+    if (!chatRecord) throw new Error("chatRecord must be set");
+    chatRecord.activeStreamId = "wrun_existing-456";
+    existingRunStatus = "running";
+    existingChatMessage = { id: "user-3" };
+
+    const { POST } = await routeModulePromise;
+
+    const response = await POST(
+      createRequest(
+        JSON.stringify({
+          sessionId: "session-1",
+          chatId: "chat-1",
+          messages: [
+            {
+              id: "user-1",
+              role: "user",
+              parts: [{ type: "text", text: "Weather?" }],
+            },
+            {
+              id: "assistant-1",
+              role: "assistant",
+              parts: [{ type: "text", text: "Rain in Cali." }],
+            },
+            {
+              id: "user-3",
+              role: "user",
+              parts: [{ type: "text", text: "Instagram accounts?" }],
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(response.status).toBe(409);
+    expect(startCalls).toHaveLength(0);
+    expect(persistTrailingUserMessagesSpy).toHaveBeenCalled();
+  });
+
   test("reconnects when last message is user but already persisted", async () => {
     if (!chatRecord) throw new Error("chatRecord must be set");
     chatRecord.activeStreamId = "wrun_existing-456";
