@@ -2,7 +2,7 @@
 
 /**
  * In-memory stash of bootstrap prompts keyed by chatId. Survives the
- * `router.push` soft navigation from `useCreatePersonalSession` to the
+ * `router.push` soft navigation from `useCreateSession` to the
  * chat page (same JS context). The chat page consumes the entry once
  * the sandbox becomes active, then clears it.
  *

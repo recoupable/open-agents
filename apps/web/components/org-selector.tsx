@@ -5,10 +5,15 @@ import { Building2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useOrgs, type Org } from "@/hooks/use-orgs";
-import { buildOrgRepoUrl } from "@/lib/recoupable/build-org-repo-url";
 
 type OrgSelectorProps = {
-  onSelectOrg: (cloneUrl: string) => void;
+  /**
+   * Called with the selected org's id. The caller drives session
+   * creation via `useCreateSession({ organizationId })` — recoup-api
+   * derives the workspace cloneUrl itself, so this component doesn't
+   * construct any URLs.
+   */
+  onSelectOrg: (organizationId: string) => void;
   disabled?: boolean;
 };
 
@@ -19,12 +24,7 @@ export function OrgSelector({ onSelectOrg, disabled }: OrgSelectorProps) {
   function handleOrgClick(org: Org) {
     if (disabled) return;
     setSelectedOrgId(org.organization_id);
-    onSelectOrg(
-      buildOrgRepoUrl({
-        organizationName: org.organization_name,
-        organizationId: org.organization_id,
-      }),
-    );
+    onSelectOrg(org.organization_id);
   }
 
   if (loading) {

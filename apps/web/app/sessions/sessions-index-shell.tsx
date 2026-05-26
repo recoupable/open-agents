@@ -16,12 +16,7 @@ import { useOrgs } from "@/hooks/use-orgs";
 import { useSessionsShell } from "./sessions-shell-context";
 
 export function SessionsIndexShell() {
-  const {
-    createBlankSession,
-    isCreatingBlank,
-    createPersonalSession,
-    isCreatingPersonal,
-  } = useSessionsShell();
+  const { createSession, isCreating } = useSessionsShell();
   const { orgs, resolved: orgsResolved, error: orgsError } = useOrgs();
   const personalProvisionTriggeredRef = useRef(false);
 
@@ -34,27 +29,20 @@ export function SessionsIndexShell() {
   useEffect(() => {
     if (!orgsResolved || orgsError) return;
     if (orgs.length > 0) return;
-    if (isCreatingBlank || isCreatingPersonal) return;
+    if (isCreating) return;
     if (personalProvisionTriggeredRef.current) return;
     personalProvisionTriggeredRef.current = true;
-    void createPersonalSession();
-  }, [
-    createPersonalSession,
-    isCreatingBlank,
-    isCreatingPersonal,
-    orgs.length,
-    orgsError,
-    orgsResolved,
-  ]);
+    void createSession();
+  }, [createSession, isCreating, orgs.length, orgsError, orgsResolved]);
 
   const handleSelectOrg = useCallback(
-    (cloneUrl: string) => {
-      void createBlankSession(cloneUrl);
+    (organizationId: string) => {
+      void createSession({ organizationId });
     },
-    [createBlankSession],
+    [createSession],
   );
 
-  const showLoadingState = isCreatingBlank || isCreatingPersonal;
+  const showLoadingState = isCreating;
 
   return (
     <>
@@ -88,7 +76,7 @@ export function SessionsIndexShell() {
             <EmptyContent>
               <OrgSelector
                 onSelectOrg={handleSelectOrg}
-                disabled={isCreatingBlank}
+                disabled={isCreating}
               />
             </EmptyContent>
           )}

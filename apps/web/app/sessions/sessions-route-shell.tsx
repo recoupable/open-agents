@@ -19,10 +19,9 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import { useBackgroundChatNotifications } from "@/hooks/use-background-chat-notifications";
-import { useCreatePersonalSession } from "@/hooks/use-create-personal-session";
+import { useCreateSession } from "@/hooks/use-create-session";
 import { useSessions, type SessionWithUnread } from "@/hooks/use-sessions";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
-import { DEFAULT_SANDBOX_TYPE } from "@/components/sandbox-selector-compact";
 import type { Session as AuthSession } from "@/lib/session/types";
 import { SessionsShellProvider } from "./sessions-shell-context";
 
@@ -66,7 +65,6 @@ export function SessionsRouteShell({
     sessions,
     archivedCount,
     loading: sessionsLoading,
-    createSession,
     renameSession,
     archiveSession,
     unarchiveSession,
@@ -86,31 +84,7 @@ export function SessionsRouteShell({
 
   const { preferences } = useUserPreferences();
 
-  const [isCreatingBlank, setIsCreatingBlank] = useState(false);
-  const createBlankSession = useCallback(
-    async (cloneUrl: string) => {
-      if (isCreatingBlank) return;
-      setIsCreatingBlank(true);
-      try {
-        const { session: created, chat } = await createSession({
-          cloneUrl,
-          isNewBranch: false,
-          sandboxType: preferences?.defaultSandboxType ?? DEFAULT_SANDBOX_TYPE,
-          autoCommitPush: preferences?.autoCommitPush ?? false,
-          autoCreatePr: preferences?.autoCreatePr ?? false,
-        });
-        router.push(`/sessions/${created.id}/chats/${chat.id}`);
-      } catch (error) {
-        console.error("Failed to create new session:", error);
-      } finally {
-        setIsCreatingBlank(false);
-      }
-    },
-    [createSession, isCreatingBlank, preferences, router],
-  );
-
-  const { createPersonalSession, isCreatingPersonal } =
-    useCreatePersonalSession();
+  const { createSession, isCreating } = useCreateSession();
 
   const handleSessionClick = useCallback(
     (targetSession: SessionWithUnread) => {
@@ -215,18 +189,8 @@ export function SessionsRouteShell({
   });
 
   const shellContextValue = useMemo(
-    () => ({
-      createBlankSession,
-      isCreatingBlank,
-      createPersonalSession,
-      isCreatingPersonal,
-    }),
-    [
-      createBlankSession,
-      createPersonalSession,
-      isCreatingBlank,
-      isCreatingPersonal,
-    ],
+    () => ({ createSession, isCreating }),
+    [createSession, isCreating],
   );
 
   return (

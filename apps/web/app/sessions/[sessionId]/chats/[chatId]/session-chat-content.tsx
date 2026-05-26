@@ -2328,9 +2328,10 @@ export function SessionChatContent({
   const isSandboxActive = isSandboxValid(sandboxInfo) && serverSaysActive;
 
   // Auto-submit the personal-session bootstrap prompt once the sandbox
-  // is active. The prompt is stashed by `useCreatePersonalSession`
-  // immediately before navigating here; we only fire when the workflow
-  // can actually accept it (avoids the "Sandbox not initialized" race).
+  // is active. The prompt is stashed by `useCreateSession` (personal
+  // branch only) immediately before navigating here; we only fire when
+  // the workflow can actually accept it (avoids the "Sandbox not
+  // initialized" race).
   useEffect(() => {
     if (bootstrapAttemptedRef.current) return;
     if (!isSandboxActive) return;
