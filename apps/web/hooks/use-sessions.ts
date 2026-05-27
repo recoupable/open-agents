@@ -5,7 +5,6 @@ import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import useSWR, { useSWRConfig } from "swr";
 import type { Chat, Session } from "@/lib/db/schema";
-import { applySyncUnarchiveLifecyclePatch } from "@/lib/session/apply-sync-unarchive-lifecycle-patch";
 import { patchOwnSession } from "@/lib/session/patch-own-session";
 import { fetcher } from "@/lib/swr";
 
@@ -377,7 +376,7 @@ export function useSessions(options?: {
             sessions: includeArchived
               ? source.sessions.map((session) =>
                   session.id === sessionId
-                    ? applySyncUnarchiveLifecyclePatch(session)
+                    ? { ...session, status: "running" as const }
                     : session,
                 )
               : source.sessions,
