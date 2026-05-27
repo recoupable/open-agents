@@ -4,16 +4,15 @@ import type { ReactNode } from "react";
 import { createContext, useContext } from "react";
 
 type SessionsShellContextValue = {
-  createBlankSession: (cloneUrl: string) => Promise<void>;
-  isCreatingBlank: boolean;
   /**
-   * Onboarding fallback for users with zero orgs. Calls
-   * `POST /api/sessions/personal`, which provisions a personal repo + session
-   * and routes the user into it. Safe to call repeatedly; the underlying
-   * endpoint is idempotent on email + repo creation.
+   * Unified personal + org session creator. Calls
+   * `POST recoup-api/api/sessions` with either an empty body (personal,
+   * recoup-api derives `recoupable/<accountId>`) or
+   * `{ organizationId }` (org, recoup-api derives `recoupable/<orgId>`).
+   * See `useCreateSession`.
    */
-  createPersonalSession: () => Promise<void>;
-  isCreatingPersonal: boolean;
+  createSession: (params?: { organizationId?: string }) => Promise<void>;
+  isCreating: boolean;
 };
 
 const SessionsShellContext = createContext<
