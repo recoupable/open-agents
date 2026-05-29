@@ -6,6 +6,7 @@ import useSWR, { useSWRConfig } from "swr";
 import type { Chat } from "@/lib/db/schema";
 import { createRecoupSessionChat } from "@/lib/recoupable/create-recoup-session-chat";
 import { listRecoupSessionChats } from "@/lib/recoupable/list-recoup-session-chats";
+import { markRecoupChatRead } from "@/lib/recoupable/mark-recoup-chat-read";
 export type SessionChatListItem = Chat & {
   hasUnread: boolean;
   isStreaming: boolean;
@@ -754,18 +755,12 @@ export function useSessionChats(
       throw new Error("Missing sessionId");
     }
 
-    const res = await fetch(`/api/sessions/${sessionId}/chats/${chatId}/read`, {
-      method: "POST",
-    });
-
-    const responseData = (await res.json()) as {
-      success?: boolean;
-      error?: string;
-    };
-
-    if (!res.ok || !responseData.success) {
-      throw new Error(responseData.error ?? "Failed to mark chat as read");
+    const accessToken = await getAccessToken();
+    if (!accessToken) {
+      throw new Error("Not authenticated");
     }
+
+    await markRecoupChatRead(sessionId, chatId, accessToken);
 
     await mutate(
       (current) =>
