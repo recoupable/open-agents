@@ -5,7 +5,7 @@ import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
  * callers.
  *
  * Cut over (recoupable/api#601) from open-agents' own
- * `/api/chat` route to recoup-api's `/api/chat/workflow` — the
+ * `/api/chat` route to recoup-api's chat-workflow endpoint — the
  * backend port that runs the agent loop as a durable Vercel
  * Workflow against the session's sandbox. Same wire format
  * (`message-metadata`, task-tool async-generator yields,
@@ -18,7 +18,7 @@ import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
  * recoup-api yet. Cancel-from-UI and refresh-mid-stream are
  * known partial-degradation paths until those land.
  */
-export const CHAT_API_POST_PATH = `${RECOUPABLE_API_BASE_URL}/api/chat/workflow`;
+export const CHAT_API_POST_PATH = `${RECOUPABLE_API_BASE_URL}/api/chat`;
 
 export type ChatApiCommonBodyFields = {
   sessionId: string;
