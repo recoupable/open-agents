@@ -1,42 +1,16 @@
-import { gateway, generateText } from "ai";
-import { z } from "zod";
+import { experimental_transcribe as transcribe } from "ai";
+import { elevenlabs } from "@ai-sdk/elevenlabs";
+import {
+  enforceRateLimit,
+  RATE_LIMITS,
+  withRateLimitHeaders,
+} from "@/lib/rate-limit";
 import { getServerSession } from "@/lib/session/get-server-session";
 
-/**
- * Generates a short, descriptive session title from a user message using AI.
- *
- * Can be called directly as a POST endpoint or used internally via
- * `generateSessionTitle()` for non-blocking server-side usage.
- */
-export async function generateSessionTitle(
-  message: string,
-): Promise<string | null> {
-  const trimmed = message.trim().slice(0, 2000);
-  if (trimmed.length === 0) return null;
-
-  try {
-    const result = await generateText({
-      model: gateway("anthropic/claude-haiku-4.5"),
-      prompt: `You are a developer tool that names coding sessions. Generate a concise title (max 5 words) for a coding session based on the user's first message below. The title should help the user quickly identify what this session is about at a glance. Do NOT use quotes or punctuation around the title. Respond with ONLY the title, nothing else.
-
-User message:
-${trimmed}`,
-    });
-
-    const title = result.text.trim().split("\n")[0]?.trim();
-    if (title && title.length > 0) {
-      return title.slice(0, 60);
-    }
-    return null;
-  } catch (error) {
-    console.error("[generate-title] Failed to generate title:", error);
-    return null;
-  }
+interface TranscribeRequestBody {
+  audio: string; // base64-encoded audio data
+  mimeType?: string; // e.g., "audio/webm" - accepted but not currently used
 }
-
-const generateTitleRequestSchema = z.object({
-  message: z.string().trim().min(1),
-});
 
 export async function POST(req: Request) {
   const session = await getServerSession();
@@ -44,32 +18,76 @@ export async function POST(req: Request) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  let body: unknown;
+  const limit = await enforceRateLimit(
+    req,
+    RATE_LIMITS.transcribe,
+    session.user.id,
+  );
+  if (!limit.ok) return limit.response;
+
+  let body: TranscribeRequestBody;
   try {
-    body = await req.json();
+    body = (await req.json()) as TranscribeRequestBody;
   } catch {
-    return Response.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const parsedBody = generateTitleRequestSchema.safeParse(body);
-
-  if (!parsedBody.success) {
-    return Response.json(
-      { error: "Missing required field: message" },
-      { status: 400 },
+    return withRateLimitHeaders(
+      Response.json({ error: "Invalid JSON body" }, { status: 400 }),
+      limit.headers,
     );
   }
 
-  const { message } = parsedBody.data;
+  const { audio } = body;
 
-  const title = await generateSessionTitle(message);
-
-  if (!title) {
-    return Response.json(
-      { error: "Failed to generate title" },
-      { status: 500 },
+  if (!audio) {
+    return withRateLimitHeaders(
+      Response.json(
+        { error: "Missing required field: audio" },
+        { status: 400 },
+      ),
+      limit.headers,
     );
   }
 
-  return Response.json({ title });
+  // Limit audio size to ~7.5MB of raw audio (10MB base64)
+  const maxBase64Length = 10 * 1024 * 1024;
+  if (audio.length > maxBase64Length) {
+    return withRateLimitHeaders(
+      Response.json(
+        { error: "Audio file too large. Maximum size is approximately 7.5MB." },
+        { status: 413 },
+      ),
+      limit.headers,
+    );
+  }
+
+  try {
+    const result = await transcribe({
+      model: elevenlabs.transcription("scribe_v1"),
+      audio: audio, // base64 string is accepted directly
+      providerOptions: {
+        elevenlabs: {
+          // Disable audio event tagging (e.g., [background noise], [music])
+          // so the transcription focuses only on spoken words
+          tagAudioEvents: false,
+          // Hint that we expect a single primary speaker
+          numSpeakers: 1,
+          // Set English as the expected language for better accuracy
+          // with developer/technical terminology
+          languageCode: "eng",
+        },
+      },
+    });
+
+    return withRateLimitHeaders(
+      Response.json({ text: result.text }),
+      limit.headers,
+    );
+  } catch (error) {
+    // Don't echo provider error text to clients (separate finding #25).
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Transcription failed:", message);
+    return withRateLimitHeaders(
+      Response.json({ error: "Transcription failed" }, { status: 500 }),
+      limit.headers,
+    );
+  }
 }
