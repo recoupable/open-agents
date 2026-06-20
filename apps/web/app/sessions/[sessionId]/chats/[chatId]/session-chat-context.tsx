@@ -14,6 +14,8 @@ import {
   useState,
 } from "react";
 import { useSWRConfig } from "swr";
+import type { RecoupSessionChat } from "@/lib/recoupable/get-recoup-session-chat";
+import { patchRecoupSessionChat } from "@/lib/recoupable/patch-recoup-session-chat";
 import type { ReconnectResponse } from "@/app/api/sandbox/reconnect/route";
 import type { SandboxStatusResponse } from "@/app/api/sandbox/status/route";
 import { RECOUPABLE_API_BASE_URL } from "@/lib/recoupable/api-base-url";
@@ -30,7 +32,7 @@ import {
   useSessionGitStatus,
 } from "@/hooks/use-session-git-status";
 import { useSessionSkills } from "@/hooks/use-session-skills";
-import type { Chat, Session } from "@/lib/db/schema";
+import type { Session } from "@/lib/db/schema";
 import { type ModelOption, withMissingModelOption } from "@/lib/model-options";
 import {
   clearSandboxResumeState,
@@ -104,7 +106,7 @@ function resolveContextLimitForModel(
 
 type SessionChatContextValue = {
   session: Session;
-  chatInfo: Chat;
+  chatInfo: RecoupSessionChat;
   chat: UseChatHelpers<WebAgentUIMessage>;
   contextLimit: number | null;
   stopChatStream: () => void;
@@ -272,7 +274,7 @@ const sandboxInfoCache = new Map<string, SandboxInfo>();
 
 type SessionChatProviderProps = {
   session: Session;
-  chat: Chat;
+  chat: RecoupSessionChat;
   initialMessages: WebAgentUIMessage[];
   initialModelOptions: ModelOption[];
   children: ReactNode;
@@ -293,7 +295,7 @@ export function SessionChatProvider({
   const { getAccessToken } = usePrivy();
   const sessionId = initialSession.id;
   const [sessionRecord, setSessionRecord] = useState<Session>(initialSession);
-  const [chatInfo, setChatInfo] = useState<Chat>(initialChat);
+  const [chatInfo, setChatInfo] = useState<RecoupSessionChat>(initialChat);
   const [hasSnapshotState, setHasSnapshotState] = useState<boolean>(
     !hasRuntimeSandboxStateValue(initialSession.sandboxState) &&
       (hasPausedSandboxState(initialSession.sandboxState) ||
@@ -892,23 +894,21 @@ export function SessionChatProvider({
 
   const updateChatModel = useCallback(
     async (modelId: string) => {
-      const res = await fetch(
-        `/api/sessions/${sessionRecord.id}/chats/${chatInfo.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ modelId }),
-        },
-      );
-
-      const data = (await res.json()) as { chat?: Chat; error?: string };
-      if (!res.ok || !data.chat) {
-        throw new Error(data.error ?? "Failed to update chat model");
+      const accessToken = await getAccessToken();
+      if (!accessToken) {
+        throw new Error("Not authenticated");
       }
 
-      setChatInfo(data.chat);
+      const { chat: updatedChat } = await patchRecoupSessionChat(
+        sessionRecord.id,
+        chatInfo.id,
+        { modelId },
+        accessToken,
+      );
+
+      setChatInfo(updatedChat);
     },
-    [sessionRecord.id, chatInfo.id],
+    [sessionRecord.id, chatInfo.id, getAccessToken],
   );
 
   const runtimeContextValue = useMemo<SessionChatRuntimeContextValue>(
