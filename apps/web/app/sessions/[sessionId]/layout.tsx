@@ -6,6 +6,8 @@ import { getSessionByIdCached } from "@/lib/db/sessions-cache";
 import { getUserPreferences } from "@/lib/db/user-preferences";
 import { sanitizeUserPreferencesForSession } from "@/lib/model-access";
 import { getServerSession } from "@/lib/session/get-server-session";
+import type { SessionChatListItem } from "@/hooks/use-session-chats";
+import { toRecoupChat } from "@/lib/recoupable/recoup-chat";
 import { SessionLayoutShell } from "./session-layout-shell";
 
 interface SessionLayoutProps {
@@ -38,7 +40,7 @@ export default async function SessionLayout({
 
   let initialChatsData:
     | {
-        chats: Awaited<ReturnType<typeof getChatSummariesBySessionId>>;
+        chats: SessionChatListItem[];
         defaultModelId: string | null;
       }
     | undefined;
@@ -55,7 +57,9 @@ export default async function SessionLayout({
       requestHost,
     );
     initialChatsData = {
-      chats,
+      // Serialize Drizzle Date timestamps to the recoupable wire shape
+      // before handing off to client components.
+      chats: chats.map(toRecoupChat),
       defaultModelId: preferences.defaultModelId,
     };
   } catch (error) {
