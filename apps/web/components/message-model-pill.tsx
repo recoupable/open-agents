@@ -2,11 +2,9 @@
 
 import type { WebAgentMessageMetadata } from "@/app/types";
 import type { ModelOption } from "@/lib/model-options";
-import {
-  ProviderIcon,
-  getProviderFromModelId,
-  stripProviderPrefix,
-} from "@/components/provider-icons";
+import { ProviderIcon } from "@/components/provider-icons";
+import { getProviderFromModelId } from "@/lib/model-providers/get-provider-from-model-id";
+import { stripProviderPrefix } from "@/lib/model-providers/strip-provider-prefix";
 import {
   Tooltip,
   TooltipContent,

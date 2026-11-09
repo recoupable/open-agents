@@ -8,10 +8,9 @@ import {
   MODEL_VARIANT_ID_PREFIX,
   type ModelVariant,
 } from "@/lib/model-variants";
-import {
-  getProviderFromModelId,
-  stripProviderPrefix,
-} from "@/components/provider-icons";
+import { getProviderFromModelId } from "@/lib/model-providers/get-provider-from-model-id";
+import { stripProviderPrefix } from "@/lib/model-providers/strip-provider-prefix";
+import { compareProviders } from "@/lib/model-providers/compare-providers";
 
 export interface ModelOption {
   id: string;
@@ -60,9 +59,6 @@ function toVariantOption(
   };
 }
 
-/** Providers pinned to the top of the list, in order. */
-const PRIORITY_PROVIDERS = ["anthropic", "openai"];
-
 export interface ModelGroup {
   provider: string;
   label: string;
@@ -86,14 +82,7 @@ export function groupByProvider(options: ModelOption[]): ModelGroup[] {
   }
 
   // Sort: priority providers first (in order), then rest alphabetically
-  providers.sort((a, b) => {
-    const aIdx = PRIORITY_PROVIDERS.indexOf(a);
-    const bIdx = PRIORITY_PROVIDERS.indexOf(b);
-    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-    if (aIdx !== -1) return -1;
-    if (bIdx !== -1) return 1;
-    return a.localeCompare(b);
-  });
+  providers.sort(compareProviders);
 
   return providers.map((provider) => ({
     provider,
@@ -114,13 +103,6 @@ export function buildModelOptions(
   );
 
   return [...baseModelOptions, ...variantOptions];
-}
-
-export function buildSessionChatModelOptions(
-  models: AvailableModel[],
-  modelVariants: ModelVariant[],
-): ModelOption[] {
-  return buildModelOptions(models, modelVariants);
 }
 
 export function withMissingModelOption(

@@ -248,61 +248,6 @@ const providerIconMap: Record<string, React.FC<IconProps>> = {
   zai: ZAIIcon,
 };
 
-const providerDisplayNames: Record<string, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Google",
-  xai: "xAI",
-  groq: "Groq",
-  mistral: "Mistral",
-  deepseek: "DeepSeek",
-  perplexity: "Perplexity",
-  moonshot: "Moonshot",
-  togetherai: "Together AI",
-  cohere: "Cohere",
-  fireworks: "Fireworks",
-  meta: "Meta",
-  zai: "ZAI",
-};
-
-/** Prefixes in model display names that match the provider brand (stripped in compact UI). */
-const providerLabelPrefixes: Record<string, string[]> = {
-  anthropic: ["Claude"],
-  google: ["Gemini"],
-  xai: ["Grok"],
-  mistral: ["Mistral"],
-  deepseek: ["DeepSeek"],
-  meta: ["Meta"],
-};
-
-export function getProviderFromModelId(modelId: string): string {
-  const slashIndex = modelId.indexOf("/");
-  if (slashIndex === -1) return modelId;
-  return modelId.slice(0, slashIndex);
-}
-
-/**
- * Strip the provider brand prefix from a model label for compact display.
- * e.g. "Claude Opus 4.6" → "Opus 4.6", "GPT-5.4" → "GPT-5.4"
- */
-export function stripProviderPrefix(label: string, provider: string): string {
-  const prefixes = providerLabelPrefixes[provider];
-  if (!prefixes) return label;
-  for (const prefix of prefixes) {
-    if (label.startsWith(prefix + " ")) {
-      return label.slice(prefix.length + 1);
-    }
-  }
-  return label;
-}
-
-export function getProviderDisplayName(provider: string): string {
-  return (
-    providerDisplayNames[provider] ??
-    provider.charAt(0).toUpperCase() + provider.slice(1)
-  );
-}
-
 interface ProviderIconProps extends IconProps {
   provider: string;
 }
