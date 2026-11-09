@@ -1,5 +1,7 @@
 "use client";
 
+import { formatUsd } from "@/lib/usage/format-usd";
+
 import type { AskUserQuestionInput } from "@open-harness/agent";
 import { formatTokens } from "@open-harness/shared";
 import {
@@ -117,7 +119,6 @@ import { fetcher } from "@/lib/swr";
 import { streamdownPlugins } from "@/lib/streamdown-config";
 import { cn } from "@/lib/utils";
 import {
-  type SandboxInfo,
   useSessionChatMetadataContext,
   useSessionChatRuntimeContext,
   useSessionChatWorkspaceContext,
@@ -370,37 +371,6 @@ function GitDataPartCard({
       {/* Subtitle (commit message when SHA is shown as detail) */}
       {subtitle && <p className="sr-only">{subtitle}</p>}
     </div>
-  );
-}
-
-function formatUsd(amount: number): string {
-  if (amount >= 100) {
-    return "$" + amount.toLocaleString("en-US", { maximumFractionDigits: 0 });
-  }
-  if (amount >= 1) {
-    return (
-      "$" +
-      amount.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    );
-  }
-  if (amount >= 0.01) {
-    return (
-      "$" +
-      amount.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })
-    );
-  }
-  return (
-    "$" +
-    amount.toLocaleString("en-US", {
-      minimumFractionDigits: 4,
-      maximumFractionDigits: 4,
-    })
   );
 }
 
@@ -664,76 +634,6 @@ function ContextUsageIndicator({
         </div>
       </TooltipContent>
     </Tooltip>
-  );
-}
-
-function _SandboxHeaderBadge({
-  sandboxInfo,
-  isActive,
-  isCreating,
-  isRestoring,
-  isReconnecting,
-  isHibernating,
-}: {
-  sandboxInfo: SandboxInfo | null;
-  isActive: boolean;
-  isCreating: boolean;
-  isRestoring: boolean;
-  isReconnecting: boolean;
-  isHibernating: boolean;
-}) {
-  // Creating/restoring/transition state.
-  if (isCreating || isRestoring || isReconnecting || isHibernating) {
-    const transitionLabel = isHibernating
-      ? "Hibernating sandbox..."
-      : isReconnecting
-        ? "Reconnecting sandbox..."
-        : "Creating sandbox...";
-
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center justify-center">
-            <Loader2 className="size-3 animate-spin text-yellow-500" />
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={8}>
-          {isRestoring ? "Restoring sandbox..." : transitionLabel}
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  // Inactive - show gray dot
-  if (!sandboxInfo || !isActive) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center justify-center p-1">
-            <span className="size-2.5 rounded-full bg-muted-foreground/40" />
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={8}>
-          Sandbox inactive
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  // Active - show green dot
-  return (
-    <div className="flex items-center gap-1">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center p-1">
-            <span className="size-2.5 rounded-full bg-green-500" />
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={8}>
-          Sandbox active
-        </TooltipContent>
-      </Tooltip>
-    </div>
   );
 }
 

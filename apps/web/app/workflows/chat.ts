@@ -11,7 +11,7 @@ import {
 import type { OpenHarnessAgentCallOptions } from "@open-harness/agent";
 import { getWorkflowMetadata, getWritable } from "workflow";
 import { getRun } from "workflow/api";
-import { addLanguageModelUsage } from "./usage-utils";
+import { addLanguageModelUsage } from "@open-harness/agent/add-language-model-usage";
 import { extractGatewayCost } from "./gateway-metadata";
 import type {
   WebAgentCommitData,

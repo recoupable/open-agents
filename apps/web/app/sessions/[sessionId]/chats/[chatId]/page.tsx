@@ -10,10 +10,7 @@ import {
 } from "@/lib/db/sessions";
 import { getSessionByIdCached } from "@/lib/db/sessions-cache";
 import { getUserPreferences } from "@/lib/db/user-preferences";
-import {
-  buildSessionChatModelOptions,
-  withMissingModelOption,
-} from "@/lib/model-options";
+import { buildModelOptions, withMissingModelOption } from "@/lib/model-options";
 import {
   filterModelVariantsForSession,
   filterModelsForSession,
@@ -183,7 +180,7 @@ export default async function SessionChatPage({
       requestHost,
     ) ?? chat.modelId;
   const initialModelOptions = withMissingModelOption(
-    buildSessionChatModelOptions(filteredModels, modelVariants),
+    buildModelOptions(filteredModels, modelVariants),
     chatModelId,
   );
 

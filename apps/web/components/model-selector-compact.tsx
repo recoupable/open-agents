@@ -18,10 +18,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  ProviderIcon,
-  getProviderDisplayName,
-} from "@/components/provider-icons";
+import { ProviderIcon } from "@/components/provider-icons";
+import { getProviderDisplayName } from "@/lib/model-providers/get-provider-display-name";
 
 interface ModelSelectorCompactProps {
   value: string;

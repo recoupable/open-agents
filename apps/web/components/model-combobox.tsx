@@ -16,12 +16,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  ProviderIcon,
-  getProviderFromModelId,
-  getProviderDisplayName,
-  stripProviderPrefix,
-} from "@/components/provider-icons";
+import { ProviderIcon } from "@/components/provider-icons";
+import { getProviderFromModelId } from "@/lib/model-providers/get-provider-from-model-id";
+import { getProviderDisplayName } from "@/lib/model-providers/get-provider-display-name";
+import { stripProviderPrefix } from "@/lib/model-providers/strip-provider-prefix";
+import { compareProviders } from "@/lib/model-providers/compare-providers";
 
 interface ModelComboboxItem {
   id: string;
@@ -42,9 +41,6 @@ interface ModelComboboxProps {
   onChange: (value: string) => void;
 }
 
-/** Providers pinned to the top. */
-const PRIORITY_PROVIDERS = ["anthropic", "openai"];
-
 function groupByProvider(items: ModelComboboxItem[]) {
   const groups: Record<string, ModelComboboxItem[]> = {};
   const providers: string[] = [];
@@ -57,14 +53,7 @@ function groupByProvider(items: ModelComboboxItem[]) {
     groups[provider].push(item);
   }
 
-  providers.sort((a, b) => {
-    const aIdx = PRIORITY_PROVIDERS.indexOf(a);
-    const bIdx = PRIORITY_PROVIDERS.indexOf(b);
-    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-    if (aIdx !== -1) return -1;
-    if (bIdx !== -1) return 1;
-    return a.localeCompare(b);
-  });
+  providers.sort(compareProviders);
 
   return providers.map((provider) => ({
     provider,

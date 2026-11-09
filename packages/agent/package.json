@@ -5,7 +5,8 @@
   "type": "module",
   "main": "./index.ts",
   "exports": {
-    ".": "./index.ts"
+    ".": "./index.ts",
+    "./add-language-model-usage": "./add-language-model-usage.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
